@@ -47,3 +47,15 @@ Non-obvious choices and why. Newest at the bottom.
 - **Live calibration clicks:** the party hat (684,53 stage) opens the panel and the blue X (1237,335 stage) closes it; verified on screen (diff 63 open, 3 after close). Third party of the day in the slot: *Spooky Party* (Haunted Forest 13:34, Paradise 14:08, Spooky ≈15:00), consistent with a ~30 min rotation.
 - **`hunt --no-join`** is the 30-minute acceptance run: it opens/closes the panel and logs sightings but never clicks GO NOW. `--dry-run` sends no input at all (it can only analyse a panel that is already open). On join, Phase C does not exist yet, so the hunter starts a Learn-only recording of the arena (KICKOFF §8.2).
 - **Presence detection is wired into the hunt loop:** OS input newer than our last injection pauses hunting ("Paused — user active") and the next scan waits `resume_after_idle_s`. The room changed and the window state changed during this session, which means William was at the keyboard; no further live input was sent after that.
+
+## 2026-10-26 — M4
+
+- **GUI architecture:** `app/engine.py` is a Qt-free facade owning the bus, store, notifier, capture, input, watchdog, anti-AFK, ledger, modes and the recorder; every worker runs on its own thread; the GUI only reads `engine.state` on a 500 ms timer and receives bus events through `QtBus` (a queued Qt signal). Modes not built yet (farm, opportunist) run a watchdog-only placeholder loop and say so.
+- **Design tokens live in one place** (`app/theme.py`): the palette dataclass and a generated QSS. Dynamic properties (`kind`, `status`, `state`) select variants; `repolish()` re-applies the sheet after a property change. A global `QLabel/QCheckBox { background: transparent }` rule replaced a `QFrame#Card QWidget` rule that, by specificity, had been overriding button styles inside cards.
+- **Icons** are an in-repo 24×24 stroke-2 SVG set (`assets/icons/*.svg`, `currentColor`), tinted from the palette and rendered through QSvgRenderer at `size × devicePixelRatio`; the app icon is `assets/app.svg`, and `scripts/make_icons.py` renders each ICO size separately (16…256) rather than downscaling one raster.
+- **Preview frames** shown in the GUI are stage-normalized (1920×1080) and only ever downscaled.
+- **Command bar** holds the mode selector, state pill (`engine.state.pill_text`), Start/Stop/Pause, Dry-run, a compact hotkey hint with a tooltip, and the input-lease indicator; minimum widths were trimmed so the bar fits at 1280 px, the window's new minimum.
+- **Tray icon** is tinted by state (green running, amber paused, red error, gray idle); the mini HUD is a frameless always-on-top tool window, draggable, toggled from the tray.
+- **Onboarding** is a 7-page QWizard shown when `data/onboarded` does not exist; the input test requires an explicit consent checkbox.
+- **UI QA** is scripted (`scripts/ui_qa.py`) so it can be repeated after every GUI change; screenshots are committed under `docs/ui/100` and `docs/ui/150`.
+- **`QtBus.event` was renamed `received`:** a `Signal` named `event` shadowed `QObject.event()`.
