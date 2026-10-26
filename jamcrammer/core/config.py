@@ -69,6 +69,8 @@ class WatchdogConfig(StrictModel):
     ocr_interval_s: float = Field(5.0, gt=0)
     max_retries: int = Field(1, ge=0, le=5)
     unknown_cooldown_s: float = Field(60.0, ge=0)
+    unknown_min_ticks: int = Field(3, ge=1)
+    baseline_refresh_s: float = Field(30.0, gt=0)
 
 
 class DriftConfig(StrictModel):

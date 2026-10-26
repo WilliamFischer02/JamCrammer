@@ -306,10 +306,13 @@ class Watchdog:
         self._pending: _Pending | None = None
         self._last_ocr_ts = 0.0
         self._unknown_until = 0.0
+        self._unknown_streak = 0
+        self._baseline_ts = 0.0
         self.paused = False
 
     def set_baseline(self, image: BgrImage) -> None:
         self.baseline = image.copy()
+        self._baseline_ts = self._clock()
 
     def resume(self) -> None:
         """Clear the paused state (the user or the GUI checked the screen)."""
@@ -330,7 +333,16 @@ class Watchdog:
             self._continue_pending(det, image, now)
             return det
         if det is None:
+            self._unknown_streak = 0
+            if now - self._baseline_ts >= self.cfg.baseline_refresh_s:
+                self.set_baseline(image)  # rolling baseline while the screen is quiet
             return None
+        if det.kind == KIND_UNKNOWN:
+            self._unknown_streak += 1
+            if self._unknown_streak < self.cfg.unknown_min_ticks:
+                return det  # one odd frame is not a dialog; wait for persistence
+        else:
+            self._unknown_streak = 0
         self.stats.last_detection_ts = now
         if self.paused and det.kind not in FATAL_KINDS:
             return det  # paused after a failure or an unknown dialog: no more clicking

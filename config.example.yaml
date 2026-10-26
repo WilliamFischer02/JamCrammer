@@ -49,6 +49,8 @@ watchdog:
   ocr_interval_s: 5                          # keyword-only OCR cadence when no green button is seen
   max_retries: 1
   unknown_cooldown_s: 60                     # don't re-alert the same unknown dialog more often
+  unknown_min_ticks: 3                       # an unknown modal must persist this many ticks before alerting
+  baseline_refresh_s: 30                     # re-take the room baseline this often while nothing is detected
 
 # --- Room-drift guard ---
 drift:

@@ -180,7 +180,10 @@ def test_unknown_modal_vs_baseline(tmp_path: Path) -> None:
         unknown_dir=tmp_path / "u",
     )
     wd.set_baseline(base)
-    d = wd.tick(next(GeneratorSource(lambda: unknown_popup(base), 1, 1.0).frames()))
+    d = None
+    for _ in range(WatchdogConfig().unknown_min_ticks):  # must persist before it counts
+        assert paused == []
+        d = wd.tick(next(GeneratorSource(lambda: unknown_popup(base), 1, 1.0).frames()))
     assert d is not None and d.kind == KIND_UNKNOWN
     assert paused == ["unknown_modal"] and world.clicks == []
     assert list((tmp_path / "u").glob("*unknown.png"))

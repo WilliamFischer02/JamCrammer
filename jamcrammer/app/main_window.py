@@ -122,7 +122,9 @@ class CommandBar(QFrame):
         self.dry.setToolTip("Capture, analyse and log, but never send input")
         self.dry.toggled.connect(engine.set_dry_run)
         self.hotkeys = QLabel("F9 · F11 · F12 · F6-F8")
-        self.hotkeys.setToolTip("F9 start/stop the selected mode · F11 pause/resume · F12 kill · F6 mark · F7 correct · F8 wrong")
+        self.hotkeys.setToolTip(
+            "F9 start/stop the selected mode · F11 pause/resume · F12 kill · F6 mark · F7 correct · F8 wrong"
+        )
         self.hotkeys.setObjectName("HotkeyHint")
         self.lease = QLabel("input: nobody")
         self.lease.setObjectName("LeaseIndicator")
