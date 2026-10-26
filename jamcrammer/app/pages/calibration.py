@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QGraphicsScene,
     QGraphicsView,
     QHBoxLayout,
+    QHeaderView,
     QInputDialog,
     QLabel,
     QTableWidget,
@@ -49,7 +50,7 @@ TOOLS = (
     ("template", "Crop template"),
 )
 GATE_MODES = ("hunt", "bestguess", "double_up")
-VALUE_COL_MAX_PX = 150
+STATUS_COL_PX = 110
 Roi = tuple[int, int, int, int]
 
 
@@ -242,7 +243,13 @@ class CalibrationPage(Page):
         fields.add(self.profile_box)
         self.table = QTableWidget(0, 4)
         self.table.setHorizontalHeaderLabels(["Field", "Type", "Value", "Status"])
-        self.table.horizontalHeader().setStretchLastSection(True)
+        header = self.table.horizontalHeader()
+        header.setStretchLastSection(False)
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
+        self.table.setColumnWidth(3, STATUS_COL_PX)
         self.table.verticalHeader().setVisible(False)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
@@ -461,8 +468,6 @@ class CalibrationPage(Page):
             if key == select:
                 self.table.selectRow(r)
         self.table.blockSignals(False)
-        self.table.resizeColumnsToContents()
-        self.table.setColumnWidth(2, min(self.table.columnWidth(2), VALUE_COL_MAX_PX))
         self.refresh_gate()
 
     def refresh_gate(self) -> None:
