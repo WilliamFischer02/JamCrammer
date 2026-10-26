@@ -1,0 +1,125 @@
+"""Application config (pydantic), loaded from config.yaml with config.example.yaml as fallback.
+
+Every tunable number in the app lives here or in a mode profile. Code never hard-codes them.
+"""
+
+from __future__ import annotations
+
+from enum import StrEnum
+from pathlib import Path
+from typing import Literal
+
+import yaml
+from pydantic import BaseModel, ConfigDict, Field
+
+from jamcrammer.core.paths import Paths
+
+Direction = Literal["left", "right", "up", "down"]
+
+
+class Level(StrEnum):
+    """Event / notification levels (KICKOFF §7.5)."""
+
+    INFO = "INFO"  # log only
+    NOTICE = "NOTICE"  # toast
+    HIGH = "HIGH"  # toast + repeating sound + push
+
+    @property
+    def rank(self) -> int:
+        return {Level.INFO: 0, Level.NOTICE: 1, Level.HIGH: 2}[self]
+
+
+class StrictModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class AntiAfkConfig(StrictModel):
+    tap_ms: int = Field(200, ge=20, le=2000)
+    gap_ms: int = Field(300, ge=0, le=5000)
+    pattern: list[tuple[Direction, Direction]] = [
+        ("left", "right"),
+        ("up", "down"),
+        ("right", "left"),
+        ("down", "up"),
+    ]
+
+
+class NotifyLevels(StrictModel):
+    toast: Level = Level.NOTICE
+    sound: Level = Level.HIGH
+    push: Level = Level.HIGH
+
+
+class NotifyConfig(StrictModel):
+    toast: bool = True
+    sound: bool = True
+    ntfy_topic: str = ""
+    discord_webhook: str = ""
+    levels: NotifyLevels = NotifyLevels()
+
+
+class HotkeyConfig(StrictModel):
+    kill: str = "f12"
+    pause: str = "f11"
+    toggle_mode: str = "f9"
+    learn_mark: str = "f6"
+    learn_correct: str = "f7"
+    learn_wrong: str = "f8"
+
+
+class LearnConfig(StrictModel):
+    keyframe_threshold: int = Field(6, ge=0, le=64)
+    ring_fps: float = Field(5.0, gt=0, le=60)
+    ring_window_s: float = Field(5.0, gt=0, le=60)
+    heartbeat_s: float = Field(30.0, gt=0)
+
+
+UnknownFactPolicy = Literal["learned_prior", "fixed_true", "fixed_false", "skip"]
+AnswerMode = Literal["learn_only", "bank_policy", "coin_flip"]
+CaptureBackend = Literal["auto", "wgc", "mss"]
+
+
+class AppConfig(StrictModel):
+    """Top-level config. Field names mirror config.example.yaml exactly."""
+
+    window_title_match: str = "Animal Jam Classic"
+    window_process_name: str = "AJ Classic.exe"
+    capture_backend: CaptureBackend = "auto"
+    fps: float = Field(4.0, gt=0, le=60)
+
+    hunt_interval_s: float = Field(300.0, gt=0)
+    opportunist_check_s: float = Field(300.0, gt=0)
+    resume_after_idle_s: float = Field(120.0, ge=0)
+    heartbeat_s: float = Field(180.0, gt=0)
+
+    antiafk: AntiAfkConfig = AntiAfkConfig()
+
+    auto_join: bool = True
+    start_farming_after_join: bool = True
+    unknown_fact_policy: UnknownFactPolicy = "learned_prior"
+    answer_mode: AnswerMode = "learn_only"
+    fuzzy_threshold: int = Field(90, ge=0, le=100)
+
+    notify: NotifyConfig = NotifyConfig()
+    hotkeys: HotkeyConfig = HotkeyConfig()
+    dry_run: bool = False
+    learn: LearnConfig = LearnConfig()
+
+    @classmethod
+    def from_yaml(cls, path: Path) -> AppConfig:
+        with path.open("r", encoding="utf-8") as fh:
+            raw = yaml.safe_load(fh) or {}
+        if not isinstance(raw, dict):
+            msg = f"{path}: top level must be a mapping"
+            raise ValueError(msg)
+        return cls.model_validate(raw)
+
+
+def load_config(paths: Paths | None = None, override: Path | None = None) -> AppConfig:
+    """Load config.yaml, falling back to config.example.yaml, falling back to defaults."""
+    paths = paths or Paths()
+    candidates = [override] if override else [paths.config_file, paths.config_example]
+    for candidate in candidates:
+        if candidate is not None and candidate.exists():
+            return AppConfig.from_yaml(candidate)
+    return AppConfig()

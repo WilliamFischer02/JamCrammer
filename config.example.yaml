@@ -1,0 +1,55 @@
+# JamCrammer configuration (copy to config.yaml; config.yaml is gitignored).
+# Every number lives here or in profiles/*.yaml. Code has no magic numbers.
+
+# --- Window and capture ---
+window_title_match: "Animal Jam Classic"     # exact top-level window title
+window_process_name: "AJ Classic.exe"        # Electron client; browser tabs with the same title are ignored
+capture_backend: auto                        # auto | wgc | mss
+fps: 4                                       # steady-state capture rate
+
+# --- Timing (seconds) ---
+hunt_interval_s: 300
+opportunist_check_s: 300
+resume_after_idle_s: 120
+heartbeat_s: 180
+
+# --- Anti-AFK ---
+antiafk:
+  tap_ms: 200
+  gap_ms: 300
+  pattern: [[left, right], [up, down], [right, left], [down, up]]
+
+# --- Behavior toggles ---
+auto_join: true
+start_farming_after_join: true
+unknown_fact_policy: learned_prior           # learned_prior | fixed_true | fixed_false | skip
+answer_mode: learn_only                      # learn_only | bank_policy | coin_flip
+fuzzy_threshold: 90
+
+# --- Notifications ---
+notify:
+  toast: true
+  sound: true
+  ntfy_topic: ""                             # empty = disabled
+  discord_webhook: ""                        # empty = disabled
+  levels:
+    toast: NOTICE                            # minimum level that raises a toast
+    sound: HIGH
+    push: HIGH
+
+# --- Controls ---
+hotkeys:
+  kill: f12
+  pause: f11
+  toggle_mode: f9
+  learn_mark: f6
+  learn_correct: f7
+  learn_wrong: f8
+dry_run: false
+
+# --- Learn ---
+learn:
+  keyframe_threshold: 6                      # pHash Hamming distance that counts as a new keyframe
+  ring_fps: 5
+  ring_window_s: 5
+  heartbeat_s: 30                            # force a keyframe at least this often even with no change
