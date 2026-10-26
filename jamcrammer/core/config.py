@@ -68,10 +68,25 @@ class HotkeyConfig(StrictModel):
 
 
 class LearnConfig(StrictModel):
-    keyframe_threshold: int = Field(6, ge=0, le=64)
+    keyframe_threshold: int = Field(12, ge=0, le=64)
     ring_fps: float = Field(5.0, gt=0, le=60)
     ring_window_s: float = Field(5.0, gt=0, le=60)
     heartbeat_s: float = Field(30.0, gt=0)
+    jpeg_quality: int = Field(90, ge=10, le=100)
+    phash_width: int = Field(256, ge=32, le=1920)
+    ocr_keyframes: bool = True
+
+
+KeyMethod = Literal["scancode", "vk"]
+
+
+class InputConfig(StrictModel):
+    click_hold_ms: int = Field(60, ge=1, le=1000)
+    cursor_settle_ms: int = Field(30, ge=0, le=1000)
+    key_method: KeyMethod = "scancode"
+    postcondition_retries: int = Field(1, ge=0, le=5)
+    foreground_timeout_s: float = Field(2.0, gt=0)
+    history_len: int = Field(200, ge=10)
 
 
 UnknownFactPolicy = Literal["learned_prior", "fixed_true", "fixed_false", "skip"]
@@ -103,6 +118,8 @@ class AppConfig(StrictModel):
     notify: NotifyConfig = NotifyConfig()
     hotkeys: HotkeyConfig = HotkeyConfig()
     dry_run: bool = False
+    presence_slack_s: float = Field(0.5, ge=0)
+    input: InputConfig = InputConfig()
     learn: LearnConfig = LearnConfig()
 
     @classmethod

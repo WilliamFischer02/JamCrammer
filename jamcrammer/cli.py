@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import sys
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
@@ -41,6 +42,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--target", choices=LEARN_TARGETS, required=True)
     p.add_argument("--name", default=None, help="optional session name suffix")
     p.add_argument("--video", action="store_true", help="also record continuous low-fps video")
+    p.add_argument(
+        "--duration", type=float, default=None, help="stop automatically after this many seconds"
+    )
 
     sub.add_parser("ingest", help="import inbox/ PNG and MP4 files into Learn sessions")
 
@@ -58,8 +62,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("test-notify", help="send a test notification on every enabled channel")
     sub.add_parser("activity-test", help="run the 3-part idle-popup activity test (§7.3)")
-    sub.add_parser("input-test", help="send one cancelling movement pair and verify (M1)")
+    p = sub.add_parser("input-test", help="send one cancelling movement pair and verify")
+    p.add_argument("--method", choices=("scancode", "vk"), default=None)
+    p.add_argument("--backend", choices=("auto", "wgc", "mss"), default=None)
+    p.add_argument("--dry-run", action="store_true", help="capture only, send nothing")
     sub.add_parser("window", help="print the discovered AJC window geometry")
+    p = sub.add_parser("_bench", help=argparse.SUPPRESS)  # one backend, JSON out; used by snap
+    p.add_argument("--backend", choices=("wgc", "mss"), required=True)
+    p.add_argument("--frames", type=int, required=True)
     return parser
 
 
@@ -77,24 +87,38 @@ def _gui(_: argparse.Namespace) -> int:
     return run_gui()
 
 
+def _lazy(module: str, func: str) -> Command:
+    def run(args: argparse.Namespace) -> int:
+        import importlib
+
+        fn: Command = getattr(importlib.import_module(module), func)
+        return fn(args)
+
+    return run
+
+
 COMMANDS: dict[str, Command] = {
     "gui": _gui,
     "hunt": _not_yet("M3"),
     "farm": _not_yet("M7"),
     "opportunist": _not_yet("M9"),
-    "learn": _not_yet("M1"),
+    "learn": _lazy("jamcrammer.commands.learn_cmd", "run_learn"),
     "ingest": _not_yet("M5"),
     "replay": _not_yet("M5"),
-    "snap": _not_yet("M1"),
+    "snap": _lazy("jamcrammer.commands.platform_cmds", "run_snap"),
     "report": _not_yet("M5"),
     "test-notify": _not_yet("M2"),
     "activity-test": _not_yet("M2"),
-    "input-test": _not_yet("M1"),
-    "window": _not_yet("M1"),
+    "input-test": _lazy("jamcrammer.commands.platform_cmds", "run_input_test"),
+    "window": _lazy("jamcrammer.commands.platform_cmds", "run_window"),
+    "_bench": _lazy("jamcrammer.commands.platform_cmds", "run_bench_one"),
 }
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    for stream in (sys.stdout, sys.stderr):  # Windows consoles default to cp1252
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(errors="replace")
     parser = build_parser()
     args = parser.parse_args(argv)
     paths = Paths()

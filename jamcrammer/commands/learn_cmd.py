@@ -1,0 +1,98 @@
+"""``learn --target <x>``: the CLI emergency recorder (M1)."""
+
+from __future__ import annotations
+
+import argparse
+import sys
+import time
+
+from jamcrammer.core.config import AppConfig
+from jamcrammer.core.events import EventBus
+from jamcrammer.core.logging import attach_bus, get_logger
+from jamcrammer.core.store import Store
+from jamcrammer.learn.recorder import Recorder, RecorderStats
+from jamcrammer.platform.capture import open_backend
+from jamcrammer.platform.window import WindowTracker, ensure_dpi_awareness
+
+log = get_logger("cmd.learn")
+
+WINDOW_WAIT_S = 30.0
+WINDOW_POLL_S = 1.0
+STATS_TICK_S = 2.0
+EXIT_NO_WINDOW = 3
+
+
+def run_learn(args: argparse.Namespace) -> int:
+    cfg: AppConfig = args.cfg
+    ensure_dpi_awareness()
+    tracker = WindowTracker(cfg.window_title_match, cfg.window_process_name)
+    deadline = time.monotonic() + WINDOW_WAIT_S
+    while tracker.refresh() is None:
+        if time.monotonic() > deadline:
+            print(f"AJC window not found after {WINDOW_WAIT_S:.0f}s. Is the game open?")
+            return EXIT_NO_WINDOW
+        print("waiting for the AJC window...")
+        time.sleep(WINDOW_POLL_S)
+    info = tracker.require()
+
+    bus = EventBus()
+    attach_bus(bus)
+    store = Store(args.paths.db)
+    backend = open_backend(cfg.capture_backend, tracker.provider())
+
+    stamp = time.strftime("%Y%m%d_%H%M%S")
+    name = f"{stamp}_{args.target}" + (f"_{args.name}" if args.name else "")
+    session_dir = args.paths.sessions / name
+    session_id = store.start_session("learn", args.target, session_dir, time.time())
+
+    recorder = Recorder(
+        session_dir=session_dir,
+        target=args.target,
+        cfg=cfg.learn,
+        grab=backend.grab,
+        window=tracker.provider(),
+        bus=bus,
+        capture_input=True,
+        video=args.video,
+        ocr=cfg.learn.ocr_keyframes,
+        extra_meta={"source": "live", "backend": backend.name, "app_cfg": cfg.model_dump()},
+    )
+
+    print(f"Recording {args.target} -> {session_dir}")
+    w, h = info.client_size
+    print(
+        f"window: {w}x{h} @ ({info.client_rect.left},{info.client_rect.top}) "
+        f"dpi={info.dpi} backend={backend.name}"
+    )
+    print("Play normally. Nothing is sent to the game.")
+    print("  F6 = mark   F7 = correct   F8 = wrong   F12 or Ctrl+C = stop")
+    recorder.start()
+
+    def tick(stats: RecorderStats) -> None:
+        elapsed = time.time() - stats.started_ts
+        if args.duration is not None and elapsed >= args.duration:
+            recorder.stop()
+            return
+        sys.stdout.write(
+            f"\r  {elapsed:6.0f}s  frames={stats.frames:5d}  keyframes={stats.keyframes:4d}  "
+            f"markers={stats.markers:3d}  inputs={stats.inputs:4d}  ring={stats.ring_dumps:4d}  "
+            f"ocr={stats.ocr_snapshots:4d}  errors={stats.grab_errors}   "
+        )
+        sys.stdout.flush()
+        if tracker.poll() == "lost":
+            log.warning("window lost during recording")
+
+    try:
+        recorder.run_until_stopped(STATS_TICK_S, tick)
+    finally:
+        backend.close()
+        store.end_session(session_id, time.time(), recorder.stats.as_dict())
+        store.close()
+    s = recorder.stats
+    print()
+    print(
+        f"Stopped. frames={s.frames} keyframes={s.keyframes} markers={s.markers} "
+        f"inputs={s.inputs} ocr={s.ocr_snapshots}"
+    )
+    print(f"Session: {session_dir}")
+    return 0

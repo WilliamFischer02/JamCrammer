@@ -46,10 +46,23 @@ hotkeys:
   learn_correct: f7
   learn_wrong: f8
 dry_run: false
+presence_slack_s: 0.5                        # OS input newer than our last injection + this = William is back
+
+# --- Input ---
+input:
+  click_hold_ms: 60
+  cursor_settle_ms: 30
+  key_method: scancode                       # scancode | vk  (input-test decides; see decisions.md)
+  postcondition_retries: 1
+  foreground_timeout_s: 2.0
+  history_len: 200
 
 # --- Learn ---
 learn:
-  keyframe_threshold: 6                      # pHash Hamming distance that counts as a new keyframe
+  keyframe_threshold: 12                     # pHash Hamming distance for a new keyframe (ambient animation = 6-8)
   ring_fps: 5
   ring_window_s: 5
   heartbeat_s: 30                            # force a keyframe at least this often even with no change
+  jpeg_quality: 90                           # ring-buffer frames
+  phash_width: 256                           # downscale width used for the keyframe hash
+  ocr_keyframes: true                        # run Windows OCR on every keyframe (meta.jsonl "ocr" lines)
