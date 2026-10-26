@@ -106,7 +106,11 @@ def _classify(region: TextRegion, frames: list[FrameRec]) -> None:
         all(parse_int(t) is not None for t in texts) and len(texts) >= 2
     ):
         ints: list[int] = [v for v in (parse_int(t) for t in texts) if v is not None]
-        if len(ints) >= 2 and all(b >= a for a, b in itertools.pairwise(ints)):
+        if (
+            len(ints) >= 2
+            and all(b >= a for a, b in itertools.pairwise(ints))
+            and ints[-1] > ints[0]  # a counter must actually move; a stuck countdown does not
+        ):
             region.kind, region.confidence = "gem_counter", 0.8
             return
     long_texts = [t for t in texts if len(t) >= MIN_FACT_CHARS]
