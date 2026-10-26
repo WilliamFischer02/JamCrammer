@@ -13,6 +13,7 @@ from jamcrammer.app.engine import MODE_LABELS, Engine
 from jamcrammer.app.widgets import Card, Page
 
 GAMES = ("bestguess", "double_up", "jamaa_derby")
+MODE_FOR_GAME = {"bestguess": "hunt", "double_up": "farm", "jamaa_derby": "farm"}
 
 
 class ProfitLabPage(Page):

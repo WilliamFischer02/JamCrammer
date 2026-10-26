@@ -29,10 +29,13 @@ def _run_engine_mode(args: argparse.Namespace, mode: str, label: str) -> int:
     cfg: AppConfig = args.cfg
     if args.dry_run:
         cfg.dry_run = True
-    gate = gate_status("double_up", args.paths)
-    print(f"Double Up gate: {gate.summary()}")
+    if getattr(args, "game", None):
+        cfg.arcade_game = args.game
+    gate_name = cfg.arcade_game if mode == "farm" else "double_up"
+    gate = gate_status(gate_name, args.paths)
+    print(f"{gate_name} gate: {gate.summary()}")
     if not gate.unlocked:
-        print("Calibrate the double_up profile (Learn > Review wizard, or Calibration)")
+        print(f"Calibrate the {gate_name} profile (Learn > Review wizard, or Calibration)")
         print("and reach replay >= 95% first.")
         return EXIT_LOCKED
     engine = Engine(cfg, args.paths)

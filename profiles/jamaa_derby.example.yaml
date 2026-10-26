@@ -1,0 +1,63 @@
+# Jamaa Derby profile (stage pixels). Learn calibrates from 2-3 manual races.
+version: 1
+name: jamaa_derby
+fields:
+  lane_roi:
+    type: roi
+    value: null
+    status: uncalibrated
+    note: the horse's lane, from the horse to the right edge where obstacles enter
+  horse_x:
+    type: number
+    value: null
+    status: uncalibrated
+    note: x of the horse's front within the lane ROI
+  jump_lead_short_px:
+    type: number
+    value: 140
+    status: proposed
+    note: press Space when a short obstacle's left edge is this close to the horse
+  jump_lead_long_px:
+    type: number
+    value: 90
+    status: proposed
+    note: long obstacles are jumped at the last moment
+  long_obstacle_min_px:
+    type: number
+    value: 120
+    status: proposed
+    note: obstacle width at/above which it counts as long
+  jump_cooldown_s:
+    type: number
+    value: 0.9
+    status: proposed
+  boost_button_point:
+    type: point
+    value: null
+    status: uncalibrated
+  boost_clear_px:
+    type: number
+    value: 400
+    status: proposed
+    note: use a carrot only when no obstacle is within this distance
+  boost_duration_s:
+    type: number
+    value: 3.0
+    status: proposed
+  results_place_roi:
+    type: roi
+    value: null
+    status: uncalibrated
+  results_gems_roi:
+    type: roi
+    value: null
+    status: uncalibrated
+  race_again_point:
+    type: point
+    value: null
+    status: uncalibrated
+  pro_unlocked:
+    type: number
+    value: 0
+    status: proposed
+    note: 1 once 10 first-place Normal wins are logged

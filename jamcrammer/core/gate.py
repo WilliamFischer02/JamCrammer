@@ -25,6 +25,14 @@ REQUIRED_FIELDS: dict[str, list[tuple[str, str]]] = {
         ("bestguess", "false_point"),
         ("bestguess", "reveal_roi"),
     ],
+    "jamaa_derby": [
+        ("jamaa_derby", "lane_roi"),
+        ("jamaa_derby", "horse_x"),
+        ("jamaa_derby", "boost_button_point"),
+        ("jamaa_derby", "results_place_roi"),
+        ("jamaa_derby", "results_gems_roi"),
+        ("jamaa_derby", "race_again_point"),
+    ],
     "double_up": [
         ("double_up", "grid_origin"),
         ("double_up", "grid_pitch"),
@@ -33,7 +41,12 @@ REQUIRED_FIELDS: dict[str, list[tuple[str, str]]] = {
         ("double_up", "end_screen_gems_roi"),
     ],
 }
-REPLAY_TARGET = {"bestguess": "bestguess", "double_up": "double_up", "hunt": None}
+REPLAY_TARGET = {
+    "bestguess": "bestguess",
+    "double_up": "double_up",
+    "jamaa_derby": "jamaa_derby",
+    "hunt": None,
+}
 
 
 @dataclass

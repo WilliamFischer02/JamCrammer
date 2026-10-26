@@ -98,3 +98,9 @@ Non-obvious choices and why. Newest at the bottom.
 - **Fallback:** two consecutive failed re-entries → `opportunist.fallback` (HIGH) and the hunter's plain loop takes over; a successful join hands off to Phase C if the gate is open.
 - **Board detection measures structure on grayscale** after a flat lobby background (constant colour, different per-channel values) was mistaken for a tile grid.
 - **Entry route fields** (`exit_point`, `games_menu_point`, `game_tile_point`) live in the Double Up profile and are uncalibrated until William's Learn session or the Calibration page sets them; the orchestrator refuses to start without them.
+
+## 2026-10-26 — M10
+
+- **Derby obstacles are "foreign objects" against a rolling lane background**, no templates needed for v1: a column counts as obstacle when ≥10% of its pixels differ from the exponential-average background by ≥30 gray levels (height-independent; a per-column *mean* diff missed low obstacles). Class = width (≥ `long_obstacle_min_px` → long, jumped later); Space fires when the nearest obstacle's left edge is within the class's lead distance, with a cooldown. Carrot boosts only on clear straights (nothing within `boost_clear_px`), never overlapping the active boost.
+- **Synthetic track** (`tests/synthetic/derby.py`): scrolling obstacles with random widths and spacing, air time on Space, speed penalty on a hit, boosts, results screen; place = 1st only when nothing was hit. The farmer wins 10/10 and the 10th first place flips `pro_unlocked` in the profile (payout table switches to Pro).
+- **`farm` runs whichever `arcade_game` is configured** (`--game` on the CLI); each game has its own gate (profile fields + replay) and its own `arcade_rounds` rows, so Profit Lab compares Best Guess, Double Up and Derby side by side from measured rounds plus the ledger.

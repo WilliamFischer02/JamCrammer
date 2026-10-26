@@ -429,21 +429,35 @@ class Engine:
         from jamcrammer.core.gate import gate_status
         from jamcrammer.modes.arcade.double_up import DoubleUpFarmer
 
-        gate = gate_status("double_up", self.paths, self._profiles)
+        game = self.cfg.arcade_game
+        gate = gate_status(game, self.paths, self._profiles)
         if not gate.unlocked:
             self.emit(
-                "engine.gate_locked", Level.HIGH, mode="farm", message=f"Double Up {gate.summary()}"
+                "engine.gate_locked", Level.HIGH, mode="farm", message=f"{game} {gate.summary()}"
             )
             self._run_placeholder()
             return
-        farmer = DoubleUpFarmer(
-            self.profile("double_up"),
-            self.cfg.double_up,
-            self.input,
-            lambda: self.grab().image,
-            store=self.store,
-            bus=self.bus,
-        )
+        farmer: Any
+        if game == "jamaa_derby":
+            from jamcrammer.modes.arcade.derby import DerbyFarmer
+
+            farmer = DerbyFarmer(
+                self.profile("jamaa_derby"),
+                self.cfg.derby,
+                self.input,
+                lambda: self.grab().image,
+                store=self.store,
+                bus=self.bus,
+            )
+        else:
+            farmer = DoubleUpFarmer(
+                self.profile("double_up"),
+                self.cfg.double_up,
+                self.input,
+                lambda: self.grab().image,
+                store=self.store,
+                bus=self.bus,
+            )
         self._mode_obj = farmer
         self.lease.acquire("farm")
 
@@ -454,13 +468,18 @@ class Engine:
             return self._should_stop() or self.pause.paused or self.watchdog.paused
 
         farmer.run(guarded_stop, self._status)
-        self.ledger.record_payout(farmer.stats.gems, "farm") if farmer.stats.gems else None
-        self.state.stats["farm"] = {
-            "rounds": farmer.stats.rounds,
-            "perfect": farmer.stats.perfect,
-            "gems": farmer.stats.gems,
-            "median_round_s": farmer.stats.median_round_s,
-        }
+        if farmer.stats.gems:
+            self.ledger.record_payout(farmer.stats.gems, "farm")
+        self.state.stats["farm"] = (
+            farmer.stats.as_dict()
+            if hasattr(farmer.stats, "as_dict")
+            else {
+                "rounds": farmer.stats.rounds,
+                "perfect": farmer.stats.perfect,
+                "gems": farmer.stats.gems,
+                "median_round_s": farmer.stats.median_round_s,
+            }
+        )
 
     def _run_opportunist(self) -> None:
         """Opportunist (M9): Double Up rounds + party checks + hop to Best Guess."""

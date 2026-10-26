@@ -123,6 +123,24 @@ class OpportunistConfig(StrictModel):
     max_entry_failures: int = Field(2, ge=1)
 
 
+class DerbyConfig(StrictModel):
+    fps: float = Field(20.0, gt=0, le=60)
+    jump_key: str = "space"
+    jump_hold_ms: int = Field(40, ge=1)
+    boosts_per_race: int = Field(3, ge=0)
+    boost_after_jump_s: float = Field(0.6, ge=0)
+    pixel_diff_min: float = Field(30.0, gt=0)
+    column_fraction_min: float = Field(0.1, gt=0, le=1)
+    obstacle_min_px: int = Field(20, ge=1)
+    background_alpha: float = Field(0.05, gt=0, le=1)
+    background_warmup_frames: int = Field(3, ge=1)
+    race_timeout_s: float = Field(90.0, gt=0)
+    results_settle_s: float = Field(0.5, ge=0)
+
+
+ArcadeGame = Literal["double_up", "jamaa_derby"]
+
+
 class AnalysisConfig(StrictModel):
     duplicate_distance: int = Field(2, ge=0, le=64)
     transition_distance: int = Field(14, ge=0, le=64)
@@ -223,6 +241,8 @@ class AppConfig(StrictModel):
     double_up: DoubleUpConfig = DoubleUpConfig()
     bestguess: BestGuessConfig = BestGuessConfig()
     opportunist: OpportunistConfig = OpportunistConfig()
+    derby: DerbyConfig = DerbyConfig()
+    arcade_game: ArcadeGame = "double_up"
 
     @classmethod
     def from_yaml(cls, path: Path) -> AppConfig:

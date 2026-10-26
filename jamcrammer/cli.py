@@ -42,6 +42,12 @@ def build_parser() -> argparse.ArgumentParser:
         p.add_argument("--interval", type=float, default=None, help="override hunt_interval_s")
         p.add_argument("--duration", type=float, default=None, help="stop after N seconds")
         p.add_argument("--once", action="store_true", help="one scan cycle, then exit")
+        p.add_argument(
+            "--game",
+            choices=("double_up", "jamaa_derby"),
+            default=None,
+            help="farm: which arcade game",
+        )
 
     p = sub.add_parser("learn", help="record a Learn session while you play manually")
     p.add_argument("--target", choices=LEARN_TARGETS, required=True)

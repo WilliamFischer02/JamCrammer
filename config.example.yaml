@@ -102,6 +102,22 @@ opportunist:
   poll_s: 0.25
   max_entry_failures: 2                      # then fall back to plain Hunt + alert
 
+# --- Jamaa Derby farmer (KICKOFF 9.3) ---
+arcade_game: double_up                       # which game `farm` runs: double_up | jamaa_derby
+derby:
+  fps: 20                                    # control loop rate (obstacle timing)
+  jump_key: space
+  jump_hold_ms: 40
+  boosts_per_race: 3
+  boost_after_jump_s: 0.6
+  pixel_diff_min: 30                         # a pixel differs from the lane background by this much
+  column_fraction_min: 0.1                   # fraction of a column's pixels that must differ = obstacle
+  obstacle_min_px: 20
+  background_alpha: 0.05                     # rolling lane background update rate
+  background_warmup_frames: 3
+  race_timeout_s: 90
+  results_settle_s: 0.5
+
 # --- Learn analysis (KICKOFF 11.3) ---
 analysis:
   duplicate_distance: 2                      # pHash distance treated as the same frame

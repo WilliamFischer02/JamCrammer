@@ -42,14 +42,14 @@ from jamcrammer.vision.calibrate import (
 ZOOM_STEP = 1.25
 MIN_ZOOM = 0.2
 MAX_ZOOM = 12.0
-PROFILES = ("shared", "parties", "bestguess", "double_up")
+PROFILES = ("shared", "parties", "bestguess", "double_up", "jamaa_derby")
 TOOLS = (
     ("select", "Select / drag"),
     ("roi", "Draw ROI"),
     ("color", "Sample color"),
     ("template", "Crop template"),
 )
-GATE_MODES = ("hunt", "bestguess", "double_up")
+GATE_MODES = ("hunt", "bestguess", "double_up", "jamaa_derby")
 STATUS_COL_PX = 110
 Roi = tuple[int, int, int, int]
 
