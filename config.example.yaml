@@ -57,6 +57,25 @@ drift:
   threshold: 18                              # mean abs diff (0-255) on the masked downscale
   downscale: [64, 36]
 
+# --- Double Up farmer (KICKOFF 9.2) ---
+double_up:
+  preview_s: 3                               # the board is shown for 3 s
+  burst_fps: 10                              # burst capture during the preview
+  pair_confidence_min: 0.6                   # below this: reveal-and-remember
+  flip_ms: 400                               # flip animation (profile may override later)
+  settle_s: 0.15
+  click_gap_s: 0.08
+  poll_s: 0.25
+  board_timeout_s: 20
+  hide_timeout_s: 5
+  end_timeout_s: 10
+  change_threshold: 18                       # tile face mean abs diff that counts as a flip
+  same_face_distance: 0.35                   # descriptor distance treated as the same face
+  preview_diversity: 0.5                     # mean tile distance when all faces are up
+  hidden_uniformity: 0.25                    # mean tile distance when all tiles are hidden
+  tile_min_std: 8
+  end_screen_keywords: [earned, gems, play again]
+
 # --- Learn analysis (KICKOFF 11.3) ---
 analysis:
   duplicate_distance: 2                      # pHash distance treated as the same frame

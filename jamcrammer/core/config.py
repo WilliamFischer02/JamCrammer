@@ -78,6 +78,25 @@ class DriftConfig(StrictModel):
     downscale: tuple[int, int] = (64, 36)
 
 
+class DoubleUpConfig(StrictModel):
+    preview_s: float = Field(3.0, gt=0)
+    burst_fps: float = Field(10.0, gt=0, le=60)
+    pair_confidence_min: float = Field(0.6, ge=0, le=1)
+    flip_ms: int = Field(400, ge=0)
+    settle_s: float = Field(0.15, ge=0)
+    click_gap_s: float = Field(0.08, ge=0)
+    poll_s: float = Field(0.25, gt=0)
+    board_timeout_s: float = Field(20.0, gt=0)
+    hide_timeout_s: float = Field(5.0, gt=0)
+    end_timeout_s: float = Field(10.0, gt=0)
+    change_threshold: float = Field(18.0, gt=0)
+    same_face_distance: float = Field(0.35, gt=0)
+    preview_diversity: float = Field(0.5, gt=0)
+    hidden_uniformity: float = Field(0.25, gt=0)
+    tile_min_std: float = Field(8.0, ge=0)
+    end_screen_keywords: list[str] = ["earned", "gems", "play again"]
+
+
 class AnalysisConfig(StrictModel):
     duplicate_distance: int = Field(2, ge=0, le=64)
     transition_distance: int = Field(14, ge=0, le=64)
@@ -175,6 +194,7 @@ class AppConfig(StrictModel):
     activity_test: ActivityTestConfig = ActivityTestConfig()
     hunt: HuntConfig = HuntConfig()
     analysis: AnalysisConfig = AnalysisConfig()
+    double_up: DoubleUpConfig = DoubleUpConfig()
 
     @classmethod
     def from_yaml(cls, path: Path) -> AppConfig:

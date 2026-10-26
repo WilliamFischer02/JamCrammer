@@ -283,7 +283,7 @@ class Engine:
         self.state.mode = name
         self.state.mode_state = "STARTING"
         self.state.mode_detail = ""
-        target = {"hunt": self._run_hunt}.get(name, self._run_placeholder)
+        target = {"hunt": self._run_hunt, "farm": self._run_farm}.get(name, self._run_placeholder)
         self._mode_thread = threading.Thread(
             target=self._mode_wrapper, args=(name, target), name=f"mode-{name}", daemon=True
         )
@@ -366,6 +366,44 @@ class Engine:
     def _on_joined(self, _banner: Any) -> None:
         if self._recorder is None:
             self.start_learn("bestguess", name="autojoin")
+
+    def _run_farm(self) -> None:
+        """Double Up farmer (M7). Refuses to run until the profile gate is satisfied."""
+        from jamcrammer.core.gate import gate_status
+        from jamcrammer.modes.arcade.double_up import DoubleUpFarmer
+
+        gate = gate_status("double_up", self.paths, self._profiles)
+        if not gate.unlocked:
+            self.emit(
+                "engine.gate_locked", Level.HIGH, mode="farm", message=f"Double Up {gate.summary()}"
+            )
+            self._run_placeholder()
+            return
+        farmer = DoubleUpFarmer(
+            self.profile("double_up"),
+            self.cfg.double_up,
+            self.input,
+            lambda: self.grab().image,
+            store=self.store,
+            bus=self.bus,
+        )
+        self._mode_obj = farmer
+        self.lease.acquire("farm")
+
+        def guarded_stop() -> bool:
+            frame = self.snapshot()
+            if frame is not None:
+                self.watchdog.tick(frame)
+            return self._should_stop() or self.pause.paused or self.watchdog.paused
+
+        farmer.run(guarded_stop, self._status)
+        self.ledger.record_payout(farmer.stats.gems, "farm") if farmer.stats.gems else None
+        self.state.stats["farm"] = {
+            "rounds": farmer.stats.rounds,
+            "perfect": farmer.stats.perfect,
+            "gems": farmer.stats.gems,
+            "median_round_s": farmer.stats.median_round_s,
+        }
 
     def _run_placeholder(self) -> None:
         """farm / opportunist arrive in M7 / M9: keep the watchdog alive and say so."""
