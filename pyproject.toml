@@ -66,6 +66,7 @@ ignore = [
 "jamcrammer/app/theme.py" = ["E501"]  # generated QSS rules read better on one line
 "jamcrammer/app/**" = ["RUF001", "PLR0915", "E501"]  # UI copy: typographic dashes, long builders, long strings
 "scripts/**" = ["PLR0915", "E501"]
+"jamcrammer/learn/report.py" = ["E501"]  # HTML template strings
 
 [tool.mypy]
 plugins = ["pydantic.mypy"]

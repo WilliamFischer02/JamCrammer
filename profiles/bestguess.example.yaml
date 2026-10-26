@@ -1,0 +1,52 @@
+# Best Guess profile (stage pixels, 1920x1080). Placeholders are uncalibrated on purpose: Learn
+# proposes real values (profiles/bestguess.proposed.yaml) and the review wizard promotes them.
+version: 1
+name: bestguess
+fields:
+  fact_roi:
+    type: roi
+    value: [360, 40, 1200, 120]
+    status: uncalibrated
+    note: the true/false animal fact at the top of the arena
+  countdown_roi:
+    type: roi
+    value: null
+    status: uncalibrated
+    note: digits decreasing ~1/s during a question
+  gem_counter_roi:
+    type: roi
+    value: null
+    status: uncalibrated
+  true_point:
+    type: point
+    value: [480, 700]
+    status: uncalibrated
+    note: LEFT side (green, check) = True
+  false_point:
+    type: point
+    value: [1440, 700]
+    status: uncalibrated
+    note: RIGHT side (purple, X) = False
+  reveal_roi:
+    type: roi
+    value: null
+    status: uncalibrated
+    note: region whose color/template shows the correct side after the lock
+  own_animal_roi:
+    type: roi
+    value: null
+    status: uncalibrated
+    note: where our animal stands; dance detection by frame diff
+  round_question_s:
+    type: number
+    value: 10
+    status: proposed
+  round_warning_s:
+    type: number
+    value: 5
+    status: proposed
+  commit_after_s:
+    type: number
+    value: 3
+    status: proposed
+    note: commit the answer this long after the question appears (2-4 s)

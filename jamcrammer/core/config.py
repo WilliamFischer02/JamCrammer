@@ -78,6 +78,17 @@ class DriftConfig(StrictModel):
     downscale: tuple[int, int] = (64, 36)
 
 
+class AnalysisConfig(StrictModel):
+    duplicate_distance: int = Field(2, ge=0, le=64)
+    transition_distance: int = Field(14, ge=0, le=64)
+    cluster_distance: float = Field(1.6, gt=0)
+    min_cluster: int = Field(3, ge=1)
+    samples_per_state: int = Field(4, ge=1, le=12)
+    ocr: bool = True
+    ocr_upscale: float = Field(1.5, ge=1.0, le=4.0)
+    max_regions: int = Field(20, ge=1)
+
+
 class HuntConfig(StrictModel):
     panel_timeout_s: float = Field(4.0, gt=0)
     panel_poll_s: float = Field(0.25, ge=0)
@@ -163,6 +174,7 @@ class AppConfig(StrictModel):
     drift: DriftConfig = DriftConfig()
     activity_test: ActivityTestConfig = ActivityTestConfig()
     hunt: HuntConfig = HuntConfig()
+    analysis: AnalysisConfig = AnalysisConfig()
 
     @classmethod
     def from_yaml(cls, path: Path) -> AppConfig:

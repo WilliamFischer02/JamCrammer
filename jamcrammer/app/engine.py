@@ -449,6 +449,42 @@ class Engine:
         if self._recorder is not None:
             self._recorder.mark(kind)
 
+    def ingest_inbox(self) -> list[Path]:
+        """Import inbox files, analyse and report each new session (KICKOFF 11.1)."""
+        from jamcrammer.learn.analyze import analyze_session
+        from jamcrammer.learn.ingest import ingest_inbox
+        from jamcrammer.learn.report import render_report
+
+        res = ingest_inbox(self.paths, self.cfg.learn)
+        for session in res.sessions:
+            result = analyze_session(session, self.cfg.analysis, self.paths)
+            render_report(session, result.as_dict())
+        self.emit(
+            "learn.ingested",
+            Level.NOTICE,
+            sessions=[s.name for s in res.sessions],
+            keyframes=res.keyframes,
+            message=f"Imported {res.images} images, {res.videos} videos into {len(res.sessions)} session(s)",
+        )
+        return res.sessions
+
+    def analyze(self, session: Path) -> Path:
+        from jamcrammer.learn.analyze import analyze_session
+        from jamcrammer.learn.report import render_report
+
+        result = analyze_session(session, self.cfg.analysis, self.paths)
+        report = render_report(session, result.as_dict())
+        self.emit(
+            "learn.analyzed",
+            Level.NOTICE,
+            session=session.name,
+            states=len(result.states),
+            answers=len(result.answers),
+            missing=result.missing,
+            message=f"Analysed {session.name}: {len(result.states)} states, {len(result.answers)} answers",
+        )
+        return report
+
     # --- misc ---------------------------------------------------------------------------------
 
     def test_notifications(self) -> list[ChannelResult]:

@@ -57,6 +57,17 @@ drift:
   threshold: 18                              # mean abs diff (0-255) on the masked downscale
   downscale: [64, 36]
 
+# --- Learn analysis (KICKOFF 11.3) ---
+analysis:
+  duplicate_distance: 2                      # pHash distance treated as the same frame
+  transition_distance: 14                    # bigger jumps are transitions, not stable frames
+  cluster_distance: 1.6                      # agglomerative clustering threshold (pHash bits + HSV hist)
+  min_cluster: 3                             # smaller clusters merge into the nearest state
+  samples_per_state: 4
+  ocr: true
+  ocr_upscale: 1.5
+  max_regions: 20
+
 # --- Best Guess Hunter (Phases A/B) ---
 hunt:
   panel_timeout_s: 4                         # My Parties must appear within this after the hat click

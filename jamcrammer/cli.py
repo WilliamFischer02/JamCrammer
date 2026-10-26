@@ -62,8 +62,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--backend", choices=("auto", "wgc", "mss"), default=None)
     p.add_argument("--benchmark", action="store_true", help="time WGC vs mss and report")
 
-    p = sub.add_parser("report", help="render the Learn Report for a session")
-    p.add_argument("session")
+    p = sub.add_parser("report", help="analyse a session and render its Learn Report")
+    p.add_argument("session", help="session folder name or path")
+    p.add_argument(
+        "--no-profile", action="store_true", help="do not write profiles/<mode>.proposed.yaml"
+    )
 
     sub.add_parser("test-notify", help="send a test notification on every enabled channel")
     p = sub.add_parser("activity-test", help="run the idle-popup activity test (KICKOFF 7.3)")
@@ -113,10 +116,10 @@ COMMANDS: dict[str, Command] = {
     "farm": _not_yet("M7"),
     "opportunist": _not_yet("M9"),
     "learn": _lazy("jamcrammer.commands.learn_cmd", "run_learn"),
-    "ingest": _not_yet("M5"),
-    "replay": _not_yet("M5"),
+    "ingest": _lazy("jamcrammer.commands.learn_cmd", "run_ingest"),
+    "replay": _lazy("jamcrammer.commands.learn_cmd", "run_replay"),
     "snap": _lazy("jamcrammer.commands.platform_cmds", "run_snap"),
-    "report": _not_yet("M5"),
+    "report": _lazy("jamcrammer.commands.learn_cmd", "run_report"),
     "test-notify": _lazy("jamcrammer.commands.services_cmds", "run_test_notify"),
     "activity-test": _lazy("jamcrammer.commands.services_cmds", "run_activity_test"),
     "input-test": _lazy("jamcrammer.commands.platform_cmds", "run_input_test"),

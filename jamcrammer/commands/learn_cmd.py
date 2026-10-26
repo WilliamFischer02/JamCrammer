@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import sys
 import time
+from pathlib import Path
 
 from jamcrammer.core.config import AppConfig
 from jamcrammer.core.events import EventBus
@@ -20,6 +21,78 @@ WINDOW_WAIT_S = 30.0
 WINDOW_POLL_S = 1.0
 STATS_TICK_S = 2.0
 EXIT_NO_WINDOW = 3
+EXIT_NOT_FOUND = 4
+
+
+def _session_path(args: argparse.Namespace, name: str) -> Path | None:
+    p = Path(name)
+    if p.exists():
+        return p
+    q = args.paths.sessions / name
+    return q if q.exists() else None
+
+
+def run_ingest(args: argparse.Namespace) -> int:
+    """Import inbox files into sessions, analyse each, render reports."""
+    from jamcrammer.learn.analyze import analyze_session
+    from jamcrammer.learn.ingest import ingest_inbox
+    from jamcrammer.learn.report import render_report
+
+    cfg: AppConfig = args.cfg
+    res = ingest_inbox(args.paths, cfg.learn)
+    if not res.sessions:
+        print("inbox is empty (nothing under inbox/<target>/ to import)")
+        return 0
+    print(
+        f"ingested {res.images} images and {res.videos} videos into "
+        f"{len(res.sessions)} session(s), {res.keyframes} keyframes"
+    )
+    for s in res.sessions:
+        result = analyze_session(s, cfg.analysis, args.paths)
+        report = render_report(s, result.as_dict())
+        print(
+            f"  {s.name}: {len(result.states)} states, {len(result.rounds)} rounds, "
+            f"{len(result.answers)} answers, missing={result.missing}"
+        )
+        print(f"  report: {report}")
+    return 0
+
+
+def run_report(args: argparse.Namespace) -> int:
+    from jamcrammer.learn.analyze import analyze_session
+    from jamcrammer.learn.report import render_report
+
+    cfg: AppConfig = args.cfg
+    session = _session_path(args, args.session)
+    if session is None:
+        print(f"session not found: {args.session}")
+        return EXIT_NOT_FOUND
+    result = analyze_session(session, cfg.analysis, args.paths, write_profile=not args.no_profile)
+    report = render_report(session, result.as_dict())
+    print(
+        f"{session.name}: {result.frames} frames, {len(result.states)} states, cycle={result.cycle}"
+    )
+    print(f"regions: {[(r['kind'], r['box']) for r in result.regions if r['kind'] != 'text']}")
+    print(f"proposal: {list(result.proposal)}  missing: {result.missing}")
+    print(f"answers seeded: {len(result.answers)}")
+    print(f"report: {report}")
+    return 0
+
+
+def run_replay(args: argparse.Namespace) -> int:
+    from jamcrammer.replay.harness import NearestStateDetector, format_timeline, replay
+
+    session = _session_path(args, args.session)
+    if session is None:
+        print(f"session not found: {args.session}")
+        return EXIT_NOT_FOUND
+    if not (session / "analysis" / "labels.json").exists():
+        print("no analysis labels yet; run: jamcrammer report <session>")
+        return EXIT_NOT_FOUND
+    detector = NearestStateDetector(session)
+    result = replay(session, detector)
+    print(format_timeline(result))
+    return 0
 
 
 def run_learn(args: argparse.Namespace) -> int:

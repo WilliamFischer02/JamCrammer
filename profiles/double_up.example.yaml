@@ -1,0 +1,47 @@
+# Double Up profile (stage pixels). Learn proposes the grid from William's tile clicks.
+version: 1
+name: double_up
+fields:
+  grid_origin:
+    type: point
+    value: null
+    status: uncalibrated
+    note: center of the top-left tile
+  grid_pitch:
+    type: point
+    value: null
+    status: uncalibrated
+    note: [dx, dy] between tile centers
+  grid_shape:
+    type: list
+    value: [4, 4]
+    status: proposed
+    note: columns, rows (8 pairs = 16 tiles)
+  tile_size:
+    type: point
+    value: null
+    status: uncalibrated
+  board_roi:
+    type: roi
+    value: null
+    status: uncalibrated
+  play_again_point:
+    type: point
+    value: null
+    status: uncalibrated
+  end_screen_gems_roi:
+    type: roi
+    value: null
+    status: uncalibrated
+  preview_s:
+    type: number
+    value: 3
+    status: proposed
+  round_limit_s:
+    type: number
+    value: 60
+    status: proposed
+  flip_animation_ms:
+    type: number
+    value: 400
+    status: proposed

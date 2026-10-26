@@ -109,7 +109,8 @@ class LearnPage(Page):
         sessions.add_layout(
             row(
                 icon_button("eye", "Open folder", on_click=self._open_session),
-                icon_button("learn", "Review wizard (M5)", on_click=lambda: None),
+                icon_button("learn", "Review wizard", on_click=self._review),
+                icon_button("eye", "Learn Report", on_click=self._open_report),
                 stretch_last=True,
             )
         )
@@ -162,7 +163,34 @@ class LearnPage(Page):
             self.inbox_list.addItem("(empty)")
 
     def _import(self) -> None:
-        self.engine.emit("learn.ingest_requested", message="Inbox ingest arrives in M5")
+        self.engine.ingest_inbox()
+        self.refresh_inbox()
+        self.refresh_sessions()
+
+    def _selected_session(self) -> Path | None:
+        item = self.sessions.currentItem()
+        if item is None:
+            return None
+        return self.engine.paths.sessions / item.text().split("   ")[0]
+
+    def _review(self) -> None:
+        session = self._selected_session()
+        if session is None:
+            return
+        if not (session / "analysis" / "result.json").exists():
+            self.engine.analyze(session)
+        from jamcrammer.app.review_wizard import ReviewWizard
+
+        ReviewWizard(self.engine, session).exec()
+
+    def _open_report(self) -> None:
+        session = self._selected_session()
+        if session is None:
+            return
+        report = session / "report.html"
+        if not report.exists():
+            report = self.engine.analyze(session)
+        os.startfile(str(report))
 
     def refresh_sessions(self) -> None:
         self.sessions.clear()
