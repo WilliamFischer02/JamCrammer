@@ -17,6 +17,7 @@ heartbeat_s: 180
 antiafk:
   tap_ms: 200
   gap_ms: 300
+  settle_ms: 400                             # wait after a pair before the drift check
   pattern: [[left, right], [up, down], [right, left], [down, up]]
 
 # --- Behavior toggles ---
@@ -31,11 +32,34 @@ notify:
   toast: true
   sound: true
   ntfy_topic: ""                             # empty = disabled
+  ntfy_server: "https://ntfy.sh"
   discord_webhook: ""                        # empty = disabled
   levels:
     toast: NOTICE                            # minimum level that raises a toast
     sound: HIGH
-    push: HIGH
+    push: HIGH                               # ntfy + discord
+  sound_repeats: 3                           # HIGH alerts repeat the sound
+  sound_interval_s: 1.5
+  timeout_s: 10
+
+# --- Popup Watchdog ---
+watchdog:
+  fps: 2                                     # minimum detection rate
+  clear_timeout_s: 3                         # popup must be gone this long after the click
+  ocr_interval_s: 5                          # keyword-only OCR cadence when no green button is seen
+  max_retries: 1
+  unknown_cooldown_s: 60                     # don't re-alert the same unknown dialog more often
+
+# --- Room-drift guard ---
+drift:
+  threshold: 18                              # mean abs diff (0-255) on the masked downscale
+  downscale: [64, 36]
+
+# --- Activity Test (KICKOFF 7.3) ---
+activity_test:
+  phase_minutes: 8
+  movement_interval_s: 60
+  panel_interval_s: 60
 
 # --- Controls ---
 hotkeys:

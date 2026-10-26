@@ -61,7 +61,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("session")
 
     sub.add_parser("test-notify", help="send a test notification on every enabled channel")
-    sub.add_parser("activity-test", help="run the 3-part idle-popup activity test (§7.3)")
+    p = sub.add_parser("activity-test", help="run the idle-popup activity test (KICKOFF 7.3)")
+    p.add_argument(
+        "--phase", choices=("idle", "movement", "panel", "ingame"), action="append", default=None
+    )
+    p.add_argument("--minutes", type=float, default=None, help="override phase length")
+    p.add_argument("--dry-run", action="store_true", help="never send input")
     p = sub.add_parser("input-test", help="send one cancelling movement pair and verify")
     p.add_argument("--method", choices=("scancode", "vk"), default=None)
     p.add_argument("--backend", choices=("auto", "wgc", "mss"), default=None)
@@ -107,8 +112,8 @@ COMMANDS: dict[str, Command] = {
     "replay": _not_yet("M5"),
     "snap": _lazy("jamcrammer.commands.platform_cmds", "run_snap"),
     "report": _not_yet("M5"),
-    "test-notify": _not_yet("M2"),
-    "activity-test": _not_yet("M2"),
+    "test-notify": _lazy("jamcrammer.commands.services_cmds", "run_test_notify"),
+    "activity-test": _lazy("jamcrammer.commands.services_cmds", "run_activity_test"),
     "input-test": _lazy("jamcrammer.commands.platform_cmds", "run_input_test"),
     "window": _lazy("jamcrammer.commands.platform_cmds", "run_window"),
     "_bench": _lazy("jamcrammer.commands.platform_cmds", "run_bench_one"),

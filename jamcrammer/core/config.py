@@ -36,6 +36,7 @@ class StrictModel(BaseModel):
 class AntiAfkConfig(StrictModel):
     tap_ms: int = Field(200, ge=20, le=2000)
     gap_ms: int = Field(300, ge=0, le=5000)
+    settle_ms: int = Field(400, ge=0, le=5000)
     pattern: list[tuple[Direction, Direction]] = [
         ("left", "right"),
         ("up", "down"),
@@ -54,8 +55,31 @@ class NotifyConfig(StrictModel):
     toast: bool = True
     sound: bool = True
     ntfy_topic: str = ""
+    ntfy_server: str = "https://ntfy.sh"
     discord_webhook: str = ""
     levels: NotifyLevels = NotifyLevels()
+    sound_repeats: int = Field(3, ge=1, le=20)
+    sound_interval_s: float = Field(1.5, ge=0.1, le=30)
+    timeout_s: float = Field(10.0, gt=0)
+
+
+class WatchdogConfig(StrictModel):
+    fps: float = Field(2.0, gt=0, le=30)
+    clear_timeout_s: float = Field(3.0, gt=0)
+    ocr_interval_s: float = Field(5.0, gt=0)
+    max_retries: int = Field(1, ge=0, le=5)
+    unknown_cooldown_s: float = Field(60.0, ge=0)
+
+
+class DriftConfig(StrictModel):
+    threshold: float = Field(18.0, gt=0, le=255)
+    downscale: tuple[int, int] = (64, 36)
+
+
+class ActivityTestConfig(StrictModel):
+    phase_minutes: float = Field(8.0, gt=0)
+    movement_interval_s: float = Field(60.0, gt=0)
+    panel_interval_s: float = Field(60.0, gt=0)
 
 
 class HotkeyConfig(StrictModel):
@@ -121,6 +145,9 @@ class AppConfig(StrictModel):
     presence_slack_s: float = Field(0.5, ge=0)
     input: InputConfig = InputConfig()
     learn: LearnConfig = LearnConfig()
+    watchdog: WatchdogConfig = WatchdogConfig()
+    drift: DriftConfig = DriftConfig()
+    activity_test: ActivityTestConfig = ActivityTestConfig()
 
     @classmethod
     def from_yaml(cls, path: Path) -> AppConfig:

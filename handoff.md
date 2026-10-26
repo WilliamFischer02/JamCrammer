@@ -1,11 +1,12 @@
 # Handoff
 
-_Last updated: 2026-10-26 (M1 done, M2 next)_
+_Last updated: 2026-10-26 (M2 done, M3 next)_
 
 ## State
 - **M0 done:** venv (Python 3.14), pyproject, ruff + mypy (strict core/platform) + pytest green, skeleton, inbox READMEs, `run.bat` placeholder window verified.
 - **M1 done:** window discovery + DPI, WGC/mss capture with benchmark, SendInput controller (bounds-checked, postcondition retry, dry-run), kill/pause/lease/presence/hotkeys primitives, SQLite store, JSONL logging, **CLI emergency recorder** `learn --target bestguess` (keyframes + ring-buffer marker dumps + local input log + OCR snapshots + meta.jsonl). Verified live: `snap` PNG read and correct; 15 s recording produced a valid session folder.
-- Not yet run live: `input-test` with real keys (needs William watching). Dry-run path verified.
+- **M2 done:** Popup Watchdog (templates → green+OCR → OCR → unknown-modal), Anti-AFK + room-drift guard, notifications (toast/sound verified live; ntfy/Discord wired, disabled until configured), Gem Ledger, profiles system (`profiles/shared.example.yaml`), replay frame sources, synthetic popup generators, `test-notify` and `activity-test` commands. 68 tests green.
+- Not yet run live: `input-test` with real keys and the Activity Test (both need William present). Dry-run paths verified.
 
 ## How to record Best Guess the moment it appears
 ```
@@ -15,9 +16,9 @@ cd C:\dev\JamCrammer
 Then join the party and play. **F6** mark, **F7** I was correct, **F8** I was wrong, **F12** or Ctrl+C to stop. Nothing is sent to the game. Add `--video` for a continuous 5 fps mp4 as well. Drop OBS recordings in `inbox\bestguess\` as a backup.
 
 ## Next steps
-1. **M2:** Popup Watchdog, Anti-AFK + room-drift guard, Activity Test, notifications (toast/sound/ntfy/Discord), Gem Ledger.
-2. Live `input-test` with William: `python -m jamcrammer input-test` (then `--method vk` if scan codes don't move the animal). Record the result in `decisions.md` and set `input.key_method`.
-3. M3: Party Watcher (banner ID against the fixture) + Best Guess Hunter A/B.
+1. **M3:** Party Watcher (panel open/scan/close, banner ID vs the fixture, rotation log) + Best Guess Hunter Phases A/B (hunt cycle, HIGH alert, auto-join); `hunt` CLI with `--dry-run`.
+2. With William present: `python -m jamcrammer input-test` (then `--method vk` if scan codes don't move the animal) → record in `decisions.md`, set `input.key_method`. Then `python -m jamcrammer activity-test` (24 min) → set Anti-AFK defaults from the result.
+3. Popup templates: when `inbox/popups/` gets the still-playing / logged-out / Play Now screenshots, crop them into `assets/templates/popups/` and flip the template fields in the shared profile to `calibrated`.
 
 ## Open questions (asked William 2026-10-26, defaults in use)
 - ntfy phone pushes + topic? (default: off)
