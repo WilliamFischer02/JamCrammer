@@ -33,6 +33,21 @@ fields:
     type: roi
     value: null
     status: uncalibrated
+  exit_point:
+    type: point
+    value: null
+    status: uncalibrated
+    note: button that leaves the mini-game back to the room
+  games_menu_point:
+    type: point
+    value: null
+    status: uncalibrated
+    note: HUD Games icon (entry route step 1)
+  game_tile_point:
+    type: point
+    value: null
+    status: uncalibrated
+    note: Double Up tile inside the Games menu (entry route step 2)
   preview_s:
     type: number
     value: 3

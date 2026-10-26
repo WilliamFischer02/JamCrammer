@@ -114,7 +114,7 @@ COMMANDS: dict[str, Command] = {
     "gui": _gui,
     "hunt": _lazy("jamcrammer.commands.hunt_cmd", "run_hunt"),
     "farm": _lazy("jamcrammer.commands.farm_cmd", "run_farm"),
-    "opportunist": _not_yet("M9"),
+    "opportunist": _lazy("jamcrammer.commands.farm_cmd", "run_opportunist"),
     "learn": _lazy("jamcrammer.commands.learn_cmd", "run_learn"),
     "ingest": _lazy("jamcrammer.commands.learn_cmd", "run_ingest"),
     "replay": _lazy("jamcrammer.commands.learn_cmd", "run_replay"),

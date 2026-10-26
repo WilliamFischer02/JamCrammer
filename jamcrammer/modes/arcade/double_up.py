@@ -12,6 +12,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
+import cv2
 import numpy as np
 import numpy.typing as npt
 
@@ -116,7 +117,8 @@ class DoubleUpFarmer:
         """The board is on screen when the tile cells look like tiles (not the end screen)."""
         boxes = self.geometry.boxes()
         tiles = [crop_tile(image, b) for b in boxes]
-        stds = [float(t.std()) for t in tiles]
+        # grayscale: a flat room with different per-channel values is not 'structure'
+        stds = [float(cv2.cvtColor(t, cv2.COLOR_BGR2GRAY).std()) for t in tiles]
         # tiles (hidden or revealed) have structure; a plain background doesn't
         return sum(1 for s in stds if s > self.cfg.tile_min_std) >= len(boxes) * 0.75
 

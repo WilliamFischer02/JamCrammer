@@ -15,7 +15,15 @@ EXIT_LOCKED = 5
 STATUS_TICK_S = 0.5
 
 
+def run_opportunist(args: argparse.Namespace) -> int:
+    return _run_engine_mode(args, "opportunist", "Opportunist")
+
+
 def run_farm(args: argparse.Namespace) -> int:
+    return _run_engine_mode(args, "farm", "Double Up")
+
+
+def _run_engine_mode(args: argparse.Namespace, mode: str, label: str) -> int:
     from jamcrammer.app.engine import Engine
 
     cfg: AppConfig = args.cfg
@@ -31,14 +39,14 @@ def run_farm(args: argparse.Namespace) -> int:
     if engine.refresh_window() is None:
         print("AJC window not found")
         return EXIT_NO_WINDOW
-    engine.selected_mode = "farm"
-    if not engine.start_mode("farm"):
+    engine.selected_mode = mode
+    if not engine.start_mode(mode):
         print(engine.state.last_error or "could not start")
         return 1
     deadline = time.time() + args.duration if args.duration else None
-    print("Farming Double Up · F11 pause · F12 stop")
+    print(f"{label} running - F11 pause, F12 stop")
     try:
-        while engine.state.mode == "farm":
+        while engine.state.mode == mode:
             if deadline is not None and time.time() >= deadline:
                 engine.stop_mode()
                 break
@@ -49,6 +57,6 @@ def run_farm(args: argparse.Namespace) -> int:
         engine.stop_mode()
     finally:
         print()
-        print(f"stats: {engine.state.stats.get('farm', {})}  ledger: {engine.ledger.stats.by_mode}")
+        print(f"stats: {engine.state.stats.get(mode, {})}  ledger: {engine.ledger.stats.by_mode}")
         engine.shutdown()
     return 0

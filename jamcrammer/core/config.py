@@ -115,6 +115,14 @@ class BestGuessConfig(StrictModel):
     false_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = ((130, 60, 60), (165, 255, 255))
 
 
+class OpportunistConfig(StrictModel):
+    entry_timeout_s: float = Field(8.0, gt=0)
+    exit_timeout_s: float = Field(5.0, gt=0)
+    settle_s: float = Field(0.5, ge=0)
+    poll_s: float = Field(0.25, gt=0)
+    max_entry_failures: int = Field(2, ge=1)
+
+
 class AnalysisConfig(StrictModel):
     duplicate_distance: int = Field(2, ge=0, le=64)
     transition_distance: int = Field(14, ge=0, le=64)
@@ -214,6 +222,7 @@ class AppConfig(StrictModel):
     analysis: AnalysisConfig = AnalysisConfig()
     double_up: DoubleUpConfig = DoubleUpConfig()
     bestguess: BestGuessConfig = BestGuessConfig()
+    opportunist: OpportunistConfig = OpportunistConfig()
 
     @classmethod
     def from_yaml(cls, path: Path) -> AppConfig:

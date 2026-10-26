@@ -1,6 +1,6 @@
 # Handoff
 
-_Last updated: 2026-10-26 (M8 built, live Learn session pending; M9 next)_
+_Last updated: 2026-10-26 (M9 built; M10 next)_
 
 ## State
 - **M0 done:** venv (Python 3.14), pyproject, ruff + mypy (strict core/platform) + pytest green, skeleton, inbox READMEs, `run.bat` placeholder window verified.
@@ -12,6 +12,7 @@ _Last updated: 2026-10-26 (M8 built, live Learn session pending; M9 next)_
 - **M6 done:** Calibration canvas with drag handles (move/resize), Draw ROI, Sample color → HSV range, Crop template → assets, point picking, inline editing, mark calibrated/uncalibrated, save; live-mode gate (`core/gate.py`) shown on Calibration and mode pages; replay results feed the gate. UI QA re-captured.
 - **M7 built:** `vision/grid.py` (grid geometry, tile descriptors, mutual-best pairing), `modes/arcade/double_up.py` (preview burst → pair → click/verify → end-screen OCR → Play Again; reveal-and-remember fallback), `farm` CLI + engine mode behind the gate, simulated Double Up world tests (perfect round, fallback, gate refusal). **Live rounds need William's Learn session** (`learn --target double_up`, 2-3 manual rounds) to calibrate the grid.
 - **M8 built:** `modes/bestguess/{state,brain,learner,farmer}.py` (Phase C state machine, profile-driven detector with countdown fallback, fuzzy bank with majority on conflicts, learner vote, bg_rounds rows, stats), engine hand-off from hunt join → farmer when the gate is open (else Learn-only), review wizard state naming → replay scores the real detector. Synthetic: detector ≥95%, farmer 3/4 correct with learning. **Needs William's Best Guess Learn session** to calibrate fact/true/false/reveal ROIs and pass the gate.
+- **M9 built:** `modes/opportunist.py` (ArcadeEntry leave/enter with verification, Opportunist loop with boundary checks, overhead events, hop to Best Guess, fallback to Hunt), engine `opportunist` mode behind the Double Up gate + entry route, `opportunist` CLI, Profit Lab overhead line. Simulated tests: boundary checks + re-entry, hop, fallback, route gate.
 - **Verified live:** party hat click opens My Parties, X closes it (panel probe 14:59). Current slot: *Spooky Party*.
 - **Not yet run live:** the 30-min `hunt --no-join` rotation run (M3 acceptance), `input-test` with real keys, the Activity Test. William appeared to be at the keyboard (window un-fullscreened, room changed to Coral Canyons ~15:05), so no further input was sent.
 
@@ -24,7 +25,7 @@ Then join the party and play. **F6** mark, **F7** I was correct, **F8** I was wr
 
 ## Next steps
 1. **M3 acceptance, when William is away:** `python -m jamcrammer hunt --no-join --duration 1800` → rotation log printed at the end; confirm the HIGH sound fires if Best Guess appears. Then `hunt` (auto-join on) for real.
-2. **M9:** Opportunist orchestrator: Double Up rounds, party-slot check every `opportunist_check_s` at round boundaries, hop to Best Guess, clean re-entry via the calibrated entry route, overhead measurement for Profit Lab, fallback to plain Hunt after two failed re-entries.
+2. **M10:** Profit Lab measured gems/hr side by side (Best Guess, Double Up, Derby) + Jamaa Derby farmer (lane ROI, obstacle templates, jump timing, carrot boosts, results OCR, Pro unlock tracking) with a synthetic race test.
 3. With William present: `python -m jamcrammer input-test` (then `--method vk` if scan codes don't move the animal) → record in `decisions.md`, set `input.key_method`. Then `python -m jamcrammer activity-test` (24 min) → set Anti-AFK defaults from the result.
 3. Popup templates: when `inbox/popups/` gets the still-playing / logged-out / Play Now screenshots, crop them into `assets/templates/popups/` and flip the template fields in the shared profile to `calibrated`.
 

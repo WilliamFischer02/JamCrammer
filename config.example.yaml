@@ -94,6 +94,14 @@ bestguess:
   true_hsv: [[40, 90, 90], [85, 255, 255]]   # green = True (left)
   false_hsv: [[130, 60, 60], [165, 255, 255]]  # purple = False (right)
 
+# --- Opportunist (KICKOFF 10) ---
+opportunist:
+  entry_timeout_s: 8                         # the board must show within this after the entry clicks
+  exit_timeout_s: 5
+  settle_s: 0.5
+  poll_s: 0.25
+  max_entry_failures: 2                      # then fall back to plain Hunt + alert
+
 # --- Learn analysis (KICKOFF 11.3) ---
 analysis:
   duplicate_distance: 2                      # pHash distance treated as the same frame

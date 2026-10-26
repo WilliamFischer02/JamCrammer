@@ -109,6 +109,12 @@ class ProfitLabPage(Page):
                 )
             ):
                 self.table.setItem(i, c, QTableWidgetItem(str(v)))
+        from jamcrammer.modes.opportunist import overhead_summary
+
+        oh = overhead_summary(store, since_ts=self.engine.started_ts)
+        self.overhead.setText(
+            f"Opportunist overhead: {oh['mean_s']} s per check · {oh['checks']} checks · {oh['total_s']} s total"
+        )
         best = max(by_mode.items(), key=lambda kv: kv[1], default=None)
         if best and best[1] > 0:
             self.reco.setText(

@@ -283,7 +283,11 @@ class Engine:
         self.state.mode = name
         self.state.mode_state = "STARTING"
         self.state.mode_detail = ""
-        target = {"hunt": self._run_hunt, "farm": self._run_farm}.get(name, self._run_placeholder)
+        target = {
+            "hunt": self._run_hunt,
+            "farm": self._run_farm,
+            "opportunist": self._run_opportunist,
+        }.get(name, self._run_placeholder)
         self._mode_thread = threading.Thread(
             target=self._mode_wrapper, args=(name, target), name=f"mode-{name}", daemon=True
         )
@@ -457,6 +461,88 @@ class Engine:
             "gems": farmer.stats.gems,
             "median_round_s": farmer.stats.median_round_s,
         }
+
+    def _run_opportunist(self) -> None:
+        """Opportunist (M9): Double Up rounds + party checks + hop to Best Guess."""
+        from jamcrammer.core.gate import gate_status
+        from jamcrammer.modes.arcade.double_up import DoubleUpFarmer
+        from jamcrammer.modes.bestguess.hunter import Hunter
+        from jamcrammer.modes.opportunist import ENTRY_FIELDS, ArcadeEntry, Opportunist
+        from jamcrammer.modes.party_watcher import BannerLibrary, PanelAnalyzer, PartyWatcher
+
+        gate = gate_status("double_up", self.paths, self._profiles)
+        route_missing = self.profile("double_up").missing(list(ENTRY_FIELDS))
+        if not gate.unlocked or route_missing:
+            self.emit(
+                "engine.gate_locked",
+                Level.HIGH,
+                mode="opportunist",
+                message=f"Opportunist needs Double Up {gate.summary()}; entry route missing {route_missing}",
+            )
+            self._run_placeholder()
+            return
+        grab_image = lambda: self.grab().image  # noqa: E731
+        farmer = DoubleUpFarmer(
+            self.profile("double_up"),
+            self.cfg.double_up,
+            self.input,
+            grab_image,
+            store=self.store,
+            bus=self.bus,
+        )
+        analyzer = PanelAnalyzer(
+            self.profile("parties"), BannerLibrary(self.paths.assets / "banners"), paths=self.paths
+        )
+        watcher = PartyWatcher(
+            analyzer,
+            self.cfg.hunt,
+            self.input,
+            grab_image,
+            store=self.store,
+            bus=self.bus,
+            unknown_dir=self.paths.unknown,
+        )
+        hunter = Hunter(
+            self.cfg,
+            watcher,
+            self.grab,
+            watchdog=self.watchdog,
+            antiafk=self.antiafk,
+            guard=self.guard,
+            bus=self.bus,
+            no_join=not self.cfg.auto_join,
+            presence=self.presence,
+            on_joined=self._on_joined,
+        )
+        entry = ArcadeEntry(
+            self.profile("double_up"),
+            self.cfg.opportunist,
+            self.input,
+            grab_image,
+            farmer.board_visible,
+        )
+        opp = Opportunist(
+            self.cfg.opportunist,
+            self.cfg.opportunist_check_s,
+            farmer,
+            hunter,
+            entry,
+            store=self.store,
+            bus=self.bus,
+        )
+        self._mode_obj = opp
+        self.lease.acquire("opportunist")
+
+        def guarded_stop() -> bool:
+            frame = self.snapshot()
+            if frame is not None:
+                self.watchdog.tick(frame)
+            return self._should_stop() or self.pause.paused or self.watchdog.paused
+
+        opp.run(guarded_stop, self._status)
+        self.state.stats["opportunist"] = opp.stats.as_dict()
+        if hunter.stats.joined and self._phase_c_allowed():
+            self._run_bestguess_farmer()
 
     def _run_placeholder(self) -> None:
         """farm / opportunist arrive in M7 / M9: keep the watchdog alive and say so."""

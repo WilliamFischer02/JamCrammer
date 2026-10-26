@@ -91,3 +91,10 @@ Non-obvious choices and why. Newest at the bottom.
 - **Brain:** `token_set_ratio ≥ fuzzy_threshold` plus a length-ratio guard (≥0.6) so short OCR fragments never match long facts; conflicts bump `conflict_count` and the stored answer flips only when conflicts outnumber confirmations (majority). Policies: learned prior (majority side in the bank), fixed side, skip; answer modes learn-only / bank+policy / coin-flip.
 - **Learners vote:** reveal-ROI color (strongest), gem-counter delta, own-animal motion; the confidence-weighted vote decides the correct side, which both updates the bank and scores our choice. Learn's leaderboard ranks the same strategies offline.
 - **Phase C stays behind the gate:** the hunter's auto-join starts a Learn-only recording unless `gate_status("bestguess")` is unlocked *and* `answer_mode != learn_only`; then the farmer runs with the watchdog still ticking on the same frames. The replay harness scores the real detector against named states (`analysis/state_names.json` maps analysis clusters to WAITING/QUESTION/LOCKED/REVEAL via the review wizard).
+
+## 2026-10-26 — M9
+
+- **Checks only at round boundaries.** The orchestrator plays whole Double Up rounds and consults the clock between them; a check = leave the game (calibrated `exit_point`, verified by the board disappearing) → one full Hunt cycle (anti-AFK pair, scan, HIGH alert, auto-join) → re-enter via `games_menu_point` + `game_tile_point` (verified by the board appearing, one retry). Every check emits `opportunist.check` with its overhead in seconds; Profit Lab reads those events.
+- **Fallback:** two consecutive failed re-entries → `opportunist.fallback` (HIGH) and the hunter's plain loop takes over; a successful join hands off to Phase C if the gate is open.
+- **Board detection measures structure on grayscale** after a flat lobby background (constant colour, different per-channel values) was mistaken for a tile grid.
+- **Entry route fields** (`exit_point`, `games_menu_point`, `game_tile_point`) live in the Double Up profile and are uncalibrated until William's Learn session or the Calibration page sets them; the orchestrator refuses to start without them.
