@@ -5,7 +5,15 @@ import pytest
 from jamcrammer.core.paths import Paths
 from jamcrammer.core.profiles import load_profile
 
-EXAMPLES = ("shared", "parties", "bestguess", "double_up")
+EXAMPLES = (
+    "shared",
+    "parties",
+    "bestguess",
+    "double_up",
+    "jamaa_derby",
+    "gem_ball",
+    "swoopy_eagle",
+)
 
 
 @pytest.mark.parametrize("name", EXAMPLES)

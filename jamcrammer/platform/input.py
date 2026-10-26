@@ -266,6 +266,26 @@ class InputController:
                 self._emit("input.retry", Level.NOTICE, cx=cx, cy=cy, attempt=attempt + 1)
         return False
 
+    def press_hold(self, cx: int, cy: int, hold_ms: int, button: Button = "left") -> bool:
+        """Press at (cx, cy), hold for ``hold_ms``, release (Gem Ball launch power)."""
+        if not self.move(cx, cy):
+            return False
+        if self.dry_run:
+            self._emit("input.press_hold", dry_run=True, cx=cx, cy=cy, hold_ms=hold_ms)
+            return True
+        down, up = (
+            (MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP)
+            if button == "left"
+            else (MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP)
+        )
+        _send([_mouse_input(down)])
+        time.sleep(hold_ms / 1000.0)
+        _send([_mouse_input(up)])
+        self.stats.clicks += 1
+        self._touch(f"hold:{button}:{hold_ms}")
+        self._emit("input.press_hold", cx=cx, cy=cy, hold_ms=hold_ms)
+        return True
+
     # --- keyboard ----------------------------------------------------------------------
 
     def key_down(self, key: str, method: KeyMethod | None = None) -> None:

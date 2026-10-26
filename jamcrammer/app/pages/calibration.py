@@ -42,7 +42,15 @@ from jamcrammer.vision.calibrate import (
 ZOOM_STEP = 1.25
 MIN_ZOOM = 0.2
 MAX_ZOOM = 12.0
-PROFILES = ("shared", "parties", "bestguess", "double_up", "jamaa_derby")
+PROFILES = (
+    "shared",
+    "parties",
+    "bestguess",
+    "double_up",
+    "jamaa_derby",
+    "gem_ball",
+    "swoopy_eagle",
+)
 TOOLS = (
     ("select", "Select / drag"),
     ("roi", "Draw ROI"),

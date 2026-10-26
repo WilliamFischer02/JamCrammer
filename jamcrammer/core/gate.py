@@ -33,6 +33,12 @@ REQUIRED_FIELDS: dict[str, list[tuple[str, str]]] = {
         ("jamaa_derby", "results_gems_roi"),
         ("jamaa_derby", "race_again_point"),
     ],
+    "gem_ball": [("gem_ball", "launch_point"), ("gem_ball", "gem_counter_roi")],
+    "swoopy_eagle": [
+        ("swoopy_eagle", "play_roi"),
+        ("swoopy_eagle", "bird_hsv"),
+        ("swoopy_eagle", "pipe_hsv"),
+    ],
     "double_up": [
         ("double_up", "grid_origin"),
         ("double_up", "grid_pitch"),
@@ -45,6 +51,8 @@ REPLAY_TARGET = {
     "bestguess": "bestguess",
     "double_up": "double_up",
     "jamaa_derby": "jamaa_derby",
+    "gem_ball": None,
+    "swoopy_eagle": None,
     "hunt": None,
 }
 

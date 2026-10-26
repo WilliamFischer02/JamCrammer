@@ -14,6 +14,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+import numpy as np
+
 from jamcrammer.core.config import AppConfig, Level
 from jamcrammer.core.events import Event, EventBus
 from jamcrammer.core.logging import attach_bus, get_logger
@@ -438,6 +440,12 @@ class Engine:
             self._run_placeholder()
             return
         farmer: Any
+        if game == "gem_ball":
+            self._run_gem_ball()
+            return
+        if game == "swoopy_eagle":
+            self._run_swoopy()
+            return
         if game == "jamaa_derby":
             from jamcrammer.modes.arcade.derby import DerbyFarmer
 
@@ -562,6 +570,64 @@ class Engine:
         self.state.stats["opportunist"] = opp.stats.as_dict()
         if hunter.stats.joined and self._phase_c_allowed():
             self._run_bestguess_farmer()
+
+    def _run_gem_ball(self) -> None:
+        """Gem Ball auto-tuner (M11): sweep hold durations, then exploit or declare random."""
+        from jamcrammer.modes.arcade.gem_ball import GemBallTuner, gem_delta_outcome
+        from jamcrammer.vision.ocr import crop, ocr_image, parse_int
+
+        prof = self.profile("gem_ball")
+        roi = prof.roi("gem_counter_roi")
+        outcome = gem_delta_outcome(
+            lambda img: parse_int(ocr_image(crop(img, roi), upscale=2.0).text),
+            top_delta=int(prof.number("top_slot_gems")),
+            jackpot_delta=int(prof.number("jackpot_gems")),
+        )
+        tuner = GemBallTuner(
+            prof,
+            self.cfg.gem_ball,
+            self.input,
+            lambda: self.grab().image,
+            outcome,
+            store=self.store,
+            bus=self.bus,
+            report_dir=self.paths.data,
+        )
+        self._mode_obj = tuner
+        self.lease.acquire("farm")
+        rep = tuner.sweep(self._should_stop)
+        if rep.deterministic and not self._should_stop():
+            self._status(f"EXPLOITING · {rep.best_duration_ms} ms")
+            while not self._should_stop() and not self.pause.paused:
+                tuner.exploit(10, self._should_stop)
+        self.state.stats["farm"] = rep.as_dict()
+
+    def _run_swoopy(self) -> None:
+        """Swoopy Eagle prototype (M11): 60 fps small-ROI loop with a PD flap controller."""
+        import cv2
+
+        from jamcrammer.modes.arcade.swoopy import SwoopyPilot
+        from jamcrammer.services.watchdog import match_template
+
+        prof = self.profile("swoopy_eagle")
+        crash_tpl = None
+        if prof.has("crash_template"):
+            raw = cv2.imread(str(prof.template_path("crash_template", self.paths)))
+            crash_tpl = None if raw is None else np.asarray(raw, dtype=np.uint8)
+
+        def crashed(image: Any) -> bool:
+            if crash_tpl is None:
+                return False
+            _, box = match_template(image, crash_tpl, 0.85)
+            return box is not None
+
+        pilot = SwoopyPilot(
+            prof, self.cfg.swoopy, self.input, lambda: self.grab().image, bus=self.bus
+        )
+        self._mode_obj = pilot
+        self.lease.acquire("farm")
+        stats = pilot.run(lambda: self._should_stop() or self.pause.paused, crashed)
+        self.state.stats["farm"] = stats.as_dict()
 
     def _run_placeholder(self) -> None:
         """farm / opportunist arrive in M7 / M9: keep the watchdog alive and say so."""

@@ -1,0 +1,22 @@
+# Gem Ball profile (stage pixels). The auto-tuner sweeps the hold duration from this point.
+version: 1
+name: gem_ball
+fields:
+  launch_point:
+    type: point
+    value: null
+    status: uncalibrated
+    note: where to press-and-hold to launch a ball
+  gem_counter_roi:
+    type: roi
+    value: null
+    status: uncalibrated
+    note: HUD gem total; the tuner reads the delta per ball
+  top_slot_gems:
+    type: number
+    value: 3
+    status: proposed
+  jackpot_gems:
+    type: number
+    value: 75
+    status: proposed

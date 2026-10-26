@@ -44,7 +44,7 @@ def build_parser() -> argparse.ArgumentParser:
         p.add_argument("--once", action="store_true", help="one scan cycle, then exit")
         p.add_argument(
             "--game",
-            choices=("double_up", "jamaa_derby"),
+            choices=("double_up", "jamaa_derby", "gem_ball", "swoopy_eagle"),
             default=None,
             help="farm: which arcade game",
         )

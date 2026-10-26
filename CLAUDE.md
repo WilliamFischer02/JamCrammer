@@ -24,6 +24,9 @@ See KICKOFF §5. `jamcrammer/` package, `assets/` (SVG only), `profiles/`, `inbo
 - If William says "new files in the inbox": ingest, Read the key frames yourself, review the report, update profiles/templates/tests, report a checklist.
 - Every input action has a postcondition check; every wait has a timeout; failures degrade to a safe pause; every decision is logged.
 
+## Status (2026-10-26)
+M0-M11 are built and unit/simulation tested (see `handoff.md`). Live acceptance runs that need William present: 30-min `hunt --no-join`, `input-test`, `activity-test`, Learn sessions for Best Guess / Double Up / Derby. Profiles are stage-pixel (1920x1080) coordinates; see `jamcrammer/vision/stage.py`.
+
 ## Environment facts (discovered 2026-10-26)
 - AJC client: Electron app `AJ Classic.exe` (`%LOCALAPPDATA%\Programs\aj-classic\`), window title exactly `Animal Jam Classic`, class `Chrome_WidgetWin_1`, frameless fullscreen 1920×1080 at (0,0) on the primary monitor, DPI 96 (100%).
 - Three monitors: primary 1920×1080 at (0,0); 1920×1080 at (-1920,82); portrait 720×1280 at (-2640,153).

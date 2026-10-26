@@ -138,7 +138,36 @@ class DerbyConfig(StrictModel):
     results_settle_s: float = Field(0.5, ge=0)
 
 
-ArcadeGame = Literal["double_up", "jamaa_derby"]
+class GemBallConfig(StrictModel):
+    hold_min_ms: int = Field(60, ge=1)
+    hold_max_ms: int = Field(1200, ge=1)
+    hold_step_ms: int = Field(20, ge=5)
+    repeats: int = Field(3, ge=1)
+    min_repeats: int = Field(2, ge=1)
+    exploit_rate: float = Field(0.7, ge=0, le=1)
+    min_balls: int = Field(6, ge=1)
+    settle_s: float = Field(4.0, ge=0)
+
+
+class SwoopyConfig(StrictModel):
+    fps: float = Field(60.0, gt=0, le=120)
+    flap_key: str = "space"
+    flap_hold_ms: int = Field(20, ge=1)
+    kp: float = Field(1.5, ge=0)
+    kd: float = Field(0.05, ge=0)
+    flap_threshold: float = Field(25.0)
+    target_offset_px: float = Field(0.0)
+    min_flap_interval_s: float = Field(0.12, ge=0)
+    default_target_y: float = Field(150.0)
+    min_bird_px: int = Field(10, ge=1)
+    bird_lead_px: int = Field(12, ge=0)
+    pipe_col_min: float = Field(0.2, ge=0, le=1)
+    pipe_probe_px: int = Field(6, ge=1)
+    gap_reset_px: float = Field(60.0, ge=0)
+    restart_s: float = Field(1.0, ge=0)
+
+
+ArcadeGame = Literal["double_up", "jamaa_derby", "gem_ball", "swoopy_eagle"]
 
 
 class AnalysisConfig(StrictModel):
@@ -242,6 +271,8 @@ class AppConfig(StrictModel):
     bestguess: BestGuessConfig = BestGuessConfig()
     opportunist: OpportunistConfig = OpportunistConfig()
     derby: DerbyConfig = DerbyConfig()
+    gem_ball: GemBallConfig = GemBallConfig()
+    swoopy: SwoopyConfig = SwoopyConfig()
     arcade_game: ArcadeGame = "double_up"
 
     @classmethod

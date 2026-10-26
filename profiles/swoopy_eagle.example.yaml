@@ -1,0 +1,21 @@
+# Swoopy Eagle profile (stage pixels). Prototype; calibrate from a Learn session.
+version: 1
+name: swoopy_eagle
+fields:
+  play_roi:
+    type: roi
+    value: null
+    status: uncalibrated
+    note: the play field (captured at 60 fps; keep it small)
+  bird_hsv:
+    type: color
+    value: null
+    status: uncalibrated
+  pipe_hsv:
+    type: color
+    value: null
+    status: uncalibrated
+  crash_template:
+    type: template
+    value: templates/swoopy_eagle/crash.png
+    status: uncalibrated

@@ -103,7 +103,7 @@ opportunist:
   max_entry_failures: 2                      # then fall back to plain Hunt + alert
 
 # --- Jamaa Derby farmer (KICKOFF 9.3) ---
-arcade_game: double_up                       # which game `farm` runs: double_up | jamaa_derby
+arcade_game: double_up                       # farm runs: double_up | jamaa_derby | gem_ball (tuner) | swoopy_eagle
 derby:
   fps: 20                                    # control loop rate (obstacle timing)
   jump_key: space
@@ -117,6 +117,33 @@ derby:
   background_warmup_frames: 3
   race_timeout_s: 90
   results_settle_s: 0.5
+
+# --- Experimental (KICKOFF 9.4) ---
+gem_ball:
+  hold_min_ms: 60                            # press-and-hold sweep range and step
+  hold_max_ms: 1200
+  hold_step_ms: 20
+  repeats: 3
+  min_repeats: 2
+  exploit_rate: 0.7                          # best duration must hit top/jackpot this often
+  min_balls: 6                               # per duration, before a verdict counts
+  settle_s: 4                                # wait for the ball to land before reading the outcome
+swoopy:
+  fps: 60
+  flap_key: space
+  flap_hold_ms: 20
+  kp: 1.5                                    # tuned on the flappy simulation (31 gaps / 40 s)
+  kd: 0.05
+  flap_threshold: 25
+  target_offset_px: 0
+  min_flap_interval_s: 0.12
+  default_target_y: 150
+  min_bird_px: 10
+  bird_lead_px: 12
+  pipe_col_min: 0.2
+  pipe_probe_px: 6
+  gap_reset_px: 60
+  restart_s: 1
 
 # --- Learn analysis (KICKOFF 11.3) ---
 analysis:
