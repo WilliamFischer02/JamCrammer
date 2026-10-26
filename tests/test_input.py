@@ -21,7 +21,7 @@ WINDOW = WindowInfo(
 
 def _ctl(window: WindowInfo | None = WINDOW) -> tuple[InputController, EventBus]:
     bus = EventBus()
-    return InputController(lambda: window, InputConfig(), dry_run=True, bus=bus), bus
+    return InputController(lambda: window, InputConfig(), dry_run=True, bus=bus, stage=False), bus
 
 
 def test_to_screen_inside() -> None:

@@ -19,6 +19,7 @@ import win32api
 from jamcrammer.core.config import Direction, InputConfig, Level
 from jamcrammer.core.events import Event, EventBus
 from jamcrammer.platform.window import WindowInfo
+from jamcrammer.vision.stage import StageMap
 
 USER32 = ctypes.windll.user32
 
@@ -165,11 +166,15 @@ class InputController:
         cfg: InputConfig,
         dry_run: bool = False,
         bus: EventBus | None = None,
+        stage: bool = True,
     ) -> None:
+        """``stage=True``: click/move coordinates are stage pixels (KICKOFF profiles), mapped
+        to the current client size; ``stage=False``: raw client pixels."""
         self._window = window
         self._cfg = cfg
         self.dry_run = dry_run
         self._bus = bus
+        self.stage = stage
         self.stats = InputStats()
 
     # --- helpers -----------------------------------------------------------------------
@@ -196,6 +201,8 @@ class InputController:
             msg = "no AJC window; refusing input"
             raise InputRefusedError(msg)
         w, h = info.client_size
+        if self.stage:
+            cx, cy = StageMap(w, h).to_client(cx, cy)
         if not (0 <= cx < w and 0 <= cy < h):
             self.stats.refused += 1
             self._emit("input.refused", Level.NOTICE, reason="out_of_bounds", cx=cx, cy=cy)

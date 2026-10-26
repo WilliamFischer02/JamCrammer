@@ -11,7 +11,7 @@ from jamcrammer.core.events import EventBus
 from jamcrammer.core.logging import attach_bus, get_logger
 from jamcrammer.core.store import Store
 from jamcrammer.learn.recorder import Recorder, RecorderStats
-from jamcrammer.platform.capture import open_backend
+from jamcrammer.platform.capture import open_stage_backend
 from jamcrammer.platform.window import WindowTracker, ensure_dpi_awareness
 
 log = get_logger("cmd.learn")
@@ -38,7 +38,7 @@ def run_learn(args: argparse.Namespace) -> int:
     bus = EventBus()
     attach_bus(bus)
     store = Store(args.paths.db)
-    backend = open_backend(cfg.capture_backend, tracker.provider())
+    backend = open_stage_backend(cfg.capture_backend, tracker.provider())
 
     stamp = time.strftime("%Y%m%d_%H%M%S")
     name = f"{stamp}_{args.target}" + (f"_{args.name}" if args.name else "")

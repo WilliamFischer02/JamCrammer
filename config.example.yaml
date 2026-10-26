@@ -55,6 +55,18 @@ drift:
   threshold: 18                              # mean abs diff (0-255) on the masked downscale
   downscale: [64, 36]
 
+# --- Best Guess Hunter (Phases A/B) ---
+hunt:
+  panel_timeout_s: 4                         # My Parties must appear within this after the hat click
+  panel_poll_s: 0.25
+  panel_settle_s: 0.4                        # let the panel finish animating before analysing
+  close_timeout_s: 3
+  join_retry_s: 30                           # "wait" popup after GO NOW: retry cadence
+  join_max_retries: 10
+  arrival_timeout_s: 8                       # room must change within this after GO NOW
+  sighting_merge_gap_s: 900                  # sightings closer than this merge into one row
+  antiafk_each_cycle: true                   # one cancelling pair before every scan
+
 # --- Activity Test (KICKOFF 7.3) ---
 activity_test:
   phase_minutes: 8

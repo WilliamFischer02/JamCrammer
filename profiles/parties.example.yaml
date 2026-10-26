@@ -1,0 +1,110 @@
+# My Parties panel profile. All coordinates are STAGE pixels (1920x1080 reference; see
+# jamcrammer/vision/stage.py). Measured live on 2026-10-26 in a maximized window (scale 0.938)
+# and converted to stage space. Geometry inside the panel is relative to the matched title box.
+version: 1
+name: parties
+fields:
+  party_hat_point:
+    type: point
+    value: [684, 53]
+    status: calibrated
+    note: HUD party-hat icon; verified live (opens the panel)
+  close_x_point:
+    type: point
+    value: [1237, 335]
+    status: calibrated
+    note: blue round X on the panel title bar; verified live (closes the panel)
+  title_template:
+    type: template
+    value: templates/parties/title_my_parties.png
+    status: calibrated
+  close_x_template:
+    type: template
+    value: templates/parties/close_x.png
+    status: calibrated
+  go_now_template:
+    type: template
+    value: templates/parties/go_now.png
+    status: calibrated
+  title_search_roi:
+    type: roi
+    value: [540, 160, 900, 300]
+    status: proposed
+    note: where the title bar can be; the whole frame is searched if the match here is weak
+  template_scales:
+    type: list
+    value: [0.8, 0.86, 0.92, 0.96, 1.0, 1.04, 1.08, 1.14, 1.2]
+    status: proposed
+  template_threshold:
+    type: number
+    value: 0.80
+    status: proposed
+  go_now_threshold:
+    type: number
+    value: 0.80
+    status: proposed
+  panel_column_rel:
+    type: list
+    value: [-0.98, 1.99]
+    status: calibrated
+    note: banner column x-range as multiples of the title-box width, from the title-box left
+  panel_rows_rel:
+    type: list
+    value: [1.4, 11.2]
+    status: calibrated
+    note: banner rows y-range as multiples of the title-box height, from the title-box top
+  border_dark_max:
+    type: number
+    value: 70
+    status: proposed
+    note: gray level below which a pixel counts as a pinned-banner border ring (navy, ~51)
+  slot_border_dark_max:
+    type: number
+    value: 90
+    status: proposed
+    note: the party-slot banner ring is lighter (~80); used only around GO NOW buttons
+  border_row_fraction:
+    type: number
+    value: 0.6
+    status: proposed
+  banner_height_rel:
+    type: list
+    value: [1.8, 3.4]
+    status: proposed
+    note: "valid banner row height as multiples of the title-box height (live 105 px / 42 px)"
+  phash_max_distance:
+    type: number
+    value: 18
+    status: proposed
+    note: "same banner at 6% scale difference: 16; different banners: 22+"
+  phash_min_margin:
+    type: number
+    value: 4
+    status: proposed
+    note: best match must beat the runner-up by this much
+  ocr_upscale:
+    type: number
+    value: 2.0
+    status: proposed
+  label_fuzzy_threshold:
+    type: number
+    value: 80
+    status: proposed
+  known_labels:
+    type: list
+    value:
+      - Adventure Base Camp
+      - Bitter Sweets
+      - Haunted Forest Party
+      - Paradise Party
+      - Spooky Party
+      - Best Guess Game
+    status: proposed
+  target_keywords:
+    type: list
+    value: ["best guess"]
+    status: calibrated
+  wait_popup_keywords:
+    type: list
+    value: ["wait", "not started", "hasn't started", "starting soon", "try again"]
+    status: proposed

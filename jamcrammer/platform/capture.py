@@ -223,14 +223,48 @@ def open_backend(kind: str, window: WindowProvider) -> CaptureBackend:
         try:
             wgc = WgcBackend(window)
             probe = wgc.grab()
-            if probe.mean_brightness() > BLACK_FRAME_MAX_MEAN:
+            expected = _require_window(window).client_size
+            if probe.mean_brightness() > BLACK_FRAME_MAX_MEAN and probe.size == expected:
                 return wgc
+            # Maximized/windowed Electron: WGC returns a frame a few px smaller than the client,
+            # which would skew click mapping. mss grabs the client rect exactly.
             wgc.close()
         except Exception:
             pass
         return MssBackend(window)
     msg = f"unknown capture backend {kind!r}"
     raise CaptureError(msg)
+
+
+class StageBackend:
+    """Wraps a backend so every frame is normalized to stage size (KICKOFF profiles)."""
+
+    def __init__(self, inner: CaptureBackend) -> None:
+        from jamcrammer.vision.stage import stage_map_for
+
+        self._inner = inner
+        self._map_for = stage_map_for
+        self.name = f"{inner.name}+stage"
+
+    def grab(self) -> Frame:
+        frame = self._inner.grab()
+        smap = self._map_for(frame.image)
+        if smap.is_identity:
+            return frame
+        return Frame(
+            image=smap.normalize(frame.image),
+            ts=frame.ts,
+            seq=frame.seq,
+            client_rect=frame.client_rect,
+            backend=self.name,
+        )
+
+    def close(self) -> None:
+        self._inner.close()
+
+
+def open_stage_backend(kind: str, window: WindowProvider) -> StageBackend:
+    return StageBackend(open_backend(kind, window))
 
 
 @dataclass(frozen=True)

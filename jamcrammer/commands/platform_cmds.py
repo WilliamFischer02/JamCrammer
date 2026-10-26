@@ -14,7 +14,7 @@ import cv2
 from jamcrammer.core.config import AppConfig
 from jamcrammer.core.events import EventBus
 from jamcrammer.core.logging import attach_bus, get_logger
-from jamcrammer.platform.capture import BenchResult, benchmark, open_backend
+from jamcrammer.platform.capture import BenchResult, benchmark, open_backend, open_stage_backend
 from jamcrammer.platform.input import InputController
 from jamcrammer.platform.window import WindowTracker, bring_to_foreground, ensure_dpi_awareness
 from jamcrammer.vision.match import mean_abs_diff
@@ -170,7 +170,7 @@ def run_input_test(args: argparse.Namespace) -> int:
     if not bring_to_foreground(info.hwnd, cfg.input.foreground_timeout_s):
         print("could not bring AJC to the foreground; aborting (no input sent)")
         return EXIT_FAILED
-    backend = open_backend(args.backend or cfg.capture_backend, tracker.provider())
+    backend = open_stage_backend(args.backend or cfg.capture_backend, tracker.provider())
     ctl = InputController(tracker.provider(), cfg.input, dry_run=args.dry_run, bus=bus)
     try:
         before = backend.grab()

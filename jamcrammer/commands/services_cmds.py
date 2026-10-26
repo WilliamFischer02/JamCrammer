@@ -12,7 +12,7 @@ from jamcrammer.core.events import EventBus
 from jamcrammer.core.logging import attach_bus, get_logger
 from jamcrammer.core.profiles import load_profile
 from jamcrammer.core.safety import InputLease, KillSwitch
-from jamcrammer.platform.capture import open_backend
+from jamcrammer.platform.capture import open_stage_backend
 from jamcrammer.platform.input import InputController
 from jamcrammer.platform.window import WindowTracker, bring_to_foreground, ensure_dpi_awareness
 from jamcrammer.services.antiafk import AntiAfk, RoomDriftGuard
@@ -66,7 +66,7 @@ def run_activity_test(args: argparse.Namespace) -> int:  # noqa: PLR0915 - CLI o
     lease = InputLease()
     kill = KillSwitch()
     inp = InputController(tracker.provider(), cfg.input, dry_run=args.dry_run, bus=bus)
-    backend = open_backend(cfg.capture_backend, tracker.provider())
+    backend = open_stage_backend(cfg.capture_backend, tracker.provider())
     shots = args.paths.captures / "activity_test"
     detector = PopupDetector(shared, paths=args.paths)
 

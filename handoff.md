@@ -1,12 +1,14 @@
 # Handoff
 
-_Last updated: 2026-10-26 (M2 done, M3 next)_
+_Last updated: 2026-10-26 (M3 built, live 30-min run pending; M4 next)_
 
 ## State
 - **M0 done:** venv (Python 3.14), pyproject, ruff + mypy (strict core/platform) + pytest green, skeleton, inbox READMEs, `run.bat` placeholder window verified.
 - **M1 done:** window discovery + DPI, WGC/mss capture with benchmark, SendInput controller (bounds-checked, postcondition retry, dry-run), kill/pause/lease/presence/hotkeys primitives, SQLite store, JSONL logging, **CLI emergency recorder** `learn --target bestguess` (keyframes + ring-buffer marker dumps + local input log + OCR snapshots + meta.jsonl). Verified live: `snap` PNG read and correct; 15 s recording produced a valid session folder.
 - **M2 done:** Popup Watchdog (templates → green+OCR → OCR → unknown-modal), Anti-AFK + room-drift guard, notifications (toast/sound verified live; ntfy/Discord wired, disabled until configured), Gem Ledger, profiles system (`profiles/shared.example.yaml`), replay frame sources, synthetic popup generators, `test-notify` and `activity-test` commands. 68 tests green.
-- Not yet run live: `input-test` with real keys and the Activity Test (both need William present). Dry-run paths verified.
+- **M3 built:** Party Watcher (title/GO NOW/X templates, banner rows via border-ring components, pHash + OCR identification, sightings → rotation log, unknown-banner capture), Best Guess Hunter A/B (`hunt` CLI; HIGH alert; auto-join → Learn-only recording), stage-space coordinate layer (`vision/stage.py`), presence detection in the hunt loop. 85 tests green incl. fixture banner ID and a simulated Best Guess HIGH alert/join.
+- **Verified live:** party hat click opens My Parties, X closes it (panel probe 14:59). Current slot: *Spooky Party*.
+- **Not yet run live:** the 30-min `hunt --no-join` rotation run (M3 acceptance), `input-test` with real keys, the Activity Test. William appeared to be at the keyboard (window un-fullscreened, room changed to Coral Canyons ~15:05), so no further input was sent.
 
 ## How to record Best Guess the moment it appears
 ```
@@ -16,8 +18,9 @@ cd C:\dev\JamCrammer
 Then join the party and play. **F6** mark, **F7** I was correct, **F8** I was wrong, **F12** or Ctrl+C to stop. Nothing is sent to the game. Add `--video` for a continuous 5 fps mp4 as well. Drop OBS recordings in `inbox\bestguess\` as a backup.
 
 ## Next steps
-1. **M3:** Party Watcher (panel open/scan/close, banner ID vs the fixture, rotation log) + Best Guess Hunter Phases A/B (hunt cycle, HIGH alert, auto-join); `hunt` CLI with `--dry-run`.
-2. With William present: `python -m jamcrammer input-test` (then `--method vk` if scan codes don't move the animal) → record in `decisions.md`, set `input.key_method`. Then `python -m jamcrammer activity-test` (24 min) → set Anti-AFK defaults from the result.
+1. **M3 acceptance, when William is away:** `python -m jamcrammer hunt --no-join --duration 1800` → rotation log printed at the end; confirm the HIGH sound fires if Best Guess appears. Then `hunt` (auto-join on) for real.
+2. **M4:** GUI shell + design system (Jamaa Night), command bar, mini HUD, tray, onboarding; UI QA screenshots at 100%/150%.
+3. With William present: `python -m jamcrammer input-test` (then `--method vk` if scan codes don't move the animal) → record in `decisions.md`, set `input.key_method`. Then `python -m jamcrammer activity-test` (24 min) → set Anti-AFK defaults from the result.
 3. Popup templates: when `inbox/popups/` gets the still-playing / logged-out / Play Now screenshots, crop them into `assets/templates/popups/` and flip the template fields in the shared profile to `calibrated`.
 
 ## Open questions (asked William 2026-10-26, defaults in use)
@@ -30,5 +33,7 @@ Then join the party and play. **F6** mark, **F7** I was correct, **F8** I was wr
 - Popup screenshots (still-playing, logged-out, Play Now) → `inbox/popups/`.
 
 ## Risks
+- Stage mapping assumes uniform 16:9 scaling centered in the client; verified for fullscreen (identity) and maximized (0.938). If William plays in a small window, OCR on the upscaled stage may degrade.
+- Toast banners are hidden while AJC is fullscreen (Focus Assist); HIGH alerts rely on the repeating sound and ntfy/Discord once configured.
 - windows-capture 2.0.1 segfaults if a WGC session is opened after an mss session in the same process (see decisions.md). The app never mixes them; keep it that way.
 - The gem counter is not visible in the Crystal Sands HUD on this account (non-member?). Gem Ledger OCR needs a screen where it shows (mini-game end screens, or the HUD elsewhere).

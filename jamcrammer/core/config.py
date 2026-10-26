@@ -76,6 +76,18 @@ class DriftConfig(StrictModel):
     downscale: tuple[int, int] = (64, 36)
 
 
+class HuntConfig(StrictModel):
+    panel_timeout_s: float = Field(4.0, gt=0)
+    panel_poll_s: float = Field(0.25, ge=0)
+    panel_settle_s: float = Field(0.4, ge=0)
+    close_timeout_s: float = Field(3.0, gt=0)
+    join_retry_s: float = Field(30.0, gt=0)
+    join_max_retries: int = Field(10, ge=0)
+    arrival_timeout_s: float = Field(8.0, gt=0)
+    sighting_merge_gap_s: float = Field(900.0, gt=0)
+    antiafk_each_cycle: bool = True
+
+
 class ActivityTestConfig(StrictModel):
     phase_minutes: float = Field(8.0, gt=0)
     movement_interval_s: float = Field(60.0, gt=0)
@@ -148,6 +160,7 @@ class AppConfig(StrictModel):
     watchdog: WatchdogConfig = WatchdogConfig()
     drift: DriftConfig = DriftConfig()
     activity_test: ActivityTestConfig = ActivityTestConfig()
+    hunt: HuntConfig = HuntConfig()
 
     @classmethod
     def from_yaml(cls, path: Path) -> AppConfig:

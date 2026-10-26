@@ -37,6 +37,11 @@ def build_parser() -> argparse.ArgumentParser:
     for mode in MODES:
         p = sub.add_parser(mode, help=f"run the {mode} mode headless")
         p.add_argument("--dry-run", action="store_true", help="never send input")
+        p.add_argument("--no-join", action="store_true", help="scan and log, never click GO NOW")
+        p.add_argument("--no-antiafk", action="store_true", help="skip the movement pair")
+        p.add_argument("--interval", type=float, default=None, help="override hunt_interval_s")
+        p.add_argument("--duration", type=float, default=None, help="stop after N seconds")
+        p.add_argument("--once", action="store_true", help="one scan cycle, then exit")
 
     p = sub.add_parser("learn", help="record a Learn session while you play manually")
     p.add_argument("--target", choices=LEARN_TARGETS, required=True)
@@ -104,7 +109,7 @@ def _lazy(module: str, func: str) -> Command:
 
 COMMANDS: dict[str, Command] = {
     "gui": _gui,
-    "hunt": _not_yet("M3"),
+    "hunt": _lazy("jamcrammer.commands.hunt_cmd", "run_hunt"),
     "farm": _not_yet("M7"),
     "opportunist": _not_yet("M9"),
     "learn": _lazy("jamcrammer.commands.learn_cmd", "run_learn"),
