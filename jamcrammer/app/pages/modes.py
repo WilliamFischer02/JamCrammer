@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
 from jamcrammer.app import theme
 from jamcrammer.app.engine import Engine
 from jamcrammer.app.widgets import Card, Chip, Page, icon_button, row
+from jamcrammer.core.gate import gate_status
 
 REQUIRED_FIELDS: dict[str, list[tuple[str, str]]] = {
     "hunt": [
@@ -84,6 +85,10 @@ class ModePage(Page):
         )
         self.check_rows = QFormLayout()
         self.checklist.add_layout(self.check_rows)
+        self.gate_line = QLabel("")
+        self.gate_line.setObjectName("CardHelp")
+        self.gate_line.setWordWrap(True)
+        self.checklist.add(self.gate_line)
         self.checklist.add_layout(
             row(
                 icon_button(
@@ -111,9 +116,17 @@ class ModePage(Page):
             except Exception:
                 status = "uncalibrated"
             self.check_rows.addRow(QLabel(f"{profile_name}.{field}"), Chip(status, status))
+        gate_mode = {"hunt": "hunt", "farm": "double_up", "opportunist": "double_up"}[self.mode]
+        self.gate_line.setText(
+            "Live-mode gate: "
+            + gate_status(gate_mode, self.engine.paths, self.engine._profiles).summary()
+        )
 
     def on_show(self) -> None:
         self.refresh_checklist()
+
+    def on_tick(self) -> None:
+        pass
 
 
 class BestGuessPage(ModePage):

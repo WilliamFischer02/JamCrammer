@@ -215,6 +215,9 @@ class ReviewWizard(QWizard):
             self.replay_out.setPlainText(f"replay failed: {exc}")
             return
         self.replay_out.setPlainText(format_timeline(res))
+        from jamcrammer.core.gate import write_replay_record
+
+        write_replay_record(self.session_dir, res.accuracy, res.frames, "nearest-state")
         ok = res.accuracy >= 0.95
         self.replay_chip.setText(f"{res.accuracy:.1%}")
         self.replay_chip.set_status("calibrated" if ok else "uncalibrated")

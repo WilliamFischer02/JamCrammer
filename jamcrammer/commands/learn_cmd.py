@@ -92,6 +92,9 @@ def run_replay(args: argparse.Namespace) -> int:
     detector = NearestStateDetector(session)
     result = replay(session, detector)
     print(format_timeline(result))
+    from jamcrammer.core.gate import write_replay_record
+
+    print(f"saved {write_replay_record(session, result.accuracy, result.frames, 'nearest-state')}")
     return 0
 
 

@@ -11,12 +11,12 @@ fields:
     type: point
     value: null
     status: uncalibrated
-    note: [dx, dy] between tile centers
+    note: "dx, dy between tile centers"
   grid_shape:
     type: list
     value: [4, 4]
     status: proposed
-    note: columns, rows (8 pairs = 16 tiles)
+    note: "columns, rows (8 pairs = 16 tiles)"
   tile_size:
     type: point
     value: null
