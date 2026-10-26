@@ -24,9 +24,8 @@ def run_farm(args: argparse.Namespace) -> int:
     gate = gate_status("double_up", args.paths)
     print(f"Double Up gate: {gate.summary()}")
     if not gate.unlocked:
-        print(
-            "Calibrate the double_up profile (Learn → Review wizard, or Calibration) and replay ≥95% first."
-        )
+        print("Calibrate the double_up profile (Learn > Review wizard, or Calibration)")
+        print("and reach replay >= 95% first.")
         return EXIT_LOCKED
     engine = Engine(cfg, args.paths)
     if engine.refresh_window() is None:

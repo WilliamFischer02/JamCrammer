@@ -358,14 +358,67 @@ class Engine:
         self._mode_obj = hunter
         self.lease.acquire("hunt")
         hunter.run(lambda: self._should_stop() or self.pause.paused, self._status)
+        if hunter.stats.joined and self._phase_c_allowed():
+            self._run_bestguess_farmer()
         while hunter.stats.joined and not self._should_stop():
             self._status("JOINED · recording")
             time.sleep(PREVIEW_IDLE_S)
         self.state.stats["hunt"] = hunter.stats.__dict__.copy()
 
+    def _phase_c_allowed(self) -> bool:
+        from jamcrammer.core.gate import gate_status
+
+        if not self.cfg.start_farming_after_join or self.cfg.answer_mode == "learn_only":
+            return False
+        return gate_status("bestguess", self.paths, self._profiles).unlocked
+
     def _on_joined(self, _banner: Any) -> None:
-        if self._recorder is None:
-            self.start_learn("bestguess", name="autojoin")
+        if self._recorder is None and not self._phase_c_allowed():
+            self.start_learn("bestguess", name="autojoin")  # Learn-only until the gate opens
+
+    def _run_bestguess_farmer(self) -> None:
+        """Phase C (M8): runs after a join when the gate is open and farming is enabled."""
+        from jamcrammer.modes.bestguess.brain import Brain
+        from jamcrammer.modes.bestguess.farmer import BestGuessFarmer
+
+        brain = Brain(
+            self.store,
+            fuzzy_threshold=self.cfg.fuzzy_threshold,
+            unknown_policy=self.cfg.unknown_fact_policy,
+            answer_mode=self.cfg.answer_mode,
+        )
+        farmer = BestGuessFarmer(
+            self.profile("bestguess"),
+            self.cfg.bestguess,
+            brain,
+            self.input,
+            lambda: self.grab().image,
+            store=self.store,
+            bus=self.bus,
+            screenshot=self._save_shot,
+        )
+        self._mode_obj = farmer
+        self.emit("engine.phase_c", Level.NOTICE, message="Best Guess farming started (gate open)")
+
+        def guarded_stop() -> bool:
+            frame = self.snapshot()
+            if frame is not None:
+                self.watchdog.tick(frame)
+            return self._should_stop() or self.pause.paused or self.watchdog.paused
+
+        farmer.run(guarded_stop, self._status)
+        self.state.stats["bestguess"] = farmer.stats.as_dict()
+        if farmer.stats.gems_est:
+            self.ledger.record_payout(farmer.stats.gems_est, "hunt")
+
+    def _save_shot(self, tag: str, image: Any) -> Path:
+        import cv2
+
+        d = self.paths.captures / "bestguess"
+        d.mkdir(parents=True, exist_ok=True)
+        path = d / f"{time.strftime('%Y%m%d_%H%M%S')}_{tag}.png"
+        cv2.imwrite(str(path), image)
+        return path
 
     def _run_farm(self) -> None:
         """Double Up farmer (M7). Refuses to run until the profile gate is satisfied."""

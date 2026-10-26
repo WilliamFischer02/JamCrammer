@@ -141,7 +141,9 @@ def generate_session(
             str(inbox_dir / "bestguess_sample.mp4"), cv2.VideoWriter.fourcc(*"mp4v"), fps, (W, H)
         )
 
-    def emit(img: BgrImage, kind: str, extra: dict[str, object] | None = None) -> None:
+    def emit(
+        img: BgrImage, kind: str, extra: dict[str, object] | None = None, dt: float | None = None
+    ) -> None:
         nonlocal t, seq
         seq += 1
         name = f"kf_{seq:06d}_{int(t * 1000)}.png"
@@ -159,7 +161,7 @@ def generate_session(
         meta.append(rec)
         if writer is not None:
             writer.write(img)
-        t += 1.0 / fps
+        t += (1.0 / fps) if dt is None else dt
 
     meta.append(
         {
@@ -179,7 +181,8 @@ def generate_session(
         chosen = answer if rng.random() < 0.75 else not answer
         rnd = Round(fact, answer, chosen, t0)
         for i in range(10, 0, -1):
-            emit(frame_question(fact, i, gems), "QUESTION_OPEN" if i > 5 else "LOCKED")
+            # one keyframe per countdown second, as a change-triggered recorder would store it
+            emit(frame_question(fact, i, gems), "QUESTION_OPEN" if i > 5 else "LOCKED", dt=1.0)
             if i == 8:  # William clicks a side ~2 s in
                 px, py = TRUE_POINT if chosen else FALSE_POINT
                 meta.append(

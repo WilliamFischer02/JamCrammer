@@ -13,6 +13,7 @@ import numpy as np
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtWidgets import (
+    QComboBox,
     QGridLayout,
     QLabel,
     QPlainTextEdit,
@@ -31,6 +32,13 @@ from jamcrammer.app.widgets import Chip, icon_button, row
 from jamcrammer.vision.ocr import normalize_text
 
 PREVIEW_W = 720
+STATE_NAMES = ("(unnamed)", "WAITING_FOR_ROUND", "QUESTION_OPEN", "LOCKED", "REVEAL", "OTHER")
+TAG_TO_STATE = {
+    "question": "QUESTION_OPEN",
+    "locked": "LOCKED",
+    "reveal_correct": "REVEAL",
+    "reveal_wrong": "REVEAL",
+}
 OVERLAY = 2
 
 
@@ -70,6 +78,7 @@ class ReviewWizard(QWizard):
             (session_dir / "analysis" / "result.json").read_text(encoding="utf-8")
         )
         self.target = str(self.analysis.get("target", "custom"))
+        self.state_namers: dict[str, QComboBox] = {}
         self._build_states()
         self._build_rois()
         self._build_clicks()
@@ -105,12 +114,34 @@ class ReviewWizard(QWizard):
                     f"state {s['id']} · {s['frames']} frames · median {s['median_duration_s']} s · {' '.join(s.get('tags', []))}"
                 )
             )
+            namer = QComboBox()
+            for name in STATE_NAMES:
+                namer.addItem(name)
+            namer.setCurrentText(self._guess_name(s))
+            self.state_namers[str(s["id"])] = namer
+            cell.addWidget(namer)
             w = QWidget()
             w.setLayout(cell)
             grid.addWidget(w, i // 3, i % 3)
         scroll.setWidget(inner)
         lay.addWidget(scroll)
         self.addPage(page)
+
+    def _guess_name(self, state: dict[str, Any]) -> str:
+        for tag in state.get("tags", []):
+            if tag in TAG_TO_STATE:
+                return TAG_TO_STATE[tag]
+        return STATE_NAMES[0]
+
+    def save_state_names(self) -> dict[str, str]:
+        names = {
+            sid: box.currentText()
+            for sid, box in self.state_namers.items()
+            if box.currentText() != STATE_NAMES[0]
+        }
+        out = self.session_dir / "analysis" / "state_names.json"
+        out.write_text(json.dumps(names, indent=2), encoding="utf-8")
+        return names
 
     def _build_rois(self) -> None:
         page, lay = _page(
@@ -209,8 +240,22 @@ class ReviewWizard(QWizard):
     def _run_replay(self) -> None:
         from jamcrammer.replay.harness import NearestStateDetector, format_timeline, replay
 
+        names = self.save_state_names()
         try:
-            res = replay(self.session_dir, NearestStateDetector(self.session_dir))
+            detector: Any = NearestStateDetector(self.session_dir)
+            if names and self.target == "bestguess":
+                from jamcrammer.core.profiles import load_profile
+                from jamcrammer.modes.bestguess.state import BestGuessDetector
+
+                prof = load_profile("bestguess", self.engine.paths)
+                proposed = self.engine.paths.profiles / "bestguess.proposed.yaml"
+                if proposed.exists():
+                    from jamcrammer.core.profiles import Profile
+
+                    prof = Profile.from_yaml(proposed)
+                if not prof.missing(["fact_roi", "reveal_roi"]):
+                    detector = BestGuessDetector(prof, self.engine.cfg.bestguess)
+            res = replay(self.session_dir, detector)
         except Exception as exc:
             self.replay_out.setPlainText(f"replay failed: {exc}")
             return
@@ -236,6 +281,7 @@ class ReviewWizard(QWizard):
         self.addPage(page)
 
     def accept(self) -> None:
+        self.save_state_names()
         proposed = self.engine.paths.profiles / f"{self.target}.proposed.yaml"
         if proposed.exists():
             shutil.copy2(proposed, self.engine.paths.profiles / f"{self.target}.yaml")

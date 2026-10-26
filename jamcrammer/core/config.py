@@ -97,6 +97,24 @@ class DoubleUpConfig(StrictModel):
     end_screen_keywords: list[str] = ["earned", "gems", "play again"]
 
 
+class BestGuessConfig(StrictModel):
+    fps: float = Field(5.0, gt=0, le=30)
+    commit_after_s: float = Field(3.0, ge=0)
+    lock_seconds: int = Field(5, ge=0)
+    verify_after_s: float = Field(1.0, ge=0)
+    heartbeat_s: float = Field(180.0, gt=0)
+    unknown_pause_s: float = Field(30.0, gt=0)
+    fact_min_chars: int = Field(8, ge=1)
+    question_s: float = Field(10.0, gt=0)
+    waiting_keywords: list[str] = ["get ready", "next round", "waiting", "starting"]
+    ocr_upscale: float = Field(2.0, ge=1.0)
+    reveal_min_fill: float = Field(0.15, ge=0, le=1)
+    reveal_min_margin: float = Field(0.4, ge=0, le=1)
+    dance_motion_min: float = Field(12.0, ge=0)
+    true_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = ((40, 90, 90), (85, 255, 255))
+    false_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = ((130, 60, 60), (165, 255, 255))
+
+
 class AnalysisConfig(StrictModel):
     duplicate_distance: int = Field(2, ge=0, le=64)
     transition_distance: int = Field(14, ge=0, le=64)
@@ -195,6 +213,7 @@ class AppConfig(StrictModel):
     hunt: HuntConfig = HuntConfig()
     analysis: AnalysisConfig = AnalysisConfig()
     double_up: DoubleUpConfig = DoubleUpConfig()
+    bestguess: BestGuessConfig = BestGuessConfig()
 
     @classmethod
     def from_yaml(cls, path: Path) -> AppConfig:

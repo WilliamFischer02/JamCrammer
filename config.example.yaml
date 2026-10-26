@@ -76,6 +76,24 @@ double_up:
   tile_min_std: 8
   end_screen_keywords: [earned, gems, play again]
 
+# --- Best Guess farmer (Phase C, KICKOFF 8.3) ---
+bestguess:
+  fps: 5
+  commit_after_s: 3                          # commit 2-4 s after the question appears
+  lock_seconds: 5                            # countdown value at/below which sides can't change
+  verify_after_s: 1
+  heartbeat_s: 180                           # re-click the current side after this long idle
+  unknown_pause_s: 30                        # UNKNOWN screen for this long -> pause + alert
+  fact_min_chars: 8
+  question_s: 10                             # question length; used when the countdown can't be read
+  waiting_keywords: [get ready, next round, waiting, starting]
+  ocr_upscale: 2.0
+  reveal_min_fill: 0.15                      # fraction of the reveal ROI that must be green/purple
+  reveal_min_margin: 0.4                     # green minus purple fill must differ by this much
+  dance_motion_min: 12
+  true_hsv: [[40, 90, 90], [85, 255, 255]]   # green = True (left)
+  false_hsv: [[130, 60, 60], [165, 255, 255]]  # purple = False (right)
+
 # --- Learn analysis (KICKOFF 11.3) ---
 analysis:
   duplicate_distance: 2                      # pHash distance treated as the same frame

@@ -38,13 +38,24 @@ class ReplayResult:
         return self.correct / self.frames if self.frames else 0.0
 
 
+def load_state_names(session_dir: Path) -> dict[str, str]:
+    """``analysis/state_names.json``: analysis cluster id -> semantic state (review wizard)."""
+    path = session_dir / "analysis" / "state_names.json"
+    if not path.exists():
+        return {}
+    return {str(k): str(v) for k, v in json.loads(path.read_text(encoding="utf-8")).items()}
+
+
 def load_labels(session_dir: Path) -> dict[str, str]:
     path = session_dir / "analysis" / "labels.json"
     if not path.exists():
         return {}
-    return {
-        str(rec["file"]): str(rec["state"]) for rec in json.loads(path.read_text(encoding="utf-8"))
-    }
+    names = load_state_names(session_dir)
+    out = {}
+    for rec in json.loads(path.read_text(encoding="utf-8")):
+        state = str(rec["state"])
+        out[str(rec["file"])] = names.get(state, state)
+    return out
 
 
 class NearestStateDetector:
