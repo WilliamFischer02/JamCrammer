@@ -203,7 +203,7 @@ class BestGuessPage(ModePage):
         for m in ("learn_only", "bank_policy", "coin_flip"):
             mode.addItem(m)
         mode.setCurrentText(cfg.answer_mode)
-        mode.currentTextChanged.connect(lambda v: setattr(cfg, "answer_mode", v))
+        mode.currentTextChanged.connect(lambda v: self._set_answer_mode(v))
         form2.addRow("Answer mode", mode)
         form2.addRow(
             "Fuzzy threshold",
@@ -233,6 +233,17 @@ class BestGuessPage(ModePage):
         form2.addRow("", gate)
         brain.add_layout(form2)
         self.content.addWidget(brain)
+
+    def _set_answer_mode(self, value: str) -> None:
+        """Persist the answer mode: learn_only means the farmer never answers (recording only)."""
+        self.engine.cfg.answer_mode = cast(Any, value)
+        try:
+            with self.engine.paths.config_file.open("w", encoding="utf-8") as fh:
+                yaml.safe_dump(self.engine.cfg.model_dump(mode="json"), fh, sort_keys=False)
+        except OSError as exc:
+            self.gate_line.setText(f"could not save config.yaml: {exc}")
+            return
+        self.refresh_checklist()
 
 
 class ArcadePage(ModePage):

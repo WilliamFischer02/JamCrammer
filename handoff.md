@@ -47,7 +47,7 @@ Race timing seen: ~25 s waiting at the line, ~65 s racing, ~10 s leaderboard, th
 ## How William tests Best Guess now
 1. Start the GUI (`run.bat` or `.venv\Scripts\python -m jamcrammer gui`), mode **Best Guess Hunter**.
 2. Stand in the Best Guess arena (or let the Hunter join it). With the arena on screen the engine skips the hunt and farms at once (`engine.arena_detected`).
-3. First run with **Dry-run** on: the state pill should walk QUESTION_OPEN → LOCKED → REVEAL and the Answer Bank should grow; no clicks are sent.
+3. **Answer mode must be `bank_policy`** (Best Guess page, saved to `config.yaml`); with the default `learn_only` the farmer only records and never walks. First run with **Dry-run** on: the state pill should walk QUESTION_OPEN → LOCKED → REVEAL and the Answer Bank should grow; no clicks are sent.
 4. Then Dry-run off for one round: watch that the animal walks to the green (True) / purple (False) side after ~3 s. If it does not move, adjust `true_point`/`false_point` on the Calibration page (click on the floor, clear of name tags).
 5. F11 pauses, F12 stops. Any screen that is not the arena (ad, lobby, loading book) shows UNKNOWN and pauses after 30 s.
 

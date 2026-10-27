@@ -21,14 +21,14 @@ fields:
     status: uncalibrated
   true_point:
     type: point
-    value: [480, 700]
+    value: [330, 640]
     status: uncalibrated
-    note: LEFT side (green, check) = True
+    note: left (green) floor, open area left of the crowd (clicking a player opens their card)
   false_point:
     type: point
-    value: [1440, 700]
+    value: [1790, 560]
     status: uncalibrated
-    note: RIGHT side (purple, X) = False
+    note: right (purple) floor, near the right frame where nobody stands
   reveal_word_roi:
     type: roi
     value: null
