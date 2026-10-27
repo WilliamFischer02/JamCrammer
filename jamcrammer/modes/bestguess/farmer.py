@@ -111,6 +111,7 @@ class BestGuessFarmer:
         self._last_input_ts = 0.0
         self._last_side: Side | None = None
         self.paused_reason = ""
+        self.screen_known = False  # last frame was the arena (watchdog hint)
 
     # --- loop ------------------------------------------------------------------------------------
 
@@ -120,6 +121,7 @@ class BestGuessFarmer:
         now = self._clock()
         obs = self.detector.observe(image, now)
         seen = obs.state
+        self.screen_known = seen != BgState.UNKNOWN
         if seen == BgState.UNKNOWN:
             self._on_unknown(image, now)
             return obs

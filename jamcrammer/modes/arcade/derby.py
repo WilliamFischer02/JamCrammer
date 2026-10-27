@@ -307,6 +307,11 @@ class DerbyFarmer:
         self._tracked: tuple[float, Band] | None = None  # last sighting of the nearest band
         self._first_seen: tuple[float, int] | None = None  # (ts, left) when tracking began
 
+    @property
+    def screen_known(self) -> bool:
+        """The last frame was the Derby track, line or leaderboard (watchdog hint)."""
+        return self.state != Screen.UNKNOWN
+
     # --- one tick ---------------------------------------------------------------------------------
 
     def step(self) -> Observation:

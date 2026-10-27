@@ -321,13 +321,19 @@ class Watchdog:
 
     # --- main entry --------------------------------------------------------------------
 
-    def tick(self, frame: Frame) -> Detection | None:
+    def tick(self, frame: Frame, known_screen: bool = False) -> Detection | None:
+        """``known_screen``: the running mode recognises this screen (a game arena, a track),
+        so the centre-vs-border "unknown modal" heuristic is skipped - a mini-game canvas
+        looks exactly like a dialog to it. Templates and OCR keywords still run."""
         now = self._clock()
         image = frame.image
         run_ocr = now - self._last_ocr_ts >= self.cfg.ocr_interval_s or self._pending is not None
         if run_ocr:
             self._last_ocr_ts = now
-        det = self.detector.detect(image, self.baseline, run_ocr=run_ocr)
+        baseline = None if known_screen else self.baseline
+        det = self.detector.detect(image, baseline, run_ocr=run_ocr)
+        if known_screen:
+            self._unknown_streak = 0
 
         if self._pending is not None:
             self._continue_pending(det, image, now)

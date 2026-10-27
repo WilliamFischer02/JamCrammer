@@ -281,6 +281,12 @@ class Engine:
             return False
         if not self.start_capture():
             return False
+        # Start means "I checked the screen": clear a watchdog pause and an F11 pause
+        self.watchdog.resume()
+        if self.pause.paused:
+            self.pause.resume()
+            self.state.paused = False
+        self.state.last_error = ""
         self._mode_stop.clear()
         self.state.mode = name
         self.state.mode_state = "STARTING"
@@ -327,6 +333,20 @@ class Engine:
 
     def _should_stop(self) -> bool:
         return self._mode_stop.is_set() or self.kill.tripped
+
+    def _screen_known(self) -> bool:
+        """The running mode recognises the current screen (its own detector says so)."""
+        return bool(getattr(self._mode_obj, "screen_known", False))
+
+    def _watchdog_blocks(self) -> bool:
+        if not self.watchdog.paused:
+            return False
+        if not self.state.last_error:
+            self.state.last_error = (
+                "stopped: the watchdog saw an unknown dialog; check the screen and press Start"
+            )
+            self.emit("engine.mode_blocked", Level.HIGH, message=self.state.last_error)
+        return True
 
     def _status(self, text: str) -> None:
         parts = text.split(" · ", 1)
@@ -427,8 +447,8 @@ class Engine:
         def guarded_stop() -> bool:
             frame = self.snapshot()
             if frame is not None:
-                self.watchdog.tick(frame)
-            return self._should_stop() or self.pause.paused or self.watchdog.paused
+                self.watchdog.tick(frame, known_screen=self._screen_known())
+            return self._should_stop() or self.pause.paused or self._watchdog_blocks()
 
         farmer.run(guarded_stop, self._status)
         self.state.stats["bestguess"] = farmer.stats.as_dict()
@@ -490,8 +510,8 @@ class Engine:
         def guarded_stop() -> bool:
             frame = self.snapshot()
             if frame is not None:
-                self.watchdog.tick(frame)
-            return self._should_stop() or self.pause.paused or self.watchdog.paused
+                self.watchdog.tick(frame, known_screen=self._screen_known())
+            return self._should_stop() or self.pause.paused or self._watchdog_blocks()
 
         farmer.run(guarded_stop, self._status)
         if farmer.stats.gems:
@@ -581,8 +601,8 @@ class Engine:
         def guarded_stop() -> bool:
             frame = self.snapshot()
             if frame is not None:
-                self.watchdog.tick(frame)
-            return self._should_stop() or self.pause.paused or self.watchdog.paused
+                self.watchdog.tick(frame, known_screen=self._screen_known())
+            return self._should_stop() or self.pause.paused or self._watchdog_blocks()
 
         opp.run(guarded_stop, self._status)
         self.state.stats["opportunist"] = opp.stats.as_dict()

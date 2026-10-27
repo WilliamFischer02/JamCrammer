@@ -203,3 +203,28 @@ def test_real_ocr_reads_synthetic_popup() -> None:
     assert "still" in res.lowered
     d = det.detect(img)
     assert d is not None and d.kind == KIND_STILL_PLAYING and d.via == "green+ocr"
+
+
+def test_known_screen_suppresses_unknown_modal(tmp_path: Path) -> None:
+    """A mini-game canvas (Derby track, Best Guess arena) looks like a dialog to the
+    centre-vs-border heuristic; the running mode's own recognition switches it off."""
+    world = World()
+    base = world.base
+    det = PopupDetector(load_profile("shared", Paths()), text_fn=lambda _s: "")
+    paused: list[str] = []
+    wd = Watchdog(
+        WatchdogConfig(),
+        det,
+        world,
+        on_pause=paused.append,
+        screenshot_dir=tmp_path / "s",
+        unknown_dir=tmp_path / "u",
+    )
+    wd.set_baseline(base)
+    for _ in range(WatchdogConfig().unknown_min_ticks + 2):
+        frame = next(GeneratorSource(lambda: unknown_popup(base), 1, 1.0).frames())
+        assert wd.tick(frame, known_screen=True) is None
+    assert paused == [] and not wd.paused and world.clicks == []
+    wd.paused = True
+    wd.resume()
+    assert not wd.paused
