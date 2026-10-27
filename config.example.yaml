@@ -110,101 +110,51 @@ opportunist:
 # --- Jamaa Derby farmer (KICKOFF 9.3) ---
 arcade_game: double_up                       # farm runs: double_up | jamaa_derby | gem_ball (tuner) | swoopy_eagle
 derby:
-  fps: 20                                    # control loop rate (obstacle timing)
+  fps: 20                                    # control loop rate (jump timing resolution ~40 px at 800 px/s)
   jump_key: space
   jump_hold_ms: 40
-  boosts_per_race: 3
+  boosts_per_race: 3                         # all three carrots are used, on clear stretches
+  boost_gap_s: 4.0
   boost_after_jump_s: 0.6
-  pixel_diff_min: 30                         # a pixel differs from the lane background by this much
-  column_fraction_min: 0.1                   # fraction of a column's pixels that must differ = obstacle
-  obstacle_min_px: 20
-  background_alpha: 0.05                     # rolling lane background update rate
-  background_warmup_frames: 3
-  race_timeout_s: 90
-  results_settle_s: 0.5
-
-# --- Experimental (KICKOFF 9.4) ---
-gem_ball:
-  hold_min_ms: 60                            # press-and-hold sweep range and step
-  hold_max_ms: 1200
-  hold_step_ms: 20
-  repeats: 3
-  min_repeats: 2
-  exploit_rate: 0.7                          # best duration must hit top/jackpot this often
-  min_balls: 6                               # per duration, before a verdict counts
-  settle_s: 4                                # wait for the ball to land before reading the outcome
-swoopy:
-  fps: 60
-  flap_key: space
-  flap_hold_ms: 20
-  kp: 1.5                                    # tuned on the flappy simulation (31 gaps / 40 s)
-  kd: 0.05
-  flap_threshold: 25
-  target_offset_px: 0
-  min_flap_interval_s: 0.12
-  default_target_y: 150
-  min_bird_px: 10
-  bird_lead_px: 12
-  pipe_col_min: 0.2
-  pipe_probe_px: 6
-  gap_reset_px: 60
-  restart_s: 1
-
-# --- Learn analysis (KICKOFF 11.3) ---
-analysis:
-  duplicate_distance: 2                      # pHash distance treated as the same frame
-  transition_distance: 14                    # bigger jumps are transitions, not stable frames
-  cluster_distance: 1.6                      # agglomerative clustering threshold (pHash bits + HSV hist)
-  min_cluster: 3                             # smaller clusters merge into the nearest state
-  samples_per_state: 4
-  ocr: true
-  ocr_upscale: 1.5
-  max_regions: 20
-
-# --- Best Guess Hunter (Phases A/B) ---
-hunt:
-  panel_timeout_s: 4                         # My Parties must appear within this after the hat click
-  panel_poll_s: 0.25
-  panel_settle_s: 0.4                        # let the panel finish animating before analysing
-  close_timeout_s: 3
-  join_retry_s: 30                           # "wait" popup after GO NOW: retry cadence
-  join_max_retries: 10
-  arrival_timeout_s: 8                       # room must change within this after GO NOW
-  sighting_merge_gap_s: 900                  # sightings closer than this merge into one row
-  antiafk_each_cycle: true                   # one cancelling pair before every scan
-
-# --- Activity Test (KICKOFF 7.3) ---
-activity_test:
-  phase_minutes: 8
-  movement_interval_s: 60
-  panel_interval_s: 60
-
-# --- Controls ---
-hotkeys:
-  kill: f12
-  pause: f11
-  toggle_mode: f9
-  learn_mark: f6
-  learn_correct: f7
-  learn_wrong: f8
-dry_run: false
-presence_slack_s: 0.5                        # OS input newer than our last injection + this = William is back
-
-# --- Input ---
-input:
-  click_hold_ms: 60
-  cursor_settle_ms: 30
-  key_method: scancode                       # scancode | vk  (input-test decides; see decisions.md)
-  postcondition_retries: 1
-  foreground_timeout_s: 2.0
-  history_len: 200
-
-# --- Learn ---
-learn:
-  keyframe_threshold: 12                     # pHash Hamming distance for a new keyframe (ambient animation = 6-8)
-  ring_fps: 5
-  ring_window_s: 5
-  heartbeat_s: 30                            # force a keyframe at least this often even with no change
-  jpeg_quality: 90                           # ring-buffer frames
-  phash_width: 256                           # downscale width used for the keyframe hash
-  ocr_keyframes: true                        # run Windows OCR on every keyframe (meta.jsonl "ocr" lines)
+  boost_earliest_s: 2.0
+  band_min_width_px: 40                      # narrower colour runs are sprites, not obstacles
+  band_fill: 0.6                             # column fill for hay / mud / water
+  hedge_seed_fill: 0.68                      # dark green: a band needs one column this full ...
+  hedge_grow_fill: 0.45                      # ... and extends through columns this full (tall-grass stripes)
+  hedge_min_width_px: 150                    # the checkered finish's dark columns are ~130 px and never seed
+  band_pass_px: 120                          # a band this far past the hooves is behind us (late jumps still count)
+  band_merge_gap_px: 300                     # same-kind pieces closer than this are one band (a horse in front splits it)
+  speed_alpha: 0.3                           # scroll-speed estimate smoothing (from band motion)
+  speed_max_dt_s: 0.3
+  speed_max_step_px: 400
+  speed_min_baseline_s: 0.1                  # scroll speed is measured over at least this long
+  speed_min_px_s: 500
+  speed_max_px_s: 1800
+  track_hold_s: 0.4                          # keep predicting a band's edge this long after it was last seen
+  track_stuck_px: 30                         # edge not moving left (horses in front of it) -> use the prediction
+  track_new_band_px: 150
+  jump_retry_s: 0.15                         # horse not rising this long after Space -> press again
+  jump_rise_px: 20
+  results_settle_s: 1.0
+  unknown_pause_s: 30
+  ocr_upscale: 2.0
+  hay_hsv: [[18, 120, 180], [35, 255, 255]]  # measured 2026-10-26: hay H24 S163 V249
+  mud_hsv: [[8, 80, 40], [22, 255, 140]]     # mud H17 S113 V108 (same as the horse's body)
+  water_hsv: [[75, 100, 90], [100, 255, 255]] # water H84 S157 V162
+  hedge_hsv: [[40, 90, 90], [65, 255, 167]]  # hedge/tall grass V 130-152; light grass V ~198
+  horse_hsv: [[8, 90, 40], [22, 255, 130]]
+  horse_box_max_fill: 0.4
+  horse_row_min_px: 12
+  beige_hsv: [[15, 0, 190], [35, 130, 255]]  # leaderboard parchment
+  results_min_fill: 0.35
+  white_hsv: [[0, 0, 230], [180, 40, 255]]   # start line
+  startline_col_fill: 0.5
+  startline_min_cols: 0.3
+  progress_hsv: [[40, 90, 140], [70, 255, 255]] # green progress bar = we are on the track
+  progress_min_fill: 0.4
+  carrot_hsv: [[8, 150, 180], [22, 255, 255]]   # orange carrots still available
+  carrot_min_fill: 0.05
+  highlight_hsv: [[20, 150, 200], [35, 255, 255]] # yellow frame around our leaderboard row
+  highlight_row_fill: 0.5                    # rows of the frame's long yellow lines
+  highlight_min_rows: 6
+  highlight_max_height_px: 90

@@ -137,14 +137,58 @@ class DerbyConfig(StrictModel):
     jump_key: str = "space"
     jump_hold_ms: int = Field(40, ge=1)
     boosts_per_race: int = Field(3, ge=0)
+    boost_gap_s: float = Field(4.0, ge=0)
     boost_after_jump_s: float = Field(0.6, ge=0)
-    pixel_diff_min: float = Field(30.0, gt=0)
-    column_fraction_min: float = Field(0.1, gt=0, le=1)
-    obstacle_min_px: int = Field(20, ge=1)
-    background_alpha: float = Field(0.05, gt=0, le=1)
-    background_warmup_frames: int = Field(3, ge=1)
-    race_timeout_s: float = Field(90.0, gt=0)
-    results_settle_s: float = Field(0.5, ge=0)
+    boost_earliest_s: float = Field(2.0, ge=0)
+    band_min_width_px: int = Field(40, ge=1)
+    band_fill: float = Field(0.6, gt=0, le=1)
+    # dark green: tall grass columns fill 0.5-0.9 (stripes), hedge ~0.9, checkered finish <= 0.66
+    hedge_seed_fill: float = Field(0.68, gt=0, le=1)
+    hedge_grow_fill: float = Field(0.45, gt=0, le=1)
+    hedge_min_width_px: int = Field(150, ge=1)  # checker columns are ~130 px
+    band_pass_px: int = Field(120, ge=0)  # a band this far past the hooves is behind us
+    band_merge_gap_px: int = Field(300, ge=0)  # same-kind pieces closer than this are one band
+    speed_alpha: float = Field(0.3, gt=0, le=1)
+    speed_max_dt_s: float = Field(0.3, gt=0)
+    speed_max_step_px: int = Field(400, ge=1)
+    speed_min_baseline_s: float = Field(0.1, gt=0)  # measure speed over at least this long
+    speed_min_px_s: float = Field(500.0, gt=0)
+    speed_max_px_s: float = Field(1800.0, gt=0)
+    track_hold_s: float = Field(0.4, ge=0)  # predict a hidden band's edge this long
+    track_stuck_px: int = Field(30, ge=0)  # observed edge this far right of the prediction = hidden
+    track_new_band_px: int = Field(150, ge=0)
+    jump_retry_s: float = Field(0.15, ge=0)
+    jump_rise_px: int = Field(20, ge=1)
+    results_settle_s: float = Field(1.0, ge=0)
+    unknown_pause_s: float = Field(30.0, gt=0)
+    ocr_upscale: float = Field(2.0, ge=1.0)
+    # colours measured on the 2026-10-26 recording (OpenCV HSV, H in 0..180)
+    hay_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = ((18, 120, 180), (35, 255, 255))
+    mud_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = ((8, 80, 40), (22, 255, 140))
+    water_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = ((75, 100, 90), (100, 255, 255))
+    hedge_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = ((40, 90, 90), (65, 255, 167))
+    horse_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = ((8, 90, 40), (22, 255, 130))
+    horse_box_max_fill: float = Field(0.4, gt=0, le=1)
+    horse_row_min_px: int = Field(12, ge=1)
+    beige_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = ((15, 0, 190), (35, 130, 255))
+    results_min_fill: float = Field(0.35, gt=0, le=1)
+    white_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = ((0, 0, 230), (180, 40, 255))
+    startline_col_fill: float = Field(0.5, gt=0, le=1)
+    startline_min_cols: float = Field(0.3, gt=0, le=1)
+    progress_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = (
+        (40, 90, 140),
+        (70, 255, 255),
+    )
+    progress_min_fill: float = Field(0.4, gt=0, le=1)
+    carrot_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = ((8, 150, 180), (22, 255, 255))
+    carrot_min_fill: float = Field(0.05, gt=0, le=1)
+    highlight_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = (
+        (20, 150, 200),
+        (35, 255, 255),
+    )
+    highlight_row_fill: float = Field(0.5, gt=0, le=1)  # the frame's long top/bottom lines
+    highlight_min_rows: int = Field(6, ge=1)
+    highlight_max_height_px: int = Field(90, ge=1)
 
 
 class GemBallConfig(StrictModel):

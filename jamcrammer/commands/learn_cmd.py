@@ -97,6 +97,12 @@ def run_replay(args: argparse.Namespace) -> int:
 
         cfg: AppConfig = args.cfg
         detector: Any = BestGuessDetector(load_profile("bestguess", args.paths), cfg.bestguess)
+    elif which == "derby":
+        from jamcrammer.core.profiles import load_profile
+        from jamcrammer.modes.arcade.derby import DerbyDetector
+
+        cfg = args.cfg
+        detector = DerbyDetector(load_profile("jamaa_derby", args.paths), cfg.derby)
     else:
         detector = NearestStateDetector(session)
     if getattr(args, "dense", False):

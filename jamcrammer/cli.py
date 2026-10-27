@@ -64,7 +64,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--mode", choices=("bestguess", "double_up", "parties", "watchdog"))
     p.add_argument(
         "--detector",
-        choices=("nearest", "bestguess"),
+        choices=("nearest", "bestguess", "derby"),
         default="nearest",
         help="nearest-state self-consistency (default) or the real Best Guess detector",
     )

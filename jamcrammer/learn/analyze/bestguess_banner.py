@@ -234,13 +234,18 @@ def intervals_from_scan(scan: BannerScan) -> list[dict[str, Any]]:
 
 def session_video(session_dir: Path, paths: Paths) -> Path | None:
     """The original inbox recording of a session (moved to inbox/_processed by ingest)."""
+    processed = paths.inbox / "_processed"
+    stamp = session_dir.name[:15]  # YYYYMMDD_HHMMSS shared with the processed folder
     for m in read_meta(session_dir):
         if m.get("t") == "session":
-            folder = paths.inbox / "_processed" / session_dir.name.removesuffix("_inbox")
+            folders = [session_dir.name.removesuffix("_inbox")]
+            if processed.exists():
+                folders += [d.name for d in processed.iterdir() if d.name.startswith(stamp)]
             for name in m.get("files", []):
-                p = folder / str(name)
-                if p.suffix.lower() in (".mp4", ".mkv", ".mov", ".webm") and p.exists():
-                    return p
+                for folder in folders:
+                    p = processed / folder / str(name)
+                    if p.suffix.lower() in (".mp4", ".mkv", ".mov", ".webm") and p.exists():
+                        return p
     return None
 
 

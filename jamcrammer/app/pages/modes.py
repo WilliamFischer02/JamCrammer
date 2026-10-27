@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any
+from typing import Any, cast
 
+import yaml
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -116,7 +117,11 @@ class ModePage(Page):
             except Exception:
                 status = "uncalibrated"
             self.check_rows.addRow(QLabel(f"{profile_name}.{field}"), Chip(status, status))
-        gate_mode = {"hunt": "hunt", "farm": "double_up", "opportunist": "double_up"}[self.mode]
+        gate_mode = {
+            "hunt": "hunt",
+            "farm": self.engine.cfg.arcade_game,
+            "opportunist": "double_up",
+        }[self.mode]
         self.gate_line.setText(
             "Live-mode gate: "
             + gate_status(gate_mode, self.engine.paths, self.engine._profiles).summary()
@@ -234,20 +239,19 @@ class ArcadePage(ModePage):
     key = "farm"
     mode = "farm"
     title = "Arcade"
-    subtitle = "Farm the most profitable always-available mini-game. Primary target: Double Up."
+    subtitle = "Farm an always-available mini-game: Jamaa Derby (calibrated) or Double Up."
     icon = "arcade"
+    GAMES = ("jamaa_derby", "double_up", "gem_ball", "swoopy_eagle")
 
     def build_settings(self) -> None:
-        card = Card("Double Up", "Arrives in M7 after a Learn session of 2-3 manual rounds.")
+        card = Card("Game", "The game Start farms; saved to config.yaml (arcade_game).")
         form = QFormLayout()
         game = QComboBox()
-        for g in (
-            "double_up",
-            "jamaa_derby",
-            "gem_ball (experimental)",
-            "swoopy_eagle (experimental)",
-        ):
-            game.addItem(g)
+        for g in self.GAMES:
+            game.addItem(g if g in ("jamaa_derby", "double_up") else f"{g} (experimental)", g)
+        current = self.engine.cfg.arcade_game
+        game.setCurrentIndex(max(0, self.GAMES.index(current)) if current in self.GAMES else 0)
+        game.currentIndexChanged.connect(lambda i: self._set_game(str(game.itemData(i))))
         form.addRow("Game", game)
         form.addRow("Target perfect rounds", QLabel("≥ 98% (8/8, no mismatches)"))
         form.addRow("Preview burst capture", QLabel("≥ 10 fps during the 3 s preview"))
@@ -260,6 +264,16 @@ class ArcadePage(ModePage):
             )
         )
         self.content.addWidget(act)
+
+    def _set_game(self, game: str) -> None:
+        self.engine.cfg.arcade_game = cast(Any, game)
+        try:
+            with self.engine.paths.config_file.open("w", encoding="utf-8") as fh:
+                yaml.safe_dump(self.engine.cfg.model_dump(mode="json"), fh, sort_keys=False)
+        except OSError as exc:
+            self.gate_line.setText(f"could not save config.yaml: {exc}")
+            return
+        self.refresh_checklist()
 
 
 class OpportunistPage(ModePage):

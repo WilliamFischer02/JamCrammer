@@ -1,61 +1,107 @@
-# Jamaa Derby profile (stage pixels). Learn calibrates from 2-3 manual races.
+# Jamaa Derby profile (stage pixels, 1920x1080). The real calibration from the 2026-10-26
+# recording lives in profiles/jamaa_derby.yaml (gitignored); values here are those measurements
+# marked proposed so the gate stays closed until a recording confirms them on this machine.
 version: 1
 name: jamaa_derby
 fields:
-  lane_roi:
+  strip_roi:
     type: roi
-    value: null
-    status: uncalibrated
-    note: the horse's lane, from the horse to the right edge where obstacles enter
-  horse_x:
-    type: number
-    value: null
-    status: uncalibrated
-    note: x of the horse's front within the lane ROI
-  jump_lead_short_px:
-    type: number
-    value: 140
+    value: [100, 400, 1720, 500]
     status: proposed
-    note: press Space when a short obstacle's left edge is this close to the horse
-  jump_lead_long_px:
+    note: horizontal band of track below our lane and above the HUD; obstacles span its full height
+  horse_front_x:
     type: number
-    value: 90
+    value: 940
     status: proposed
-    note: long obstacles are jumped at the last moment
-  long_obstacle_min_px:
+    note: x of our horse's nose (it never moves horizontally)
+  jump_trigger_x:
     type: number
-    value: 120
+    value: 800
     status: proposed
-    note: obstacle width at/above which it counts as long
+    note: the hooves; William pressed Space when a band's edge was ~140 px past the nose (median of 43 jumps)
+  horse_box_roi:
+    type: roi
+    value: [700, 60, 260, 360]
+    status: proposed
+    note: where our brown horse stands (top lane); its top row rises while airborne
+  jump_lead_s:
+    type: number
+    value: 0.08
+    status: proposed
+    note: press Space this long before the band edge reaches the nose (capture + input latency)
+  jump_lead_px:
+    type: number
+    value: 0
+    status: proposed
+    note: extra fixed lead in pixels
   jump_cooldown_s:
     type: number
-    value: 0.9
+    value: 0.5
     status: proposed
+  scroll_px_s:
+    type: number
+    value: 800
+    status: proposed
+    note: initial scroll speed; measured ~810 px/s on a hay band, re-estimated live from band motion
   boost_button_point:
     type: point
-    value: null
-    status: uncalibrated
+    value: [960, 975]
+    status: proposed
+    note: the three-carrot button in the HUD, bottom centre
+  boost_box_roi:
+    type: roi
+    value: [840, 945, 240, 60]
+    status: proposed
+    note: carrots are orange while available, grey once used
   boost_clear_px:
     type: number
-    value: 400
+    value: 500
     status: proposed
-    note: use a carrot only when no obstacle is within this distance
-  boost_duration_s:
+    note: use a carrot only when no band is within this distance of the nose
+  results_box_roi:
+    type: roi
+    value: [300, 150, 1300, 750]
+    status: proposed
+    note: the Next Race In N leaderboard parchment
+  results_rows_roi:
+    type: roi
+    value: [400, 190, 560, 540]
+    status: proposed
+    note: left part of the six result rows; ours has a yellow frame
+  results_row_h:
     type: number
-    value: 3.0
+    value: 70
     status: proposed
-  results_place_roi:
+  results_gems_w:
+    type: number
+    value: 260
+    status: proposed
+    note: OCR width of the gems column, right of the rows ROI
+  results_first_row_cy:
+    type: number
+    value: 52
+    status: proposed
+    note: centre y of the first row within results_rows_roi
+  results_row_pitch:
+    type: number
+    value: 86
+    status: proposed
+    note: vertical distance between rows; row index -> place when OCR fails
+  startline_roi:
     type: roi
-    value: null
-    status: uncalibrated
-  results_gems_roi:
+    value: [860, 400, 80, 500]
+    status: proposed
+    note: the white start line sits here while waiting for the other horses
+  progress_bar_roi:
     type: roi
-    value: null
-    status: uncalibrated
-  race_again_point:
+    value: [300, 1042, 1300, 16]
+    status: proposed
+    note: green race-progress bar; present on the track and the leaderboard, absent elsewhere
+  close_x_point:
     type: point
-    value: null
-    status: uncalibrated
+    value: [1770, 80]
+    status: proposed
+    note: leaves the game (not used by the farmer; races restart by themselves)
   pro_unlocked:
     type: number
     value: 0
