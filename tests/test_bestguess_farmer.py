@@ -146,11 +146,21 @@ class Arena:
 
     def click(self, x: int, y: int) -> bool:
         self.clicks.append((self.t, x, y))
+        self._choose(x < 960)
+        return True
+
+    def key_down(self, key: str) -> None:  # a held arrow walks to that side's wall
+        self.clicks.append((self.t, -1 if key == "left" else 1, 0))
+        self._choose(key == "left")
+
+    def key_up(self, key: str) -> None:
+        pass
+
+    def _choose(self, left: bool) -> None:
         r = self.round_index()
         phase = self.t - r * self.round_len
         if 3.0 <= phase < 13.0 - 5.0:  # can't switch sides in the last 5 s
-            self.chosen[r] = x < 960
-        return True
+            self.chosen[r] = left
 
 
 def test_farmer_answers_learns_and_counts(tmp_path: Path) -> None:

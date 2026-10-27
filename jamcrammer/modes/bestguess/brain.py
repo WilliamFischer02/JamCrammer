@@ -93,6 +93,8 @@ class Brain:
         match = self.lookup(fact_text)
         if match is not None and match.answer in ("T", "F"):
             return Decision(match.answer, "bank", match)  # type: ignore[arg-type]
+        if self.unknown_policy == "crowd":
+            return Decision(None, "crowd")  # the farmer reads the floor and decides
         if self.unknown_policy == "learned_prior":
             return Decision(self.prior(), "prior")
         if self.unknown_policy == "fixed_true":

@@ -22,6 +22,7 @@ from jamcrammer.core.profiles import Profile
 from jamcrammer.core.store import Store
 from jamcrammer.modes.bestguess.brain import Brain, Decision
 from jamcrammer.modes.bestguess.learner import Learner, default_learners, vote
+from jamcrammer.modes.bestguess.navigate import count_crowd, find_own_tag, key_for, side_of_x
 from jamcrammer.modes.bestguess.state import BestGuessDetector, BgState, Observation
 
 log = get_logger("bestguess")
@@ -36,6 +37,10 @@ MAX_MULTIPLIER = 4
 
 class Clicker(Protocol):
     def click(self, cx: int, cy: int) -> bool: ...
+
+    def key_down(self, key: str) -> None: ...
+
+    def key_up(self, key: str) -> None: ...
 
 
 @dataclass
@@ -110,6 +115,10 @@ class BestGuessFarmer:
         self._unknown_since: float | None = None
         self._last_input_ts = 0.0
         self._last_side: Side | None = None
+        self._held_key: str | None = None
+        self._release_at = 0.0
+        self._verify_at = 0.0
+        self._moves_this_round = 0
         self.paused_reason = ""
         self.screen_known = False  # last frame was the arena (watchdog hint)
 
@@ -119,6 +128,7 @@ class BestGuessFarmer:
         """One capture tick. Returns the observation; side effects are the state machine."""
         image = self._grab()
         now = self._clock()
+        self._service_keys(now)
         obs = self.detector.observe(image, now)
         seen = obs.state
         self.screen_known = seen != BgState.UNKNOWN
@@ -161,6 +171,17 @@ class BestGuessFarmer:
         self, should_stop: Callable[[], bool], status: Callable[[str], None] | None = None
     ) -> None:
         period = 1.0 / self.cfg.fps
+        try:
+            self._run_loop(should_stop, status, period)
+        finally:
+            self._release_key()
+
+    def _run_loop(
+        self,
+        should_stop: Callable[[], bool],
+        status: Callable[[str], None] | None,
+        period: float,
+    ) -> None:
         while not should_stop() and not self.paused_reason:
             self.step()
             if status is not None:
@@ -176,6 +197,7 @@ class BestGuessFarmer:
     def _open_round(self, obs: Observation, image: BgrImage, now: float) -> None:
         self.state = BgState.QUESTION_OPEN
         self.stats.rounds += 1
+        self._moves_this_round = 0
         self._round = RoundCtx(
             fact=obs.fact_text,
             opened_ts=now,
@@ -196,6 +218,23 @@ class BestGuessFarmer:
         if elapsed < self.cfg.commit_after_s and not too_late:
             return
         rnd.decision = self.brain.decide(rnd.fact)
+        if rnd.decision.side is None and rnd.decision.source == "crowd":
+            wait = (
+                self.profile.number("crowd_commit_after_s")
+                if self.profile.has("crowd_commit_after_s")
+                else 5.0
+            )
+            if elapsed < wait and not too_late:
+                return  # let the crowd settle first
+            crowd = count_crowd(image, self._floor_roi(), self.cfg)
+            side = crowd.side(self.cfg.crowd_min_ratio)
+            if side is None:
+                rnd.decision = Decision(self.brain.prior(), "prior")
+            else:
+                rnd.decision = Decision(side, "crowd")  # type: ignore[arg-type]
+            self._emit(
+                "bestguess.crowd", left=crowd.left, right=crowd.right, side=rnd.decision.side
+            )
         self.stats.last_decision = rnd.decision.source
         if rnd.decision.side is None:
             self.stats.unknown_facts += rnd.decision.source != "learn_only"
@@ -215,17 +254,55 @@ class BestGuessFarmer:
             score=rnd.decision.match.score if rnd.decision.match else None,
         )
 
+    def _floor_roi(self) -> tuple[int, int, int, int]:
+        if self.profile.has("floor_roi"):
+            return self.profile.roi("floor_roi")
+        return (90, 250, 1740, 760)
+
     def _commit(self, side: Side, now: float) -> None:
-        x, y = self.profile.point("true_point" if side == "T" else "false_point")
-        self._click.click(x, y)
+        """Walk to a side: hold the arrow key (released in a later tick) or click the floor."""
+        if self.cfg.move_method == "keys":
+            self._release_key()
+            key = key_for(side)
+            self._click.key_down(key)
+            self._held_key = key
+            self._release_at = now + self.cfg.move_hold_s
+            self._verify_at = self._release_at + self.cfg.move_verify_after_s
+        else:
+            x, y = self.profile.point("true_point" if side == "T" else "false_point")
+            self._click.click(x, y)
+        self._moves_this_round += 1
         self._last_input_ts = now
         self._last_side = side
+
+    def _release_key(self) -> None:
+        if self._held_key is not None:
+            self._click.key_up(self._held_key)
+            self._held_key = None
+
+    def _service_keys(self, now: float) -> None:
+        if self._held_key is not None and now >= self._release_at:
+            self._release_key()
 
     def _verify_commit(self, obs: Observation, image: BgrImage, now: float) -> None:
         """Postcondition: our side should light up. Without a calibrated side-indicator ROI we
         re-click once shortly after the commit (idempotent: walking to the same side)."""
         rnd = self._round
         if rnd is None or rnd.chosen is None or rnd.committed_ts is None:
+            return
+        if self.cfg.move_method == "keys":
+            if self._held_key is not None or now < self._verify_at or self._moves_this_round >= 2:
+                return
+            x = find_own_tag(image, self._floor_roi(), self.cfg.own_name, self.cfg)
+            self._verify_at = now + 60.0  # once per round
+            if x is None:
+                self._emit("bestguess.own_tag_unseen", side=rnd.chosen)
+                return
+            if side_of_x(x) == rnd.chosen:
+                self._emit("bestguess.own_tag", x=x, side=rnd.chosen)
+                return
+            self._commit(rnd.chosen, now)
+            self._emit("bestguess.recommit", Level.NOTICE, side=rnd.chosen, own_x=x)
             return
         if not self.profile.has("side_indicator_roi") or self._side_lit(image, rnd.chosen):
             return

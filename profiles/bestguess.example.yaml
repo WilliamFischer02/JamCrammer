@@ -53,6 +53,16 @@ fields:
     value: null
     status: uncalibrated
     note: region whose color/template shows the correct side after the lock
+  floor_roi:
+    type: roi
+    value: [90, 250, 1740, 760]
+    status: proposed
+    note: the arena floor between the banner and the HUD; name tags are counted here per side
+  crowd_commit_after_s:
+    type: number
+    value: 5
+    status: proposed
+    note: with an unknown fact, read the crowd this long after the question appears (people have moved)
   own_animal_roi:
     type: roi
     value: null

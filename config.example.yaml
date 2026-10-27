@@ -23,7 +23,7 @@ antiafk:
 # --- Behavior toggles ---
 auto_join: true
 start_farming_after_join: true
-unknown_fact_policy: learned_prior           # learned_prior | fixed_true | fixed_false | skip
+unknown_fact_policy: crowd                   # crowd (fuller side of the floor) | learned_prior | fixed_true | fixed_false | skip
 answer_mode: learn_only                      # learn_only | bank_policy | coin_flip
 fuzzy_threshold: 90
 

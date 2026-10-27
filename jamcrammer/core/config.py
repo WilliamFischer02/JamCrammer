@@ -116,6 +116,21 @@ class BestGuessConfig(StrictModel):
     parchment_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = ((0, 0, 200), (180, 60, 255))
     # the gem-stack icon in arena_anchor_roi is ~58% saturated colour in the arena, <8% elsewhere
     anchor_min_fill: float = Field(0.25, ge=0, le=1)
+    # movement: a held arrow key walks the animal to the wall of that side (never clicks a player)
+    move_method: Literal["keys", "click"] = "keys"
+    move_hold_s: float = Field(2.0, gt=0)
+    move_verify_after_s: float = Field(0.8, ge=0)
+    own_name: str = "Admiral Angrypotato"
+    own_tag_upscale: float = Field(1.5, ge=1.0)
+    own_tag_fuzz: int = Field(80, ge=50, le=100)
+    # crowd heuristic: white name tags per half of the floor
+    crowd_min_ratio: float = Field(1.25, ge=1.0)
+    tag_max_sat: int = Field(40, ge=0, le=255)
+    tag_min_val: int = Field(215, ge=0, le=255)
+    tag_min_w: int = Field(120, ge=1)
+    tag_max_w: int = Field(420, ge=1)
+    tag_min_h: int = Field(22, ge=1)
+    tag_max_h: int = Field(60, ge=1)
     anchor_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = ((0, 120, 120), (180, 255, 255))
     dance_motion_min: float = Field(12.0, ge=0)
     # measured on the 2026-10-26 recording: True! green H40-50 V~217, False! orange H0-10 V~194,
@@ -304,7 +319,7 @@ class InputConfig(StrictModel):
     history_len: int = Field(200, ge=10)
 
 
-UnknownFactPolicy = Literal["learned_prior", "fixed_true", "fixed_false", "skip"]
+UnknownFactPolicy = Literal["crowd", "learned_prior", "fixed_true", "fixed_false", "skip"]
 AnswerMode = Literal["learn_only", "bank_policy", "coin_flip"]
 CaptureBackend = Literal["auto", "wgc", "mss"]
 
@@ -326,7 +341,7 @@ class AppConfig(StrictModel):
 
     auto_join: bool = True
     start_farming_after_join: bool = True
-    unknown_fact_policy: UnknownFactPolicy = "learned_prior"
+    unknown_fact_policy: UnknownFactPolicy = "crowd"
     answer_mode: AnswerMode = "learn_only"
     fuzzy_threshold: int = Field(90, ge=0, le=100)
 

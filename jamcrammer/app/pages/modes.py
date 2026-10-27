@@ -194,7 +194,7 @@ class BestGuessPage(ModePage):
         )
         form2 = QFormLayout()
         policy = QComboBox()
-        for p in ("learned_prior", "fixed_true", "fixed_false", "skip"):
+        for p in ("crowd", "learned_prior", "fixed_true", "fixed_false", "skip"):
             policy.addItem(p)
         policy.setCurrentText(cfg.unknown_fact_policy)
         policy.currentTextChanged.connect(lambda v: setattr(cfg, "unknown_fact_policy", v))
@@ -203,7 +203,7 @@ class BestGuessPage(ModePage):
         for m in ("learn_only", "bank_policy", "coin_flip"):
             mode.addItem(m)
         mode.setCurrentText(cfg.answer_mode)
-        mode.currentTextChanged.connect(lambda v: self._set_answer_mode(v))
+        mode.currentTextChanged.connect(self._set_answer_mode)
         form2.addRow("Answer mode", mode)
         form2.addRow(
             "Fuzzy threshold",

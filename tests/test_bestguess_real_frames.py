@@ -64,3 +64,21 @@ def test_ocr_reads_fact_and_score() -> None:
     assert "wolverines" in text and "social" in text, text
     assert parse_int(ocr_image(_load("score_30.png"), upscale=CFG.score_upscale).text) == 30
     assert parse_int(ocr_image(_load("score_60.png"), upscale=CFG.score_upscale).text) == 60
+
+
+def test_live_arena_crowd_and_own_tag() -> None:
+    """A live arena keyframe (2026-10-26 21:xx): the fuller side is the right (purple) one
+    and William's tag is readable there."""
+    img = cv2.imread(str(FIX / "arena_live.jpg"))
+    assert img is not None
+    from jamcrammer.modes.bestguess.navigate import Crowd, count_crowd, find_own_tag
+
+    crowd = count_crowd(np.asarray(img, dtype=np.uint8), (90, 250, 1740, 760), CFG)
+    assert crowd.right > crowd.left and crowd.side(CFG.crowd_min_ratio) == "F", crowd
+    assert Crowd(4, 4).side(1.25) is None and Crowd(6, 2).side(1.25) == "T"
+    probe = ocr_image(np.full((40, 120, 3), 255, dtype=np.uint8))
+    if probe.error:
+        pytest.skip("winocr unavailable")
+    arena = np.asarray(img, dtype=np.uint8)
+    x = find_own_tag(arena, (90, 250, 1740, 760), "Admiral Angrypotato", CFG)
+    assert x is not None and x > 960, x
