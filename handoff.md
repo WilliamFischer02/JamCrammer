@@ -1,47 +1,63 @@
 # Handoff
 
-_Last updated: 2026-10-26 (M0-M11 built; live acceptance runs pending William)_
+_Last updated: 2026-10-26 evening (Best Guess calibrated from William's recording; gate open; GUI launched for his test)_
 
 ## State
-- **M0 done:** venv (Python 3.14), pyproject, ruff + mypy (strict core/platform) + pytest green, skeleton, inbox READMEs, `run.bat` placeholder window verified.
-- **M1 done:** window discovery + DPI, WGC/mss capture with benchmark, SendInput controller (bounds-checked, postcondition retry, dry-run), kill/pause/lease/presence/hotkeys primitives, SQLite store, JSONL logging, **CLI emergency recorder** `learn --target bestguess` (keyframes + ring-buffer marker dumps + local input log + OCR snapshots + meta.jsonl). Verified live: `snap` PNG read and correct; 15 s recording produced a valid session folder.
-- **M2 done:** Popup Watchdog (templates → green+OCR → OCR → unknown-modal), Anti-AFK + room-drift guard, notifications (toast/sound verified live; ntfy/Discord wired, disabled until configured), Gem Ledger, profiles system (`profiles/shared.example.yaml`), replay frame sources, synthetic popup generators, `test-notify` and `activity-test` commands. 68 tests green.
-- **M3 built:** Party Watcher (title/GO NOW/X templates, banner rows via border-ring components, pHash + OCR identification, sightings → rotation log, unknown-banner capture), Best Guess Hunter A/B (`hunt` CLI; HIGH alert; auto-join → Learn-only recording), stage-space coordinate layer (`vision/stage.py`), presence detection in the hunt loop. 85 tests green incl. fixture banner ID and a simulated Best Guess HIGH alert/join.
-- **M4 done:** PySide6 GUI shell (Jamaa Night tokens + generated QSS, SVG icon set, app ICO), engine facade + Qt bridge, nav rail (12 pages, Ctrl+1-9, collapsible), command bar (mode, state pill, Start/Stop/Pause, Dry-run, hotkeys, lease), Dashboard (mode cards, live preview with overlay, stat tiles with sparklines, timeline), mode pages with profile checklists, Learn (recorder + inbox drop + sessions), Calibration (zoom/pan canvas, pixel inspector, field chips, point picking, save), Answer Bank (search/edit/CSV), Parties (timeline, sightings, unknown-banner labeling), Profit Lab, Notifications (tests), Settings (save config.yaml), Logs, mini HUD, tray, onboarding wizard, overlap warning. UI QA screenshots at 100%/150% reviewed (docs/ui/).
-- **M5 done:** inbox ingest (PNG/MP4 → stage-normalized sessions, tags from filenames), analysis pipeline steps 1-9 (`jamcrammer/learn/analyze/`), Learn Report (`report.html`), proposed profiles + template crops, generic replay harness (`replay <session>`), review wizard (States → ROIs → Clicks → Answers → Replay → Accept), Learn page wired (Import inbox, Review wizard, Learn Report). Verified on the synthetic Best Guess session: states, fact/countdown/gem regions, True/False points, 4 rounds labeled, answers seeded, proposal written, replay 100%.
-- **M6 done:** Calibration canvas with drag handles (move/resize), Draw ROI, Sample color → HSV range, Crop template → assets, point picking, inline editing, mark calibrated/uncalibrated, save; live-mode gate (`core/gate.py`) shown on Calibration and mode pages; replay results feed the gate. UI QA re-captured.
-- **M7 built:** `vision/grid.py` (grid geometry, tile descriptors, mutual-best pairing), `modes/arcade/double_up.py` (preview burst → pair → click/verify → end-screen OCR → Play Again; reveal-and-remember fallback), `farm` CLI + engine mode behind the gate, simulated Double Up world tests (perfect round, fallback, gate refusal). **Live rounds need William's Learn session** (`learn --target double_up`, 2-3 manual rounds) to calibrate the grid.
-- **M8 built:** `modes/bestguess/{state,brain,learner,farmer}.py` (Phase C state machine, profile-driven detector with countdown fallback, fuzzy bank with majority on conflicts, learner vote, bg_rounds rows, stats), engine hand-off from hunt join → farmer when the gate is open (else Learn-only), review wizard state naming → replay scores the real detector. Synthetic: detector ≥95%, farmer 3/4 correct with learning. **Needs William's Best Guess Learn session** to calibrate fact/true/false/reveal ROIs and pass the gate.
-- **M9 built:** `modes/opportunist.py` (ArcadeEntry leave/enter with verification, Opportunist loop with boundary checks, overhead events, hop to Best Guess, fallback to Hunt), engine `opportunist` mode behind the Double Up gate + entry route, `opportunist` CLI, Profit Lab overhead line. Simulated tests: boundary checks + re-entry, hop, fallback, route gate.
-- **M10 built:** `modes/arcade/derby.py` (rolling-background obstacle detection, class-based jump lead, boosts on clear straights, results OCR, Pro tracking), `profiles/jamaa_derby.example.yaml`, `farm --game jamaa_derby`, gate entries, Profit Lab rows per game + opportunist overhead. Synthetic: 10/10 first places. **Live Derby needs a Learn session** (lane ROI, horse x, boost button, results ROIs, race-again point).
-- **M11 built:** Gem Ball auto-tuner (`modes/arcade/gem_ball.py`, deterministic/non-deterministic verdict with data, exploit loop), Swoopy Eagle prototype (`modes/arcade/swoopy.py`, 60 fps tracker + tuned PD controller), Super Sort / Falling Phantoms stubs (`modes/arcade/stubs.py`), `press_hold` input, README walkthrough (clean clone → onboarding → Learn → calibrate → farm).
-- **Verified live:** party hat click opens My Parties, X closes it (panel probe 14:59). Current slot: *Spooky Party*.
-- **Not yet run live:** the 30-min `hunt --no-join` rotation run (M3 acceptance), `input-test` with real keys, the Activity Test. William appeared to be at the keyboard (window un-fullscreened, room changed to Coral Canyons ~15:05), so no further input was sent.
+- **M0-M11 built and committed** (see git log and `decisions.md`): capture/input/safety primitives, Popup Watchdog, Anti-AFK, notifications, Gem Ledger, Party Watcher + Hunter, PySide6 GUI, Learn (recorder, inbox ingest, analysis, report, review wizard, replay harness), Calibration canvas + gate, Double Up / Jamaa Derby / Gem Ball / Swoopy farmers, Opportunist, Best Guess Phase C.
+- **Best Guess is calibrated (2026-10-26 17:30-18:00)** from `inbox/2026-10-26 17-25-39.mp4` + 3 screenshots (now in `inbox/_processed/`). `profiles/bestguess.yaml` (gitignored, values below) has every gate field `calibrated`; the dense replay scores **97.5% over 396 frames**; `gate_status("bestguess")` is **unlocked**. The answer bank holds the 10 facts from the recording. 131 tests, ruff + mypy clean.
+- **Verified live earlier today:** party hat click opens My Parties, X closes it. The slot party was *Spooky Party* at 15:00.
+- **Not yet run live:** a Best Guess farming round (the GUI was launched for William at the end of this session), the 30-min `hunt --no-join` rotation run, `input-test`, `activity-test`, Learn sessions for Double Up / Derby.
 
-## How to record Best Guess the moment it appears
-```
-cd C:\dev\JamCrammer
-.venv\Scripts\python -m jamcrammer learn --target bestguess
-```
-Then join the party and play. **F6** mark, **F7** I was correct, **F8** I was wrong, **F12** or Ctrl+C to stop. Nothing is sent to the game. Add `--video` for a continuous 5 fps mp4 as well. Drop OBS recordings in `inbox\bestguess\` as a backup.
+## Best Guess profile (stage pixels; `profiles/bestguess.yaml`)
+| field | value | how it was measured |
+|---|---|---|
+| `fact_roi` | `[500, 10, 940, 200]` | parchment banner; two-line facts fit |
+| `reveal_word_roi` / `reveal_roi` | `[700, 15, 540, 95]` | banner top line: green *True!* / orange *False!* |
+| `arena_anchor_roi` | `[120, 8, 110, 60]` | gem-stack icon, 58% saturated in-arena vs <8% outside |
+| `score_roi` | `[210, 8, 150, 60]` | round score, OCR at 3× (30/60/250 read correctly) |
+| `round_complete_roi` | `[480, 300, 960, 420]` | ROUND COMPLETE scroll + Leave Game dialog |
+| `true_point` / `false_point` | `[450, 700]` / `[1500, 700]` | **chosen from the floor layout, not yet clicked live** |
+| `countdown_roi`, `gem_counter_roi`, `own_animal_roi` | null | dial timer (elapsed time is used); no gem HUD; dance learner idle |
+
+Round timing seen: question ≈10 s, reveal ≈6 s, a ROUND COMPLETE scroll every ~10 questions ("9 Correct Answers · 250 GEMS EARNED" at x4). The CORRECT!/WRONG! splash is not used (lime on lime).
+
+## How William tests Best Guess now
+1. Start the GUI (`run.bat` or `.venv\Scripts\python -m jamcrammer gui`), mode **Best Guess Hunter**.
+2. Stand in the Best Guess arena (or let the Hunter join it). With the arena on screen the engine skips the hunt and farms at once (`engine.arena_detected`).
+3. First run with **Dry-run** on: the state pill should walk QUESTION_OPEN → LOCKED → REVEAL and the Answer Bank should grow; no clicks are sent.
+4. Then Dry-run off for one round: watch that the animal walks to the green (True) / purple (False) side after ~3 s. If it does not move, adjust `true_point`/`false_point` on the Calibration page (click on the floor, clear of name tags).
+5. F11 pauses, F12 stops. Any screen that is not the arena (ad, lobby, loading book) shows UNKNOWN and pauses after 30 s.
 
 ## Next steps
-1. **M3 acceptance, when William is away:** `python -m jamcrammer hunt --no-join --duration 1800` → rotation log printed at the end; confirm the HIGH sound fires if Best Guess appears. Then `hunt` (auto-join on) for real.
-2. **Experimental, later:** Super Sort (binary colour → opposite arrow key; measure the payout first) and Falling Phantoms (60 fps lane tracker; dense final phase) — both need a Learn session; see `modes/arcade/stubs.py`.
-3. With William present: `python -m jamcrammer input-test` (then `--method vk` if scan codes don't move the animal) → record in `decisions.md`, set `input.key_method`. Then `python -m jamcrammer activity-test` (24 min) → set Anti-AFK defaults from the result.
-3. Popup templates: when `inbox/popups/` gets the still-playing / logged-out / Play Now screenshots, crop them into `assets/templates/popups/` and flip the template fields in the shared profile to `calibrated`.
+1. **Watch William's first live round** (log `data/logs/`, events `bestguess.answer` / `bestguess.reveal`). Check the chosen side matches the bank, the score delta learner agrees with the reveal word, and the heartbeat does not fire mid-question.
+2. If the My Parties banner for Best Guess gets captured (`inbox/parties/` screenshot while it is listed), add it to `assets/banners/` and `known_labels`; until then the Hunter identifies it by OCR ("best guess").
+3. M3 acceptance when William is away: `hunt --no-join --duration 1800`. With him present: `input-test` (scan codes vs vk), `activity-test`.
+4. Learn sessions for Double Up and Jamaa Derby (`learn --target double_up` / `jamaa_derby`) to open those gates.
+5. Experimental later: Super Sort, Falling Phantoms (stubs in `modes/arcade/stubs.py`).
+
+## Commands
+```
+.venv\Scripts\python -m jamcrammer ingest                                            # inbox -> sessions + report
+.venv\Scripts\python -m jamcrammer report <session>                                  # re-analyse (keeps hand labels)
+.venv\Scripts\python -m jamcrammer replay <session> --detector bestguess --dense     # gate check on the video
+.venv\Scripts\python -m jamcrammer learn --target bestguess                          # live recorder (F6/F7/F8)
+```
+Inbox files must go in the mapped subfolders (`inbox/bestguess/`, `inbox/parties/`, ...); files at the inbox root are ignored by ingest.
 
 ## Open questions (asked William 2026-10-26, defaults in use)
 - ntfy phone pushes + topic? (default: off)
 - Owns the Double Up den arcade machine? (default: no; entry route Games menu → Sol Arcade)
 
 ## Waiting on William's captures
-- Best Guess: a Learn session (command above) or OBS video → `inbox/bestguess/`.
+- A My Parties screenshot while *Best Guess Game* is listed (banner template).
 - Full-window My Parties screenshot (current fixture is a 704×552 panel crop).
 - Popup screenshots (still-playing, logged-out, Play Now) → `inbox/popups/`.
+- Learn sessions for Double Up and Jamaa Derby.
 
 ## Risks
-- Stage mapping assumes uniform 16:9 scaling centered in the client; verified for fullscreen (identity) and maximized (0.938). If William plays in a small window, OCR on the upscaled stage may degrade.
-- Toast banners are hidden while AJC is fullscreen (Focus Assist); HIGH alerts rely on the repeating sound and ntfy/Discord once configured.
-- windows-capture 2.0.1 segfaults if a WGC session is opened after an mss session in the same process (see decisions.md). The app never mixes them; keep it that way.
-- The gem counter is not visible in the Crystal Sands HUD on this account (non-member?). Gem Ledger OCR needs a screen where it shows (mini-game end screens, or the HUD elsewhere).
+- `true_point`/`false_point` are untested live; a wrong spot could land on a name tag (harmless click) or outside the floor (no move). Dry-run first.
+- The recording was 1280×720 upscaled to the 1920×1080 stage; OCR on the live 1920×1080 capture should only be better, but colour thresholds were measured on the upscaled video.
+- Stage mapping assumes uniform 16:9 scaling centered in the client; verified for fullscreen and maximized.
+- Toast banners are hidden while AJC is fullscreen; HIGH alerts rely on the repeating sound and ntfy/Discord once configured.
+- windows-capture 2.0.1 segfaults if a WGC session is opened after an mss session in the same process. The app never mixes them.
+- No gem counter in the HUD on this account; the Best Guess farmer uses the round score instead, the Gem Ledger relies on end screens.

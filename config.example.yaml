@@ -88,11 +88,16 @@ bestguess:
   question_s: 10                             # question length; used when the countdown can't be read
   waiting_keywords: [get ready, next round, waiting, starting]
   ocr_upscale: 2.0
-  reveal_min_fill: 0.15                      # fraction of the reveal ROI that must be green/purple
-  reveal_min_margin: 0.4                     # green minus purple fill must differ by this much
+  reveal_min_fill: 0.03                      # fraction of the reveal-word ROI that must be coloured text
+  reveal_ratio: 3                            # winning colour must beat the other by this factor
+  score_upscale: 3.0                         # OCR upscale for the small round score
+  banner_min_parchment: 0.3                  # parchment share of fact_roi below which the screen is UNKNOWN
+  parchment_hsv: [[0, 0, 200], [180, 60, 255]]
+  anchor_min_fill: 0.25                      # saturated share of arena_anchor_roi (gem icon) to count as in-arena
+  anchor_hsv: [[0, 120, 120], [180, 255, 255]]
   dance_motion_min: 12
-  true_hsv: [[40, 90, 90], [85, 255, 255]]   # green = True (left)
-  false_hsv: [[130, 60, 60], [165, 255, 255]]  # purple = False (right)
+  true_hsv: [[36, 110, 150], [58, 255, 255]]   # green True! (measured 2026-10-26)
+  false_hsv: [[0, 120, 150], [14, 255, 255]]   # orange False!
 
 # --- Opportunist (KICKOFF 10) ---
 opportunist:

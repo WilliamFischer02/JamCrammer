@@ -62,6 +62,17 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("replay", help="run a mode offline against a recorded session")
     p.add_argument("session")
     p.add_argument("--mode", choices=("bestguess", "double_up", "parties", "watchdog"))
+    p.add_argument(
+        "--detector",
+        choices=("nearest", "bestguess"),
+        default="nearest",
+        help="nearest-state self-consistency (default) or the real Best Guess detector",
+    )
+    p.add_argument(
+        "--dense",
+        action="store_true",
+        help="replay the original inbox video at 2 fps against analysis/intervals.json",
+    )
 
     p = sub.add_parser("snap", help="capture one frame of the AJC window to a PNG")
     p.add_argument("--out", default=None)

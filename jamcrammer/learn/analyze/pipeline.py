@@ -16,6 +16,7 @@ from jamcrammer.core.paths import Paths
 from jamcrammer.learn.analyze import behavior, features, text
 from jamcrammer.learn.analyze.proposal import write_proposal
 from jamcrammer.learn.recorder import read_meta
+from jamcrammer.vision.ocr import normalize_text
 
 log = get_logger("learn.analyze")
 
@@ -53,7 +54,47 @@ class AnalysisResult:
         return asdict(self)
 
 
-def analyze_session(
+def _merge_banner_scan(
+    session_dir: Path,
+    paths: Paths,
+    fact_region: text.TextRegion | None,
+    answers: list[dict[str, Any]],
+    zones: dict[str, Any],
+) -> None:
+    """Best Guess: read the banner through the original video (question -> True!/False!)
+    and add every paired fact to the seeded answers; summarise rounds in ``zones``."""
+    from jamcrammer.learn.analyze.bestguess_banner import OPEN_END, scan_session
+
+    b = fact_region.box if fact_region else None
+    fallback = (int(b[0]), int(b[1]), int(b[2]), int(b[3])) if b else None
+    scan = scan_session(session_dir, paths, fact_fallback=fallback)
+    if scan is None:
+        return
+    known = {a["normalized"] for a in answers}
+    for f in scan.facts:
+        norm = normalize_text(f.question)
+        if norm in known:
+            continue
+        known.add(norm)
+        answers.append(
+            {
+                "normalized": norm,
+                "display": f.question,
+                "answer": f.answer,
+                "confidence": 0.9 if f.seen > 1 else 0.85,
+                "marker_ts": f.reveal_ts,
+                "source": "banner",
+            }
+        )
+    zones["banner"] = {
+        "facts": len(scan.facts),
+        "reveals": sum(e.kind == "reveal" for e in scan.events),
+        "rounds": [{"ts": r.ts, "correct": r.correct, "gems": r.gems} for r in scan.rounds],
+        "outside_s": round(sum(e - s for s, e in scan.outside if e != OPEN_END), 1),
+    }
+
+
+def analyze_session(  # noqa: PLR0915
     session_dir: Path, cfg: AnalysisConfig, paths: Paths | None = None, write_profile: bool = True
 ) -> AnalysisResult:
     t0 = time.perf_counter()
@@ -122,6 +163,8 @@ def analyze_session(
     leaderboard = behavior.strategy_leaderboard(labels, frames)
     answers = behavior.seed_answers(labels)
     rounds = [asdict(lab) for lab in labels]
+    if target == "bestguess":
+        _merge_banner_scan(session_dir, paths, fact_region, answers, zones)
 
     # 8. proposal
     proposal, missing = write_proposal(
@@ -168,13 +211,10 @@ def analyze_session(
     (out_dir / "result.json").write_text(
         json.dumps(result.as_dict(), indent=2, default=str), encoding="utf-8"
     )
-    # per-frame state labels for the replay check
-    (out_dir / "labels.json").write_text(
-        json.dumps(
-            [{"file": str(f.meta.get("file")), "ts": f.ts, "state": f.state} for f in frames]
-        ),
-        encoding="utf-8",
-    )
+    # per-frame state labels for the replay check (hand labels are never overwritten)
+    if not (out_dir / "labels_source.txt").exists():
+        rows = [{"file": str(f.meta.get("file")), "ts": f.ts, "state": f.state} for f in frames]
+        (out_dir / "labels.json").write_text(json.dumps(rows), encoding="utf-8")
     log.info(
         "analysis of %s: %d frames, %d states, %d rounds, %d answers in %.1fs",
         session_dir.name,

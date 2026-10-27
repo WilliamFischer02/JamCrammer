@@ -1,5 +1,5 @@
 """Pluggable 'which answer was correct' strategies (KICKOFF §8.3). The farmer runs all of
-them on every reveal and trusts the ranked vote; Learn's leaderboard ranks them offline."""
+them on every reveal and trusts the confidence-weighted vote."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ import numpy.typing as npt
 
 from jamcrammer.core.config import BestGuessConfig
 from jamcrammer.core.profiles import Profile
-from jamcrammer.modes.bestguess.state import Observation, dominant_side
+from jamcrammer.modes.bestguess.state import Observation
 from jamcrammer.vision.ocr import crop
 
 BgrImage = npt.NDArray[np.uint8]
@@ -39,33 +39,14 @@ class Learner(Protocol):
     ) -> Verdict: ...
 
 
-class RevealColorLearner:
-    """The reveal ROI lights green (True) or purple (False)."""
-
-    name = "reveal_color"
-
-    def __init__(self, profile: Profile, cfg: BestGuessConfig) -> None:
-        self.profile = profile
-        self.cfg = cfg
-
-    def judge(
-        self,
-        before: BgrImage,
-        reveal: BgrImage,
-        obs: Observation,
-        chosen: Side | None,
-        gems_before: int | None,
-    ) -> Verdict:
-        if not self.profile.has("reveal_roi"):
-            return Verdict(self.name, None, 0.0)
-        side, score = dominant_side(crop(reveal, self.profile.roi("reveal_roi")), self.cfg)
-        return Verdict(self.name, side, min(1.0, score * 4))  # type: ignore[arg-type]
+def _flip(side: Side) -> Side:
+    return "F" if side == "T" else "T"
 
 
-class GemDeltaLearner:
-    """Gems went up → the side we chose was right."""
+class RevealWordLearner:
+    """The banner's big word: green True! / orange False! (already decoded into obs)."""
 
-    name = "gem_delta"
+    name = "reveal_word"
 
     def judge(
         self,
@@ -75,12 +56,30 @@ class GemDeltaLearner:
         chosen: Side | None,
         gems_before: int | None,
     ) -> Verdict:
-        if chosen is None or gems_before is None or obs.gems is None:
+        if obs.reveal_side in ("T", "F"):
+            return Verdict(self.name, obs.reveal_side, 0.95)  # type: ignore[arg-type]
+        return Verdict(self.name, None, 0.0)
+
+
+class ScoreDeltaLearner:
+    """The round score went up → the side we chose was right."""
+
+    name = "score_delta"
+
+    def judge(
+        self,
+        before: BgrImage,
+        reveal: BgrImage,
+        obs: Observation,
+        chosen: Side | None,
+        gems_before: int | None,
+    ) -> Verdict:
+        if chosen is None or gems_before is None or obs.score is None:
             return Verdict(self.name, None, 0.0)
-        if obs.gems > gems_before:
-            return Verdict(self.name, chosen, 0.9)
-        if obs.gems == gems_before:
-            return Verdict(self.name, "F" if chosen == "T" else "T", 0.6)
+        if obs.score > gems_before:
+            return Verdict(self.name, chosen, 0.85)
+        if obs.score == gems_before:
+            return Verdict(self.name, _flip(chosen), 0.5)
         return Verdict(self.name, None, 0.0)
 
 
@@ -106,12 +105,19 @@ class DanceLearner:
         roi = self.profile.roi("own_animal_roi")
         motion = float(cv2.absdiff(crop(before, roi), crop(reveal, roi)).mean())
         if motion >= self.cfg.dance_motion_min:
-            return Verdict(self.name, chosen, 0.5)
-        return Verdict(self.name, "F" if chosen == "T" else "T", 0.3)
+            return Verdict(self.name, chosen, 0.4)
+        return Verdict(self.name, _flip(chosen), 0.2)
+
+
+def default_learners(profile: Profile, cfg: BestGuessConfig) -> list[Learner]:
+    return [
+        RevealWordLearner(),
+        ScoreDeltaLearner(),
+        DanceLearner(profile, cfg),
+    ]
 
 
 def vote(verdicts: list[Verdict]) -> tuple[Side | None, float, list[Verdict]]:
-    """Confidence-weighted vote across strategies."""
     weight: dict[str, float] = {"T": 0.0, "F": 0.0}
     for v in verdicts:
         if v.side is not None:

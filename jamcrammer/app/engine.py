@@ -334,6 +334,12 @@ class Engine:
         self.state.mode_detail = parts[1] if len(parts) > 1 else ""
 
     def _run_hunt(self) -> None:
+        if self._already_in_arena() and self._phase_c_allowed():
+            # William is standing in the Best Guess arena already: skip the hunt, farm now
+            self.emit("engine.arena_detected", Level.NOTICE, message="Best Guess arena on screen")
+            self.lease.acquire("hunt")
+            self._run_bestguess_farmer()
+            return
         from jamcrammer.modes.bestguess.hunter import Hunter
         from jamcrammer.modes.party_watcher import BannerLibrary, PanelAnalyzer, PartyWatcher
 
@@ -370,6 +376,18 @@ class Engine:
             self._status("JOINED · recording")
             time.sleep(PREVIEW_IDLE_S)
         self.state.stats["hunt"] = hunter.stats.__dict__.copy()
+
+    def _already_in_arena(self) -> bool:
+        """The parchment banner and the gem icon of the Best Guess arena are on screen now."""
+        from jamcrammer.modes.bestguess.state import in_arena
+
+        frame = self.snapshot()
+        if frame is None:
+            return False
+        try:
+            return in_arena(frame.image, self.profile("bestguess"), self.cfg.bestguess)
+        except Exception:
+            return False
 
     def _phase_c_allowed(self) -> bool:
         from jamcrammer.core.gate import gate_status

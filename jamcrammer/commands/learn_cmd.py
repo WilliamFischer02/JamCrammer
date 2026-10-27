@@ -6,6 +6,7 @@ import argparse
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 from jamcrammer.core.config import AppConfig
 from jamcrammer.core.events import EventBus
@@ -89,12 +90,36 @@ def run_replay(args: argparse.Namespace) -> int:
     if not (session / "analysis" / "labels.json").exists():
         print("no analysis labels yet; run: jamcrammer report <session>")
         return EXIT_NOT_FOUND
-    detector = NearestStateDetector(session)
-    result = replay(session, detector)
+    which = getattr(args, "detector", "nearest")
+    if which == "bestguess":
+        from jamcrammer.core.profiles import load_profile
+        from jamcrammer.modes.bestguess.state import BestGuessDetector
+
+        cfg: AppConfig = args.cfg
+        detector: Any = BestGuessDetector(load_profile("bestguess", args.paths), cfg.bestguess)
+    else:
+        detector = NearestStateDetector(session)
+    if getattr(args, "dense", False):
+        from jamcrammer.learn.analyze.bestguess_banner import DEFAULT_SCAN_FPS, session_video
+        from jamcrammer.replay.harness import interval_labeler, load_intervals
+        from jamcrammer.replay.sources import VideoSource
+
+        video = session_video(session, args.paths)
+        intervals = load_intervals(session)
+        if video is None or not intervals:
+            print("dense replay needs the processed inbox video and analysis/intervals.json")
+            return EXIT_NOT_FOUND
+        bg = args.cfg.bestguess
+        labeler = interval_labeler(intervals, bg.question_s, bg.lock_seconds)
+        frames = VideoSource(video, DEFAULT_SCAN_FPS).frames()
+        result = replay(session, detector, frames=frames, labeler=labeler)
+        which += "-dense"
+    else:
+        result = replay(session, detector)
     print(format_timeline(result))
     from jamcrammer.core.gate import write_replay_record
 
-    print(f"saved {write_replay_record(session, result.accuracy, result.frames, 'nearest-state')}")
+    print(f"saved {write_replay_record(session, result.accuracy, result.frames, which)}")
     return 0
 
 

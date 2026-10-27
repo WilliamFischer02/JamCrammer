@@ -49,6 +49,7 @@ right and **F8** when you were wrong (F6 = generic mark), **Stop**. CLI equivale
 
 ```
 .venv\Scripts\python -m jamcrammer learn --target bestguess      # or double_up, jamaa_derby, ...
+.venv\Scripts\python -m jamcrammer replay <session> --detector bestguess --dense   # score the detector on an inbox video
 ```
 
 Nothing is sent to the game while learning. Files you captured yourself (OBS `.mp4`/`.mkv`,

@@ -69,6 +69,20 @@ class SessionSource:
             )
 
 
+class VideoSource:
+    """Frames of a recording (an inbox MP4) at ~``fps``, stage-normalised to 1920x1080."""
+
+    def __init__(self, path: Path, fps: float = 2.0) -> None:
+        self.path = path
+        self.fps = fps
+
+    def frames(self) -> Iterator[Frame]:
+        from jamcrammer.learn.analyze.bestguess_banner import video_frames
+
+        for seq, (ts, image) in enumerate(video_frames(self.path, self.fps), start=1):
+            yield Frame(image=image, ts=ts, seq=seq, client_rect=_rect_for(image), backend="video")
+
+
 class GeneratorSource:
     """Wraps a callable that returns the *current* image of a simulated world."""
 

@@ -46,6 +46,32 @@ def load_state_names(session_dir: Path) -> dict[str, str]:
     return {str(k): str(v) for k, v in json.loads(path.read_text(encoding="utf-8")).items()}
 
 
+def load_intervals(session_dir: Path) -> list[tuple[float, float, str]]:
+    """``analysis/intervals.json``: [{start, end, state}] with state QUESTION | REVEAL | UNKNOWN."""
+    path = session_dir / "analysis" / "intervals.json"
+    if not path.exists():
+        return []
+    rows = json.loads(path.read_text(encoding="utf-8"))
+    return [(float(r["start"]), float(r["end"]), str(r["state"])) for r in rows]
+
+
+def interval_labeler(
+    intervals: list[tuple[float, float, str]], question_s: float, lock_seconds: int
+) -> Callable[[float], str]:
+    """Label a timestamp from intervals; QUESTION splits into OPEN/LOCKED by elapsed time."""
+
+    def label(ts: float) -> str:
+        for start, end, state in intervals:
+            if start <= ts < end:
+                if state == "QUESTION":
+                    left = round(question_s - (ts - start))
+                    return "LOCKED" if left <= lock_seconds else "QUESTION_OPEN"
+                return state
+        return "?"
+
+    return label
+
+
 def load_labels(session_dir: Path) -> dict[str, str]:
     path = session_dir / "analysis" / "labels.json"
     if not path.exists():
@@ -94,16 +120,24 @@ def replay(
     detector: StateDetector,
     frames: Iterable[Frame] | None = None,
     label_map: Callable[[str], str] | None = None,
+    labeler: Callable[[float], str] | None = None,
 ) -> ReplayResult:
+    """Score ``detector`` against per-file labels (keyframes) or, with ``labeler``, against
+    time intervals for any frame stream. Frames labelled '?' are not counted."""
     labels = load_labels(session_dir)
     source = SessionSource(session_dir)
     result = ReplayResult(session=session_dir.name, frames=0, correct=0)
     files = [str(rec["file"]) for rec in source._records]
     for i, frame in enumerate(frames if frames is not None else source.frames()):
         predicted = detector.detect(frame)
-        labeled = labels.get(files[i], "?") if i < len(files) else "?"
+        if labeler is not None:
+            labeled = labeler(frame.ts)
+        else:
+            labeled = labels.get(files[i], "?") if i < len(files) else "?"
         if label_map is not None:
             labeled = label_map(labeled)
+        if labeled == "?":
+            continue
         result.frames += 1
         result.correct += predicted == labeled
         result.timeline.append((frame.ts, predicted, labeled))

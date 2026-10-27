@@ -20,7 +20,11 @@ COUNTDOWN_ROI = (900, 180, 120, 80)
 GEM_ROI = (1560, 20, 300, 70)
 TRUE_POINT = (480, 700)
 FALSE_POINT = (1440, 700)
-REVEAL_ROI = (760, 300, 400, 160)
+ANCHOR_ROI = (120, 8, 110, 60)
+REVEAL_ROI = (700, 15, 540, 95)  # the banner's top line, where the reveal word appears
+OUTCOME_BOX = (180, 330, 720, 200)  # where the game splashes CORRECT! / WRONG! over the floor
+TRUE_GREEN = (60, 205, 95)  # BGR ~ H45 S180 V205
+FALSE_ORANGE = (50, 70, 210)  # BGR ~ H5 S190 V210
 FACTS = [
     ("Cats purr when happy", True),
     ("Elephants can jump", False),
@@ -47,7 +51,11 @@ def arena(gems: int) -> BgrImage:
     img = np.zeros((H, W, 3), dtype=np.uint8)
     img[:, : W // 2] = (90, 170, 80)  # green left (True)
     img[:, W // 2 :] = (160, 80, 150)  # purple right (False)
-    cv2.rectangle(img, (0, 0), (W, 160), (40, 40, 60), -1)  # banner strip for the fact
+    cv2.rectangle(img, (0, 0), (W, 160), (40, 40, 60), -1)  # dark frame around the banner
+    fx, fy, fw, fh = FACT_ROI
+    cv2.rectangle(img, (fx, fy), (fx + fw, fy + fh), (225, 240, 250), -1)  # parchment banner
+    ax, ay, aw, ah = ANCHOR_ROI
+    cv2.rectangle(img, (ax, ay), (ax + aw, ay + ah), (40, 60, 230), -1)  # gem icon stand-in
     cv2.rectangle(img, (0, 1000), (W, H), (50, 40, 30), -1)  # HUD
     x, y, w, h = GEM_ROI
     cv2.rectangle(img, (x, y), (x + w, y + h), (30, 30, 30), -1)
@@ -68,7 +76,7 @@ def frame_question(fact: str, seconds_left: int, gems: int) -> BgrImage:
     img = arena(gems)
     x, y, _w, _h = FACT_ROI
     cv2.putText(
-        img, fact, (x + 20, y + 80), cv2.FONT_HERSHEY_SIMPLEX, 1.6, (255, 255, 255), 3, cv2.LINE_AA
+        img, fact, (x + 20, y + 80), cv2.FONT_HERSHEY_SIMPLEX, 1.6, (40, 50, 70), 3, cv2.LINE_AA
     )
     cx, cy, _cw, _ch = COUNTDOWN_ROI
     cv2.putText(
@@ -84,21 +92,34 @@ def frame_question(fact: str, seconds_left: int, gems: int) -> BgrImage:
     return img
 
 
-def frame_reveal(fact: str, answer: bool, gems: int) -> BgrImage:
-    img = frame_question(fact, 0, gems)
-    x, y, w, h = REVEAL_ROI
-    color = (80, 220, 80) if answer else (220, 80, 220)
-    cv2.rectangle(img, (x, y), (x + w, y + h), color, -1)
-    cv2.putText(
-        img,
-        "TRUE" if answer else "FALSE",
-        (x + 60, y + 110),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        2.5,
-        (0, 0, 0),
-        6,
-        cv2.LINE_AA,
-    )
+def frame_reveal(fact: str, answer: bool, gems: int, correct: bool | None = None) -> BgrImage:
+    """Real layout: a big coloured word (green True! / orange False!) on the banner's top line,
+    the corrected statement below it for False, and the CORRECT!/WRONG! splash over the floor
+    when ``correct`` is known (the farmer does not read the splash; it is lime on lime)."""
+    img = arena(gems)
+    x, y, _w, _h = REVEAL_ROI
+    word = "True!" if answer else "False!"
+    color = TRUE_GREEN if answer else FALSE_ORANGE
+    cv2.putText(img, word, (x + 150, y + 78), cv2.FONT_HERSHEY_DUPLEX, 2.8, color, 9, cv2.LINE_AA)
+    if not answer:
+        fx, fy, _fw, _fh = FACT_ROI
+        cv2.putText(
+            img,
+            fact,
+            (fx + 20, fy + 160),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1.2,
+            (60, 50, 40),
+            2,
+            cv2.LINE_AA,
+        )
+    if correct is not None:
+        ox, oy, _ow, _oh = OUTCOME_BOX
+        splash = "CORRECT!" if correct else "WRONG!"
+        col = (120, 240, 160) if correct else (60, 60, 230)
+        cv2.putText(
+            img, splash, (ox + 20, oy + 150), cv2.FONT_HERSHEY_DUPLEX, 4.5, col, 14, cv2.LINE_AA
+        )
     return img
 
 
@@ -110,7 +131,7 @@ def frame_waiting(gems: int) -> BgrImage:
         (760, 110),
         cv2.FONT_HERSHEY_SIMPLEX,
         1.6,
-        (200, 200, 200),
+        (90, 90, 90),
         3,
         cv2.LINE_AA,
     )
@@ -202,7 +223,7 @@ def generate_session(
         if rnd.correct:
             gems += 10
         for _ in range(4):
-            emit(frame_reveal(fact, answer, gems), "REVEAL")
+            emit(frame_reveal(fact, answer, gems, rnd.correct), "REVEAL")
         meta.append(
             {
                 "t": "input",

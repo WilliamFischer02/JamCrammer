@@ -61,9 +61,12 @@ def render_report(session_dir: Path, result: dict[str, Any] | None = None) -> Pa
     if labels_path.exists():
         labels = json.loads(labels_path.read_text(encoding="utf-8"))
         parts.append("<h2>Timeline</h2><div class='card'><div class='strip'>")
+        names = sorted({str(lab["state"]) for lab in labels})
         for lab in labels:
+            st = str(lab["state"])
+            idx = int(st) if st.lstrip("-").isdigit() else names.index(st)
             parts.append(
-                f"<div style='background:{colors[int(lab['state']) % len(colors)]}' title='{lab['ts']:.1f}s state {lab['state']}'></div>"
+                f"<div style='background:{colors[idx % len(colors)]}' title='{lab['ts']:.1f}s state {st}'></div>"
             )
         parts.append(
             "</div><div class='muted'>one block per keyframe, colored by state · cycle: "

@@ -36,6 +36,9 @@ def _profile() -> Profile:
     prof.set_value("true_point", list(synth.TRUE_POINT))
     prof.set_value("false_point", list(synth.FALSE_POINT))
     prof.set_value("reveal_roi", list(synth.REVEAL_ROI))
+    prof.set_value("reveal_word_roi", list(synth.REVEAL_ROI))
+    prof.set_value("score_roi", list(synth.GEM_ROI))
+    prof.set_value("arena_anchor_roi", list(synth.ANCHOR_ROI))
     return prof
 
 
@@ -138,7 +141,8 @@ class Arena:
             return synth.frame_question(fact, int(10 - (phase - 3.0)), self.gems)
         if phase - 13.0 < 0.01 and r in self.chosen and self.chosen[r] == answer:
             self.gems += 10
-        return synth.frame_reveal(fact, answer, self.gems)
+        correct = self.chosen[r] == answer if r in self.chosen else None
+        return synth.frame_reveal(fact, answer, self.gems, correct)
 
     def click(self, x: int, y: int) -> bool:
         self.clicks.append((self.t, x, y))

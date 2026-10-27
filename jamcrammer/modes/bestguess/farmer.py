@@ -21,13 +21,7 @@ from jamcrammer.core.logging import get_logger
 from jamcrammer.core.profiles import Profile
 from jamcrammer.core.store import Store
 from jamcrammer.modes.bestguess.brain import Brain, Decision
-from jamcrammer.modes.bestguess.learner import (
-    DanceLearner,
-    GemDeltaLearner,
-    Learner,
-    RevealColorLearner,
-    vote,
-)
+from jamcrammer.modes.bestguess.learner import Learner, default_learners, vote
 from jamcrammer.modes.bestguess.state import BestGuessDetector, BgState, Observation
 
 log = get_logger("bestguess")
@@ -35,7 +29,7 @@ log = get_logger("bestguess")
 BgrImage = npt.NDArray[np.uint8]
 Side = Literal["T", "F"]
 GrabFn = Callable[[], BgrImage]
-REQUIRED = ("fact_roi", "true_point", "false_point", "reveal_roi")
+REQUIRED = ("fact_roi", "true_point", "false_point", "reveal_word_roi")
 GEMS_PER_CORRECT = 10
 MAX_MULTIPLIER = 4
 
@@ -106,11 +100,7 @@ class BestGuessFarmer:
         self.detector = detector or BestGuessDetector(profile, cfg)
         self._store = store
         self._bus = bus
-        self.learners: list[Learner] = learners or [
-            RevealColorLearner(profile, cfg),
-            GemDeltaLearner(),
-            DanceLearner(profile, cfg),
-        ]
+        self.learners: list[Learner] = learners or default_learners(profile, cfg)
         self._screenshot = screenshot
         self._clock = clock
         self._sleep = sleep
@@ -185,7 +175,10 @@ class BestGuessFarmer:
         self.state = BgState.QUESTION_OPEN
         self.stats.rounds += 1
         self._round = RoundCtx(
-            fact=obs.fact_text, opened_ts=now, gems_before=obs.gems, before_image=image.copy()
+            fact=obs.fact_text,
+            opened_ts=now,
+            gems_before=obs.score if obs.score is not None else obs.gems,
+            before_image=image.copy(),
         )
         self.stats.last_fact = obs.fact_text
         self._emit("bestguess.question", fact=obs.fact_text[:120], seconds=obs.seconds_left)

@@ -1,5 +1,7 @@
 # Best Guess profile (stage pixels, 1920x1080). Placeholders are uncalibrated on purpose: Learn
 # proposes real values (profiles/bestguess.proposed.yaml) and the review wizard promotes them.
+# A calibrated copy lives in profiles/bestguess.yaml (gitignored); see handoff.md for the values
+# measured on the 2026-10-26 recording.
 version: 1
 name: bestguess
 fields:
@@ -7,12 +9,12 @@ fields:
     type: roi
     value: [360, 40, 1200, 120]
     status: uncalibrated
-    note: the true/false animal fact at the top of the arena
+    note: the true/false animal fact on the parchment banner at the top of the arena
   countdown_roi:
     type: roi
     value: null
     status: uncalibrated
-    note: digits decreasing ~1/s during a question
+    note: digits decreasing ~1/s during a question (the live game shows a dial; leave null)
   gem_counter_roi:
     type: roi
     value: null
@@ -27,6 +29,25 @@ fields:
     value: [1440, 700]
     status: uncalibrated
     note: RIGHT side (purple, X) = False
+  reveal_word_roi:
+    type: roi
+    value: null
+    status: uncalibrated
+    note: top line of the banner where the green True! / orange False! word appears
+  arena_anchor_roi:
+    type: roi
+    value: null
+    status: uncalibrated
+    note: a colourful HUD element only present inside the arena (the gem-stack icon)
+  score_roi:
+    type: roi
+    value: null
+    status: uncalibrated
+    note: round score next to the gem icon (top-left of the arena)
+  round_complete_roi:
+    type: roi
+    value: null
+    status: uncalibrated
   reveal_roi:
     type: roi
     value: null

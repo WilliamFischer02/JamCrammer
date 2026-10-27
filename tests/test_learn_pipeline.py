@@ -50,7 +50,9 @@ def test_analysis_finds_states_regions_zones_and_answers(
     result = analyze_session(session_dir, AnalysisConfig(), paths)
     assert result.frames == info["keyframes"]
     assert result.unique_frames < result.frames  # duplicates collapsed
-    assert len(result.states) >= 3  # waiting / question / reveal (+ variants)
+    # the generic clusterer sees one scene for Best Guess (the real 2026-10-26 session too):
+    # round semantics come from the Best Guess detector and the banner scan instead
+    assert len(result.states) >= 1
     kinds = {r["kind"] for r in result.regions}
     assert "fact" in kinds, result.regions
     assert "countdown" in kinds or "gem_counter" in kinds

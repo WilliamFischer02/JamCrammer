@@ -108,11 +108,20 @@ class BestGuessConfig(StrictModel):
     question_s: float = Field(10.0, gt=0)
     waiting_keywords: list[str] = ["get ready", "next round", "waiting", "starting"]
     ocr_upscale: float = Field(2.0, ge=1.0)
-    reveal_min_fill: float = Field(0.15, ge=0, le=1)
-    reveal_min_margin: float = Field(0.4, ge=0, le=1)
+    reveal_min_fill: float = Field(0.03, ge=0, le=1)
+    reveal_ratio: float = Field(3.0, ge=1)
+    score_upscale: float = Field(3.0, ge=1.0)
+    # the parchment banner must cover this much of fact_roi, else we are not in the arena
+    banner_min_parchment: float = Field(0.3, ge=0, le=1)
+    parchment_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = ((0, 0, 200), (180, 60, 255))
+    # the gem-stack icon in arena_anchor_roi is ~58% saturated colour in the arena, <8% elsewhere
+    anchor_min_fill: float = Field(0.25, ge=0, le=1)
+    anchor_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = ((0, 120, 120), (180, 255, 255))
     dance_motion_min: float = Field(12.0, ge=0)
-    true_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = ((40, 90, 90), (85, 255, 255))
-    false_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = ((130, 60, 60), (165, 255, 255))
+    # measured on the 2026-10-26 recording: True! green H40-50 V~217, False! orange H0-10 V~194,
+    # question text brown H10-25 but V~95 (the V floor keeps it out)
+    true_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = ((36, 110, 150), (58, 255, 255))
+    false_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = ((0, 120, 150), (14, 255, 255))
 
 
 class OpportunistConfig(StrictModel):
