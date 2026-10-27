@@ -173,13 +173,16 @@ def fill(image: BgrImage, rng: HsvRange) -> float:
     return float(_mask(hsv, rng).mean())
 
 
-def horse_top(box: BgrImage, cfg: DerbyConfig) -> int | None:
+def horse_top(box: BgrImage, cfg: DerbyConfig, hay_overlap: bool = False) -> int | None:
     """Height of our horse inside its box, whatever its colour: the mean row of pixels that
     are neither grass nor an obstacle band. It drops by ~60 px while airborne. None when a
-    band fills the box (nothing of the horse can be told apart) or too few pixels remain."""
+    band fills the box (nothing of the horse can be told apart) or too few pixels remain.
+    Yellow counts as horse (William's yellow horse and the glowing horseshoe under it) unless
+    a hay band is crossing the box, which is what ``hay_overlap`` says."""
     hsv = np.asarray(cv2.cvtColor(box, cv2.COLOR_BGR2HSV), dtype=np.uint8)
     scenery = _mask(hsv, cfg.grass_hsv)
-    for rng in (cfg.hay_hsv, cfg.mud_hsv, cfg.water_hsv, cfg.hedge_hsv):
+    kinds = (cfg.mud_hsv, cfg.water_hsv, cfg.hedge_hsv) + ((cfg.hay_hsv,) if hay_overlap else ())
+    for rng in kinds:
         scenery |= _mask(hsv, rng)
     if scenery.mean() > cfg.horse_box_max_fill:
         return None
@@ -244,7 +247,9 @@ class DerbyDetector:
         obs.strip = crop(image, p.roi("strip_roi"))
         obs.strip_hsv = np.asarray(cv2.cvtColor(obs.strip, cv2.COLOR_BGR2HSV), dtype=np.uint8)
         obs.bands = detect_bands(obs.strip, sx, self.cfg, self.ranges, obs.strip_hsv)
-        obs.horse_top = horse_top(crop(image, p.roi("horse_box_roi")), self.cfg)
+        hx, _hy, hw, _hh = p.roi("horse_box_roi")
+        hay_overlap = any(b.kind == "hay" and b.left < hx + hw and b.right > hx for b in obs.bands)
+        obs.horse_top = horse_top(crop(image, p.roi("horse_box_roi")), self.cfg, hay_overlap)
         obs.carrots_left = (
             fill(crop(image, p.roi("boost_box_roi")), self.cfg.carrot_hsv)
             >= self.cfg.carrot_min_fill

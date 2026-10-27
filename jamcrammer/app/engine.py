@@ -367,6 +367,12 @@ class Engine:
         self.state.mode_detail = parts[1] if len(parts) > 1 else ""
 
     def _run_hunt(self) -> None:
+        if self._on_derby_track():
+            # Start was pressed on the Derby track with the Hunter selected: farm the Derby
+            self.emit("engine.track_detected", Level.NOTICE, message="Jamaa Derby track on screen")
+            self.cfg.arcade_game = "jamaa_derby"
+            self._run_farm()
+            return
         if self._already_in_arena() and self._phase_c_allowed():
             # William is standing in the Best Guess arena already: skip the hunt, farm now
             self.emit("engine.arena_detected", Level.NOTICE, message="Best Guess arena on screen")
@@ -409,6 +415,22 @@ class Engine:
             self._status("JOINED · recording")
             time.sleep(PREVIEW_IDLE_S)
         self.state.stats["hunt"] = hunter.stats.__dict__.copy()
+
+    def _on_derby_track(self) -> bool:
+        """The Derby track, start line or leaderboard is on screen and its gate is open."""
+        from jamcrammer.core.gate import gate_status
+        from jamcrammer.modes.arcade.derby import DerbyDetector, Screen
+
+        frame = self.snapshot()
+        if frame is None:
+            return False
+        try:
+            det = DerbyDetector(self.profile("jamaa_derby"), self.cfg.derby)
+            if det.screen(frame.image) == Screen.UNKNOWN:
+                return False
+            return gate_status("jamaa_derby", self.paths, self._profiles).unlocked
+        except Exception:
+            return False
 
     def _already_in_arena(self) -> bool:
         """The parchment banner and the gem icon of the Best Guess arena are on screen now."""

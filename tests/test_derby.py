@@ -207,7 +207,7 @@ def test_real_results_row_and_horse() -> None:
     ground = horse_top(_fx("horse_box_36s.png"), CFG)
     assert ground is not None and 100 <= ground <= 160, ground
     # at 64 s a hay band fills the box: nothing of the horse can be told apart -> unknown
-    assert horse_top(_fx("horse_box_64s.png"), CFG) is None
+    assert horse_top(_fx("horse_box_64s.png"), CFG, hay_overlap=True) is None
 
 
 def test_stumbles_are_detected_and_learned(tmp_path: Path) -> None:
