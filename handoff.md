@@ -41,6 +41,8 @@ Race timing seen: ~25 s waiting at the line, ~65 s racing, ~10 s leaderboard, th
 3. If the horse jumps late or early, change `jump_lead_s` (bigger = earlier) on the Calibration page; if it never jumps, check `strip_roi` and the colour ranges under `derby:` in `config.yaml`.
 4. Any screen that is not the track (Play dialog, arcade room) is UNKNOWN and pauses the farmer after 30 s; leaving and re-entering the game is not automated yet.
 5. If the pill says "stopped: the watchdog saw an unknown dialog", look at the game, dismiss anything odd, and press Start again (Start clears the pause).
+6. It learns while it plays: a stumble shows as `derby.hit` in the log (with the band's crop under `captures/derby/hits/`) and the adjustment it made as `derby.learned`; the running totals live in `data/derby_learned.json` (delete it to forget). The pill shows `hits` per session.
+7. Timing knobs on the Calibration page: `jump_lead_s` (input latency, 0.05), `jump_lead_px_narrow` (how much earlier one- and two-column bands are jumped, 40 px), `boost_lead_s` (0.03 s extra while boosted).
 
 ## How William tests Best Guess now
 1. Start the GUI (`run.bat` or `.venv\Scripts\python -m jamcrammer gui`), mode **Best Guess Hunter**.

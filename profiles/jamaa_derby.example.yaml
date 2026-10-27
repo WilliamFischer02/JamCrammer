@@ -46,6 +46,16 @@ fields:
     value: 0
     status: proposed
     note: extra fixed lead in pixels
+  jump_lead_px_narrow:
+    type: number
+    value: 40
+    status: proposed
+    note: extra early pixels for one- and two-column bands (landed before the next one); three-column bands are jumped at the edge
+  boost_lead_s:
+    type: number
+    value: 0.03
+    status: proposed
+    note: extra lead while boosted (speed above boost_speed_ratio x scroll_px_s or a carrot just used)
   jump_cooldown_s:
     type: number
     value: 0.5
@@ -97,21 +107,21 @@ fields:
     note: left part of the six result rows; ours has a yellow frame
   results_row_h:
     type: number
-    value: 73
+    value: 70
     status: proposed
   results_gems_w:
     type: number
-    value: 260
+    value: 300
     status: proposed
     note: OCR width of the gems column, right of the rows ROI
   results_first_row_cy:
     type: number
-    value: 54
+    value: 43
     status: proposed
     note: centre y of the first row within results_rows_roi
   results_row_pitch:
     type: number
-    value: 90
+    value: 87
     status: proposed
     note: vertical distance between rows; row index -> place when OCR fails
   startline_roi:

@@ -494,6 +494,8 @@ class Engine:
                 lambda: self.grab().image,
                 store=self.store,
                 bus=self.bus,
+                learned_path=self.paths.data / "derby_learned.json",
+                hits_dir=self.paths.captures / "derby" / "hits",
             )
         else:
             farmer = DoubleUpFarmer(

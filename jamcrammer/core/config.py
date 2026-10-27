@@ -141,11 +141,12 @@ class DerbyConfig(StrictModel):
     boost_after_jump_s: float = Field(0.6, ge=0)
     boost_earliest_s: float = Field(2.0, ge=0)
     band_min_width_px: int = Field(40, ge=1)
-    band_fill: float = Field(0.6, gt=0, le=1)
+    band_fill: float = Field(0.5, gt=0, le=1)
     # dark green: tall grass columns fill 0.5-0.9 (stripes), hedge ~0.9, checkered finish <= 0.66
-    hedge_seed_fill: float = Field(0.68, gt=0, le=1)
-    hedge_grow_fill: float = Field(0.45, gt=0, le=1)
+    hedge_seed_fill: float = Field(0.62, gt=0, le=1)
+    hedge_grow_fill: float = Field(0.4, gt=0, le=1)
     hedge_min_width_px: int = Field(150, ge=1)  # checker columns are ~130 px
+    hedge_mean_fill: float = Field(0.55, gt=0, le=1)  # checker runs average ~0.45
     band_pass_px: int = Field(120, ge=0)  # a band this far past the hooves is behind us
     band_merge_gap_px: int = Field(300, ge=0)  # same-kind pieces closer than this are one band
     speed_alpha: float = Field(0.3, gt=0, le=1)
@@ -165,11 +166,26 @@ class DerbyConfig(StrictModel):
     results_settle_s: float = Field(1.0, ge=0)
     unknown_pause_s: float = Field(30.0, gt=0)
     ocr_upscale: float = Field(2.0, ge=1.0)
+    column_px: int = Field(320, ge=1)  # one obstacle "column"; bands are 1, 2 or 3 columns
+    boost_speed_ratio: float = Field(1.15, gt=0)  # scroll faster than this x nominal = boosted
+    boost_effect_s: float = Field(3.0, ge=0)  # ... or a carrot was clicked this recently
+    press_match_s: float = Field(
+        1.2, ge=0
+    )  # a press this long before the edge passes belongs to it
+    hit_speed_ratio: float = Field(
+        0.5, gt=0, le=1
+    )  # passing band slower than this x nominal = stall
+    hit_min_obs: int = Field(2, ge=1)
+    hit_window_s: float = Field(1.3, gt=0)
+    learn_enabled: bool = True
+    learn_lead_step_px: float = Field(15.0, ge=0)
+    learn_lead_max_px: float = Field(160.0, ge=0)
+    learn_early_px: float = Field(120.0, ge=0)
     # colours measured on the 2026-10-26 recording (OpenCV HSV, H in 0..180)
-    hay_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = ((18, 120, 180), (35, 255, 255))
-    mud_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = ((8, 80, 40), (22, 255, 140))
-    water_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = ((75, 100, 90), (100, 255, 255))
-    hedge_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = ((40, 90, 90), (65, 255, 167))
+    hay_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = ((18, 110, 150), (35, 255, 255))
+    mud_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = ((6, 50, 40), (22, 255, 185))
+    water_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = ((72, 60, 80), (105, 255, 255))
+    hedge_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = ((40, 90, 85), (66, 255, 170))
     grass_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = ((40, 60, 150), (70, 255, 255))
     horse_box_max_fill: float = Field(
         0.9, gt=0, le=1

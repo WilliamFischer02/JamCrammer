@@ -81,6 +81,7 @@ class DerbyWorld:
     dist: float = 0.0
     airborne_until: float = -1.0
     boost_until: float = -1.0
+    stall_until: float = -1.0
     boosts_left: int = 3
     hits: int = 0
     races: int = 0
@@ -121,6 +122,8 @@ class DerbyWorld:
                     self.phase, self.phase_t0 = "RACING", self.t
             elif self.phase == "RACING":
                 v = self.boost_speed if self.t < self.boost_until else self.speed
+                if self.t < self.stall_until:
+                    v = 0.0
                 self.dist += v * sub
                 for b in self.bands:
                     b.x -= v * sub
@@ -129,7 +132,7 @@ class DerbyWorld:
                         if self.t >= self.airborne_until:
                             b.hit = True
                             self.hits += 1
-                            self.t += 0.5  # stumble
+                            self.stall_until = self.t + 0.6  # stumble: the track stops scrolling
                 if self.dist >= self.race_len_px:
                     self.races += 1
                     self.places.append(1 if self.hits == 0 else min(6, 1 + self.hits))

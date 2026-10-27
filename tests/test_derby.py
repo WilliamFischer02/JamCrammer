@@ -157,7 +157,8 @@ def _fx(name: str) -> np.ndarray:
 
 
 def _kinds(name: str) -> list[tuple[str, int, int]]:
-    return [(b.kind, b.left, b.right) for b in detect_bands(_fx(name), 100, CFG)]
+    strip = _fx(name)[:, :1720]  # the live strip stops before the right wooden frame
+    return [(b.kind, b.left, b.right) for b in detect_bands(strip, 100, CFG)]
 
 
 def test_real_bands_by_colour() -> None:
@@ -171,7 +172,9 @@ def test_real_bands_by_colour() -> None:
     ), hedge
     tall = _kinds("strip_52s.png")
     assert [k for k, *_ in tall if k == "hedge"] == ["hedge"], tall
-    hedge_band = next(b for b in detect_bands(_fx("strip_52s.png"), 100, CFG) if b.kind == "hedge")
+    hedge_band = next(
+        b for b in detect_bands(_fx("strip_52s.png")[:, :1720], 100, CFG) if b.kind == "hedge"
+    )
     assert hedge_band.width >= 180, hedge_band  # stripes closed by hysteresis
     mud = _kinds("strip_56s.png")
     assert [k for k, *_ in mud] == ["mud", "hay"], mud
@@ -205,3 +208,34 @@ def test_real_results_row_and_horse() -> None:
     assert ground is not None and 100 <= ground <= 160, ground
     # at 64 s a hay band fills the box: nothing of the horse can be told apart -> unknown
     assert horse_top(_fx("horse_box_64s.png"), CFG) is None
+
+
+def test_stumbles_are_detected_and_learned(tmp_path: Path) -> None:
+    """Pressing far too late hits every band; the stall after each hit is recognised and the
+    learner moves that class's lead earlier, persisted to the learned file."""
+    world = synth.DerbyWorld(seed=4)
+    sim = Sim(world)
+    prof = _profile()
+    prof.set_value("jump_lead_px", -260)  # press long after the edge has passed the hooves
+    prof.set_value("jump_lead_px_narrow", 0)
+    bus = EventBus()
+    events: list[str] = []
+    bus.subscribe("*", lambda e: events.append(e.type))
+    learned = tmp_path / "derby_learned.json"
+    farmer = DerbyFarmer(
+        prof,
+        DerbyConfig(fps=20.0),
+        sim,
+        sim.grab,
+        bus=bus,
+        ocr=sim.ocr,
+        clock=sim.clock,
+        sleep=sim.sleep,
+        learned_path=learned,
+        hits_dir=tmp_path / "hits",
+    )
+    farmer.run(lambda: farmer.stats.races >= 1)
+    assert world.hits > 0 and farmer.stats.hits > 0, (world.hits, farmer.stats.as_dict())
+    assert "derby.hit" in events and "derby.learned" in events
+    assert learned.exists() and any(v > 0 for v in farmer.learned.lead_px.values())
+    assert list((tmp_path / "hits").glob("*.png"))
