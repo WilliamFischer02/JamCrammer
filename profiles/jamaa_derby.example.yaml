@@ -6,29 +6,41 @@ name: jamaa_derby
 fields:
   strip_roi:
     type: roi
-    value: [100, 400, 1720, 500]
+    value:
+    - 96
+    - 380
+    - 1720
+    - 500
     status: proposed
-    note: horizontal band of track below our lane and above the HUD; obstacles span its full height
+    note: horizontal band of track below our lane and above the HUD; obstacles span
+      its full height
   horse_front_x:
     type: number
-    value: 940
+    value: 925
     status: proposed
     note: x of our horse's nose (it never moves horizontally)
   jump_trigger_x:
     type: number
-    value: 800
+    value: 785
     status: proposed
-    note: the hooves; William pressed Space when a band's edge was ~140 px past the nose (median of 43 jumps)
+    note: the hooves; William pressed Space when a band's edge was ~140 px past the
+      nose (median of 43 jumps)
   horse_box_roi:
     type: roi
-    value: [700, 60, 260, 360]
+    value:
+    - 676
+    - 110
+    - 260
+    - 250
     status: proposed
-    note: where our brown horse stands (top lane); its top row rises while airborne
+    note: 'our horse (any colour: non-grass, non-band pixels); their mean y rises
+      while airborne'
   jump_lead_s:
     type: number
-    value: 0.08
+    value: 0.05
     status: proposed
-    note: press Space this long before the band edge reaches the nose (capture + input latency)
+    note: input latency - the press is timed to land when the edge reaches the hooves; raise if jumps are late, lower if early
+      latency)
   jump_lead_px:
     type: number
     value: 0
@@ -42,15 +54,22 @@ fields:
     type: number
     value: 800
     status: proposed
-    note: initial scroll speed; measured ~810 px/s on a hay band, re-estimated live from band motion
+    note: initial scroll speed; measured ~810 px/s on a hay band, re-estimated live
+      from band motion
   boost_button_point:
     type: point
-    value: [960, 975]
+    value:
+    - 956
+    - 959
     status: proposed
     note: the three-carrot button in the HUD, bottom centre
   boost_box_roi:
     type: roi
-    value: [840, 945, 240, 60]
+    value:
+    - 836
+    - 928
+    - 240
+    - 63
     status: proposed
     note: carrots are orange while available, grey once used
   boost_clear_px:
@@ -60,17 +79,25 @@ fields:
     note: use a carrot only when no band is within this distance of the nose
   results_box_roi:
     type: roi
-    value: [300, 150, 1300, 750]
+    value:
+    - 296
+    - 96
+    - 1300
+    - 785
     status: proposed
     note: the Next Race In N leaderboard parchment
   results_rows_roi:
     type: roi
-    value: [400, 190, 560, 540]
+    value:
+    - 396
+    - 137
+    - 560
+    - 565
     status: proposed
     note: left part of the six result rows; ours has a yellow frame
   results_row_h:
     type: number
-    value: 70
+    value: 73
     status: proposed
   results_gems_w:
     type: number
@@ -79,27 +106,38 @@ fields:
     note: OCR width of the gems column, right of the rows ROI
   results_first_row_cy:
     type: number
-    value: 52
+    value: 54
     status: proposed
     note: centre y of the first row within results_rows_roi
   results_row_pitch:
     type: number
-    value: 86
+    value: 90
     status: proposed
     note: vertical distance between rows; row index -> place when OCR fails
   startline_roi:
     type: roi
-    value: [860, 400, 80, 500]
+    value:
+    - 856
+    - 380
+    - 80
+    - 500
     status: proposed
     note: the white start line sits here while waiting for the other horses
   progress_bar_roi:
     type: roi
-    value: [300, 1042, 1300, 16]
+    value:
+    - 296
+    - 1030
+    - 1300
+    - 14
     status: proposed
-    note: green race-progress bar; present on the track and the leaderboard, absent elsewhere
+    note: green race-progress bar at the very bottom (y 1028-1048 live); present on
+      the track and the leaderboard
   close_x_point:
     type: point
-    value: [1770, 80]
+    value:
+    - 1766
+    - 22
     status: proposed
     note: leaves the game (not used by the farmer; races restart by themselves)
   pro_unlocked:

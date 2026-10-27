@@ -202,8 +202,6 @@ def test_real_results_row_and_horse() -> None:
     cy = highlighted_row(rows, CFG)
     assert cy is not None and 40 <= cy <= 64, cy  # first row: 1st place
     ground = horse_top(_fx("horse_box_36s.png"), CFG)
-    air = horse_top(_fx("horse_box_64s.png"), CFG)
-    assert ground is not None and air is not None and ground - air >= CFG.jump_rise_px, (
-        ground,
-        air,
-    )
+    assert ground is not None and 100 <= ground <= 160, ground
+    # at 64 s a hay band fills the box: nothing of the horse can be told apart -> unknown
+    assert horse_top(_fx("horse_box_64s.png"), CFG) is None

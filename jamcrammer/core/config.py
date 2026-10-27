@@ -152,12 +152,15 @@ class DerbyConfig(StrictModel):
     speed_max_dt_s: float = Field(0.3, gt=0)
     speed_max_step_px: int = Field(400, ge=1)
     speed_min_baseline_s: float = Field(0.1, gt=0)  # measure speed over at least this long
-    speed_min_px_s: float = Field(500.0, gt=0)
+    speed_min_px_s: float = Field(700.0, gt=0)
     speed_max_px_s: float = Field(1800.0, gt=0)
     track_hold_s: float = Field(0.4, ge=0)  # predict a hidden band's edge this long
     track_stuck_px: int = Field(30, ge=0)  # observed edge this far right of the prediction = hidden
     track_new_band_px: int = Field(150, ge=0)
-    jump_retry_s: float = Field(0.15, ge=0)
+    jump_retry_s: float = Field(0.25, ge=0)
+    jump_retry_min_obs: int = Field(2, ge=1)  # fresh frames needed before judging a press
+    period_alpha: float = Field(0.2, gt=0, le=1)
+    period_max_s: float = Field(0.5, gt=0)
     jump_rise_px: int = Field(20, ge=1)
     results_settle_s: float = Field(1.0, ge=0)
     unknown_pause_s: float = Field(30.0, gt=0)
@@ -167,9 +170,11 @@ class DerbyConfig(StrictModel):
     mud_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = ((8, 80, 40), (22, 255, 140))
     water_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = ((75, 100, 90), (100, 255, 255))
     hedge_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = ((40, 90, 90), (65, 255, 167))
-    horse_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = ((8, 90, 40), (22, 255, 130))
-    horse_box_max_fill: float = Field(0.4, gt=0, le=1)
-    horse_row_min_px: int = Field(12, ge=1)
+    grass_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = ((40, 60, 150), (70, 255, 255))
+    horse_box_max_fill: float = Field(
+        0.9, gt=0, le=1
+    )  # scenery share above which no horse is visible
+    horse_min_px: int = Field(300, ge=1)
     beige_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = ((15, 0, 190), (35, 130, 255))
     results_min_fill: float = Field(0.35, gt=0, le=1)
     white_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = ((0, 0, 230), (180, 40, 255))

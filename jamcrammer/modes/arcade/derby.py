@@ -153,13 +153,20 @@ def fill(image: BgrImage, rng: HsvRange) -> float:
 
 
 def horse_top(box: BgrImage, cfg: DerbyConfig) -> int | None:
-    """Top row of the brown horse inside its box (None when a mud band fills the box)."""
+    """Height of our horse inside its box, whatever its colour: the mean row of pixels that
+    are neither grass nor an obstacle band. It drops by ~60 px while airborne. None when a
+    band fills the box (nothing of the horse can be told apart) or too few pixels remain."""
     hsv = np.asarray(cv2.cvtColor(box, cv2.COLOR_BGR2HSV), dtype=np.uint8)
-    brown = _mask(hsv, cfg.horse_hsv)
-    if brown.mean() > cfg.horse_box_max_fill:
+    scenery = _mask(hsv, cfg.grass_hsv)
+    for rng in (cfg.hay_hsv, cfg.mud_hsv, cfg.water_hsv, cfg.hedge_hsv):
+        scenery |= _mask(hsv, rng)
+    if scenery.mean() > cfg.horse_box_max_fill:
         return None
-    rows = np.where(brown.sum(axis=1) >= cfg.horse_row_min_px)[0]
-    return int(rows[0]) if len(rows) else None
+    rider = ~scenery
+    ys = np.where(rider)[0]
+    if len(ys) < cfg.horse_min_px:
+        return None
+    return int(ys.mean())
 
 
 def highlighted_row(rows_region: BgrImage, cfg: DerbyConfig) -> int | None:
@@ -305,18 +312,31 @@ class DerbyFarmer:
         self._boosts_left = 0
         self._speed = float(profile.number("scroll_px_s"))
         self._tracked: tuple[float, Band] | None = None  # last sighting of the nearest band
+        self._ticks = 0
+        self._frame_age = 0.0
+        self._last_tick_ts: float | None = None
+        self.period_s = 1.0 / cfg.fps  # measured loop period (capture + processing + sleep)
+        self._obs_since_jump = 0
         self._first_seen: tuple[float, int] | None = None  # (ts, left) when tracking began
 
     @property
     def screen_known(self) -> bool:
-        """The last frame was the Derby track, line or leaderboard (watchdog hint)."""
-        return self.state != Screen.UNKNOWN
+        """The last frame was the Derby track, line or leaderboard (watchdog hint); before
+        the first observation the mode is given the benefit of the doubt."""
+        return self._ticks == 0 or self.state != Screen.UNKNOWN
 
     # --- one tick ---------------------------------------------------------------------------------
 
     def step(self) -> Observation:
+        t_grab = self._clock()
         image = self._grab()
         now = self._clock()
+        self._frame_age = now - t_grab  # the pixels are this old by the time we look at them
+        if self._last_tick_ts is not None and now > self._last_tick_ts:
+            dt = min(now - self._last_tick_ts, self.cfg.period_max_s)
+            self.period_s = (1 - self.cfg.period_alpha) * self.period_s + self.cfg.period_alpha * dt
+        self._last_tick_ts = now
+        self._ticks += 1
         obs = self.detector.observe(image)
         if obs.screen == Screen.UNKNOWN:
             self._on_unknown(now)
@@ -336,15 +356,16 @@ class DerbyFarmer:
     ) -> None:
         period = 1.0 / self.cfg.fps
         while not should_stop() and not self.paused_reason:
+            t0 = self._clock()
             self.step()
             if status is not None:
                 s = self.stats
                 status(
                     f"{self.state} · race {s.races + (self._race is not None)} · "
                     f"{s.first_places}/{s.races} firsts · {s.gems} gems · "
-                    f"{self._speed:.0f} px/s"
+                    f"{self._speed:.0f} px/s · {self.period_s * 1000:.0f} ms/tick"
                 )
-            self._sleep(period)
+            self._sleep(max(0.0, period - (self._clock() - t0)))
 
     # --- screens ----------------------------------------------------------------------------------
 
@@ -424,13 +445,18 @@ class DerbyFarmer:
         nearest = self._track(min(ahead, key=lambda b: b.left, default=None), now)
         self._check_jump_result(obs, now)
         if nearest is not None and nearest.left > front - self.cfg.band_pass_px:
-            gap = nearest.left - front
-            horizon = self.profile.number("jump_lead_s") + 1.0 / self.cfg.fps
-            lead = self._speed * horizon + self.profile.number("jump_lead_px")
-            # one press per band: the cooldown covers the ticks right after a press, and a band
-            # whose edge is more than band_pass_px behind the hooves is no longer ``ahead``
-            if gap <= lead and now - self._last_jump >= self.profile.number("jump_cooldown_s"):
-                self._jump(obs, now, nearest, res)
+            # where the edge is *now* (the frame is frame_age old) and when it reaches the hooves
+            edge_now = nearest.left - self._speed * self._frame_age
+            gap = edge_now - front - self.profile.number("jump_lead_px")
+            t_hit = gap / self._speed - self.profile.number("jump_lead_s")  # minus input latency
+            # press if it gets there before we can look again; wait out the remainder so the
+            # press lands at the edge instead of up to one loop period early
+            if t_hit <= self.period_s and now - self._last_jump >= self.profile.number(
+                "jump_cooldown_s"
+            ):
+                if t_hit > 0:
+                    self._sleep(min(t_hit, self.cfg.period_max_s))
+                self._jump(obs, self._clock(), nearest, res)
                 return
         clear = nearest is None or (nearest.left - front) > self.profile.number("boost_clear_px")
         if (
@@ -490,6 +516,7 @@ class DerbyFarmer:
         self._last_jump = now
         self._jump_baseline = obs.horse_top
         self._jump_retry_pending = True
+        self._obs_since_jump = 0
         res.jumps += 1
         res.bands += 1
         self.stats.jumps += 1
@@ -506,6 +533,7 @@ class DerbyFarmer:
         press once more (a swallowed key is the usual cause)."""
         if not self._jump_retry_pending:
             return
+        self._obs_since_jump += 1
         if (
             obs.horse_top is not None
             and self._jump_baseline is not None
@@ -513,7 +541,10 @@ class DerbyFarmer:
         ):
             self._jump_retry_pending = False
             return
-        if now - self._last_jump >= self.cfg.jump_retry_s:
+        if (
+            now - self._last_jump >= self.cfg.jump_retry_s
+            and self._obs_since_jump >= self.cfg.jump_retry_min_obs
+        ):
             self._jump_retry_pending = False
             if self._race is not None and (obs.horse_top is None or self._jump_baseline is None):
                 return  # could not tell (mud band through the box): no blind retry
