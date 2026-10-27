@@ -27,16 +27,26 @@ STAGE_MID_X = 960
 
 @dataclass(frozen=True)
 class Crowd:
-    left: int
+    left: int  # name tags on the left (green/True) half
     right: int
+    mass_left: float = 0.0  # share of the half that is not floor (animals, tags, bubbles)
+    mass_right: float = 0.0
 
-    def side(self, min_ratio: float) -> str | None:
-        """'T' (left/green) or 'F' (right/purple) when one side is clearly fuller."""
-        if self.left >= self.right * min_ratio and self.left > self.right:
+    @staticmethod
+    def _pick(a: float, b: float, min_ratio: float) -> str | None:
+        if a >= b * min_ratio and a > b:
             return "T"
-        if self.right >= self.left * min_ratio and self.right > self.left:
+        if b >= a * min_ratio and b > a:
             return "F"
         return None
+
+    def side(self, min_ratio: float) -> str | None:
+        """'T' (left/green) or 'F' (right/purple) when one side is clearly fuller: by the
+        non-floor mass first (animals are big and always visible), then by name tags."""
+        by_mass = self._pick(self.mass_left, self.mass_right, min_ratio)
+        if by_mass is not None:
+            return by_mass
+        return self._pick(self.left, self.right, min_ratio)
 
 
 def name_tags(floor: BgrImage, x0: int, cfg: BestGuessConfig) -> list[tuple[int, int, int, int]]:
@@ -56,9 +66,22 @@ def name_tags(floor: BgrImage, x0: int, cfg: BestGuessConfig) -> list[tuple[int,
 
 def count_crowd(image: BgrImage, floor_roi: Roi, cfg: BestGuessConfig) -> Crowd:
     x, y, w, h = floor_roi
-    tags = name_tags(image[y : y + h, x : x + w], x, cfg)
+    floor = image[y : y + h, x : x + w]
+    tags = name_tags(floor, x, cfg)
     left = sum(1 for tx, _ty, tw, _th in tags if tx + tw / 2 < STAGE_MID_X)
-    return Crowd(left, len(tags) - left)
+    hsv = cv2.cvtColor(floor, cv2.COLOR_BGR2HSV)
+    lo, hi = cfg.green_floor_hsv
+    green = cv2.inRange(hsv, np.array(lo, np.uint8), np.array(hi, np.uint8)) > 0
+    lo, hi = cfg.purple_floor_hsv
+    purple = cv2.inRange(hsv, np.array(lo, np.uint8), np.array(hi, np.uint8)) > 0
+    not_floor = ~(green | purple)
+    mid = max(1, min(w - 1, STAGE_MID_X - x))
+    return Crowd(
+        left,
+        len(tags) - left,
+        float(not_floor[:, :mid].mean()),
+        float(not_floor[:, mid:].mean()),
+    )
 
 
 def find_own_tag(

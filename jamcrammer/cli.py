@@ -86,6 +86,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     sub.add_parser("test-notify", help="send a test notification on every enabled channel")
+    p = sub.add_parser("seed-facts", help="load a True/False fact list into the Best Guess bank")
+    p.add_argument(
+        "file", nargs="?", default=None, help="text file; default assets/bestguess/facts_wiki.txt"
+    )
+    p.add_argument("--source", default="wiki")
     p = sub.add_parser("activity-test", help="run the idle-popup activity test (KICKOFF 7.3)")
     p.add_argument(
         "--phase", choices=("idle", "movement", "panel", "ingame"), action="append", default=None
@@ -138,6 +143,7 @@ COMMANDS: dict[str, Command] = {
     "snap": _lazy("jamcrammer.commands.platform_cmds", "run_snap"),
     "report": _lazy("jamcrammer.commands.learn_cmd", "run_report"),
     "test-notify": _lazy("jamcrammer.commands.services_cmds", "run_test_notify"),
+    "seed-facts": _lazy("jamcrammer.commands.services_cmds", "run_seed_facts"),
     "activity-test": _lazy("jamcrammer.commands.services_cmds", "run_activity_test"),
     "input-test": _lazy("jamcrammer.commands.platform_cmds", "run_input_test"),
     "window": _lazy("jamcrammer.commands.platform_cmds", "run_window"),

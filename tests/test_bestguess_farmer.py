@@ -209,3 +209,20 @@ def test_farmer_answers_learns_and_counts(tmp_path: Path) -> None:
     assert store.query("SELECT COUNT(*) AS n FROM bg_rounds")[0]["n"] == 4
     assert farmer.state in (BgState.WAITING_FOR_ROUND, BgState.REVEAL)
     store.close()
+
+
+def test_wiki_seed_file_parses_and_answers(tmp_path: Path) -> None:
+    from jamcrammer.modes.bestguess.seed import parse_facts, seed_from_file
+
+    path = Paths().assets / "bestguess" / "facts_wiki.txt"
+    facts = parse_facts(path.read_text(encoding="utf-8"))
+    assert len(facts) >= 280 and all(f.answer in ("T", "F") for f in facts)
+    assert not any("ultraviolet" in f.text for f in facts)  # no verdict on the wiki -> left out
+    store = Store(tmp_path / "t.db")
+    n = seed_from_file(store, path, "wiki")
+    assert n >= 280
+    brain = Brain(store, fuzzy_threshold=88, unknown_policy="skip", answer_mode="bank_policy")
+    assert brain.decide("A group of dolphins is called a pack.").side == "F"
+    assert brain.decide("Anteaters can live up to 14 years in the wild").side == "T"
+    assert brain.decide("Hippos can dive for up to 6 minutes").source == "bank"
+    store.close()

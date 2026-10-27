@@ -211,3 +211,24 @@ def notify_level_for(level_name: str) -> Level:
 
 
 __all__ = ["Path", "run_activity_test", "run_test_notify"]
+
+
+def run_seed_facts(args: argparse.Namespace) -> int:
+    from pathlib import Path
+
+    from jamcrammer.core.store import Store
+    from jamcrammer.modes.bestguess.seed import parse_facts, seed_store
+
+    path = Path(args.file) if args.file else args.paths.assets / "bestguess" / "facts_wiki.txt"
+    if not path.exists():
+        print(f"not found: {path}")
+        return 2
+    facts = parse_facts(path.read_text(encoding="utf-8"))
+    store = Store(args.paths.db)
+    try:
+        n = seed_store(store, facts, args.source)
+        total = store.query("SELECT COUNT(*) AS n FROM bg_facts")[0]["n"]
+    finally:
+        store.close()
+    print(f"seeded {n} facts from {path.name} (source={args.source}); bank now holds {total}")
+    return 0

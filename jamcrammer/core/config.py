@@ -125,6 +125,15 @@ class BestGuessConfig(StrictModel):
     own_tag_fuzz: int = Field(80, ge=50, le=100)
     # crowd heuristic: white name tags per half of the floor
     crowd_min_ratio: float = Field(1.25, ge=1.0)
+    # the floor itself: lime green left (H34-40 S~190), purple right (H100-130); the rest is crowd
+    green_floor_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = (
+        (28, 90, 60),
+        (62, 255, 255),
+    )
+    purple_floor_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = (
+        (95, 35, 40),
+        (165, 255, 255),
+    )
     tag_max_sat: int = Field(40, ge=0, le=255)
     tag_min_val: int = Field(215, ge=0, le=255)
     tag_min_w: int = Field(120, ge=1)

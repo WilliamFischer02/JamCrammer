@@ -74,7 +74,8 @@ def test_live_arena_crowd_and_own_tag() -> None:
     from jamcrammer.modes.bestguess.navigate import Crowd, count_crowd, find_own_tag
 
     crowd = count_crowd(np.asarray(img, dtype=np.uint8), (90, 250, 1740, 760), CFG)
-    assert crowd.right > crowd.left and crowd.side(CFG.crowd_min_ratio) == "F", crowd
+    assert crowd.right > crowd.left and crowd.mass_right > crowd.mass_left, crowd
+    assert crowd.side(CFG.crowd_min_ratio) == "F"
     assert Crowd(4, 4).side(1.25) is None and Crowd(6, 2).side(1.25) == "T"
     probe = ocr_image(np.full((40, 120, 3), 255, dtype=np.uint8))
     if probe.error:

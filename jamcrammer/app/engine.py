@@ -90,6 +90,7 @@ class Engine:
         attach_bus(self.bus)
         self.store = Store(self.paths.db)
         self.bus.subscribe("*", self._persist)
+        self._seed_facts()
         self.notifier = Notifier(cfg.notify, icon=self._icon_path())
         self.notifier.attach(self.bus)
         self.lease = InputLease()
@@ -330,6 +331,18 @@ class Engine:
             self.stop_mode()
         else:
             self.start_mode(self.selected_mode)
+
+    def _seed_facts(self) -> None:
+        """Load the community wiki answers into the bank once (assets/bestguess/facts_wiki.txt)."""
+        from jamcrammer.modes.bestguess.seed import already_seeded, seed_from_file
+
+        path = self.paths.assets / "bestguess" / "facts_wiki.txt"
+        try:
+            if path.exists() and not already_seeded(self.store, "wiki"):
+                n = seed_from_file(self.store, path, "wiki")
+                self.emit("bestguess.seeded", count=n, source="wiki")
+        except Exception as exc:
+            self.state.last_error = f"fact seeding failed: {exc}"
 
     def _should_stop(self) -> bool:
         return self._mode_stop.is_set() or self.kill.tripped
