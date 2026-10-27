@@ -118,7 +118,7 @@ class BestGuessConfig(StrictModel):
     anchor_min_fill: float = Field(0.25, ge=0, le=1)
     # movement: a held arrow key walks the animal to the wall of that side (never clicks a player)
     move_method: Literal["keys", "click"] = "keys"
-    move_hold_s: float = Field(2.0, gt=0)
+    move_hold_s: float = Field(3.0, gt=0)
     move_verify_after_s: float = Field(0.8, ge=0)
     own_name: str = "Admiral Angrypotato"
     own_tag_upscale: float = Field(1.5, ge=1.0)
