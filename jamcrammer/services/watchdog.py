@@ -317,6 +317,7 @@ class Watchdog:
     def resume(self) -> None:
         """Clear the paused state (the user or the GUI checked the screen)."""
         self.paused = False
+        self._unknown_streak = 0  # a mode (re)start judges the screen afresh
         self._unknown_until = 0.0
 
     # --- main entry --------------------------------------------------------------------

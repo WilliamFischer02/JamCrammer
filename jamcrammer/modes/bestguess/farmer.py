@@ -120,7 +120,7 @@ class BestGuessFarmer:
         self._verify_at = 0.0
         self._moves_this_round = 0
         self.paused_reason = ""
-        self.screen_known = False  # last frame was the arena (watchdog hint)
+        self.screen_known = True  # watchdog hint; benefit of the doubt until the first frame
 
     # --- loop ------------------------------------------------------------------------------------
 
