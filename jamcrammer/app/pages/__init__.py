@@ -20,11 +20,13 @@ def build_pages(engine: Engine, window: MainWindow) -> list[Page]:
     from jamcrammer.app.pages.modes import ArcadePage, BestGuessPage, OpportunistPage
     from jamcrammer.app.pages.notifications import NotificationsPage
     from jamcrammer.app.pages.parties import PartiesPage
+    from jamcrammer.app.pages.planner import PlannerPage
     from jamcrammer.app.pages.profitlab import ProfitLabPage
     from jamcrammer.app.pages.settings import SettingsPage
 
     return [
         DashboardPage(engine, window),
+        PlannerPage(engine, window),
         BestGuessPage(engine, window),
         ArcadePage(engine, window),
         OpportunistPage(engine, window),

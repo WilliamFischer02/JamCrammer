@@ -120,7 +120,7 @@ class BestGuessConfig(StrictModel):
     move_method: Literal["keys", "click"] = "keys"
     move_hold_s: float = Field(3.0, gt=0)
     move_verify_after_s: float = Field(0.8, ge=0)
-    own_name: str = "Admiral Angrypotato"
+    own_name: str = "Bingusthewizard"
     own_tag_upscale: float = Field(1.5, ge=1.0)
     own_tag_fuzz: int = Field(80, ge=50, le=100)
     # crowd heuristic: white name tags per half of the floor
@@ -146,6 +146,21 @@ class BestGuessConfig(StrictModel):
     # question text brown H10-25 but V~95 (the V floor keeps it out)
     true_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = ((36, 110, 150), (58, 255, 255))
     false_hsv: tuple[tuple[int, int, int], tuple[int, int, int]] = ((0, 120, 150), (14, 255, 255))
+
+
+class PlannerConfig(StrictModel):
+    """Den -> Jamaa Derby until Best Guess is due -> Best Guess (KICKOFF 9.4 variant)."""
+
+    demo: bool = True  # show the party menu / tray round trip before farming
+    leave_lead_s: float = Field(90.0, ge=0)  # leave the Derby this long before Best Guess is due
+    eta_default_min: int = Field(45, ge=0)  # when neither the tray nor the user gave a time
+    tray_settle_s: float = Field(1.2, ge=0)
+    panel_settle_s: float = Field(1.0, ge=0)
+    games_settle_s: float = Field(1.5, ge=0)
+    den_timeout_s: float = Field(20.0, gt=0)
+    derby_timeout_s: float = Field(20.0, gt=0)
+    hunt_interval_s: float = Field(20.0, gt=0)  # My Parties re-check cadence once Best Guess is due
+    max_attempts: int = Field(2, ge=1)
 
 
 class OpportunistConfig(StrictModel):
@@ -368,6 +383,7 @@ class AppConfig(StrictModel):
     double_up: DoubleUpConfig = DoubleUpConfig()
     bestguess: BestGuessConfig = BestGuessConfig()
     opportunist: OpportunistConfig = OpportunistConfig()
+    planner: PlannerConfig = PlannerConfig()
     derby: DerbyConfig = DerbyConfig()
     gem_ball: GemBallConfig = GemBallConfig()
     swoopy: SwoopyConfig = SwoopyConfig()

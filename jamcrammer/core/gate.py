@@ -25,6 +25,16 @@ REQUIRED_FIELDS: dict[str, list[tuple[str, str]]] = {
         ("bestguess", "false_point"),
         ("bestguess", "reveal_roi"),
     ],
+    "planner": [
+        ("navigation", "games_icon_point"),
+        ("navigation", "tray_toggle_point"),
+        ("navigation", "tray_list_roi"),
+        ("navigation", "den_button_point"),
+        ("navigation", "room_name_roi"),
+        ("navigation", "scroll_mid_point"),
+        ("navigation", "derby_tile_template"),
+        ("parties", "party_hat_point"),
+    ],
     "jamaa_derby": [
         ("jamaa_derby", "strip_roi"),
         ("jamaa_derby", "horse_front_x"),

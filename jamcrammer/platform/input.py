@@ -286,6 +286,30 @@ class InputController:
         self._emit("input.press_hold", cx=cx, cy=cy, hold_ms=hold_ms)
         return True
 
+    def drag(  # noqa: PLR0917 - two points and the motion
+        self, x0: int, y0: int, x1: int, y1: int, steps: int = 12, hold_ms: int = 60
+    ) -> bool:
+        """Press at (x0, y0), move in steps to (x1, y1), release (a scrollbar thumb)."""
+        if not self.move(x0, y0):
+            return False
+        if self.dry_run:
+            self._emit("input.drag", dry_run=True, x0=x0, y0=y0, x1=x1, y1=y1)
+            return True
+        _send([_mouse_input(MOUSEEVENTF_LEFTDOWN)])
+        time.sleep(hold_ms / 1000.0)
+        for i in range(1, steps + 1):
+            cx = round(x0 + (x1 - x0) * i / steps)
+            cy = round(y0 + (y1 - y0) * i / steps)
+            sx, sy = self.to_screen(cx, cy)
+            win32api.SetCursorPos((sx, sy))
+            time.sleep(0.02)
+        time.sleep(hold_ms / 1000.0)
+        _send([_mouse_input(MOUSEEVENTF_LEFTUP)])
+        self.stats.clicks += 1
+        self._touch("drag")
+        self._emit("input.drag", x0=x0, y0=y0, x1=x1, y1=y1)
+        return True
+
     # --- keyboard ----------------------------------------------------------------------
 
     def key_down(self, key: str, method: KeyMethod | None = None) -> None:

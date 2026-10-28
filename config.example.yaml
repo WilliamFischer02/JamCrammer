@@ -99,6 +99,19 @@ bestguess:
   true_hsv: [[36, 110, 150], [58, 255, 255]]   # green True! (measured 2026-10-26)
   false_hsv: [[0, 120, 150], [14, 255, 255]]   # orange False!
 
+# --- Den planner: Jamaa Derby until Best Guess is due, then Best Guess ---
+planner:
+  demo: true                                 # first show the My Parties / tray round trip and read the time
+  leave_lead_s: 90                           # leave the Derby this long before Best Guess is due
+  eta_default_min: 45                        # used when neither the tray nor you gave a time
+  tray_settle_s: 1.2
+  panel_settle_s: 1.0
+  games_settle_s: 1.5
+  den_timeout_s: 20
+  derby_timeout_s: 20
+  hunt_interval_s: 20                        # My Parties re-check cadence once Best Guess is due
+  max_attempts: 2
+
 # --- Opportunist (KICKOFF 10) ---
 opportunist:
   entry_timeout_s: 8                         # the board must show within this after the entry clicks

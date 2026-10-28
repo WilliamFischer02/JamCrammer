@@ -118,10 +118,11 @@ class ModePage(Page):
                 status = "uncalibrated"
             self.check_rows.addRow(QLabel(f"{profile_name}.{field}"), Chip(status, status))
         gate_mode = {
+            "planner": "jamaa_derby",
             "hunt": "hunt",
             "farm": self.engine.cfg.arcade_game,
             "opportunist": "double_up",
-        }[self.mode]
+        }.get(self.mode, "hunt")
         self.gate_line.setText(
             "Live-mode gate: "
             + gate_status(gate_mode, self.engine.paths, self.engine._profiles).summary()

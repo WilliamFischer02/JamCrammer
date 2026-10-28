@@ -39,8 +39,13 @@ from jamcrammer.services.watchdog import Detection, PopupDetector, Watchdog
 
 log = get_logger("engine")
 
-MODES = ("hunt", "farm", "opportunist")
-MODE_LABELS = {"hunt": "Best Guess Hunter", "farm": "Arcade Farmer", "opportunist": "Opportunist"}
+MODES = ("planner", "hunt", "farm", "opportunist")
+MODE_LABELS = {
+    "planner": "Den Planner",
+    "hunt": "Best Guess Hunter",
+    "farm": "Arcade Farmer",
+    "opportunist": "Opportunist",
+}
 PREVIEW_IDLE_S = 0.5
 THREAD_JOIN_S = 5.0
 
@@ -58,6 +63,11 @@ class EngineState:
     window: WindowInfo | None = None
     last_error: str = ""
     stats: dict[str, Any] = field(default_factory=dict)
+    bg_eta_ts: float | None = None  # epoch when Best Guess is due (planner)
+    bg_eta_note: str = ""
+
+    def bg_eta_s(self) -> float | None:
+        return None if self.bg_eta_ts is None else self.bg_eta_ts - time.time()
 
     @property
     def pill_text(self) -> str:
@@ -293,6 +303,7 @@ class Engine:
         self.state.mode_state = "STARTING"
         self.state.mode_detail = ""
         target = {
+            "planner": self._run_planner,
             "hunt": self._run_hunt,
             "farm": self._run_farm,
             "opportunist": self._run_opportunist,
@@ -379,13 +390,15 @@ class Engine:
             self.lease.acquire("hunt")
             self._run_bestguess_farmer()
             return
-        from jamcrammer.modes.bestguess.hunter import Hunter
+        self._hunt_then_farm()
+
+    def _make_watcher(self) -> Any:
         from jamcrammer.modes.party_watcher import BannerLibrary, PanelAnalyzer, PartyWatcher
 
         analyzer = PanelAnalyzer(
             self.profile("parties"), BannerLibrary(self.paths.assets / "banners"), paths=self.paths
         )
-        watcher = PartyWatcher(
+        return PartyWatcher(
             analyzer,
             self.cfg.hunt,
             self.input,
@@ -394,16 +407,21 @@ class Engine:
             bus=self.bus,
             unknown_dir=self.paths.unknown,
         )
+
+    def _hunt_then_farm(self, presence: bool = True) -> None:
+        """Hunter loop (My Parties scans, auto-join), then Phase C once joined."""
+        from jamcrammer.modes.bestguess.hunter import Hunter
+
         hunter = Hunter(
             self.cfg,
-            watcher,
+            self._make_watcher(),
             self.grab,
             watchdog=self.watchdog,
             antiafk=self.antiafk,
             guard=self.guard,
             bus=self.bus,
             no_join=not self.cfg.auto_join,
-            presence=self.presence,
+            presence=self.presence if presence else None,
             on_joined=self._on_joined,
         )
         self._mode_obj = hunter
@@ -415,6 +433,111 @@ class Engine:
             self._status("JOINED · recording")
             time.sleep(PREVIEW_IDLE_S)
         self.state.stats["hunt"] = hunter.stats.__dict__.copy()
+
+    # --- den planner ------------------------------------------------------------------------
+
+    def set_best_guess_eta(self, seconds: float | None, note: str = "") -> None:
+        self.state.bg_eta_ts = None if seconds is None else time.time() + seconds
+        self.state.bg_eta_note = note
+        self.emit("planner.eta", seconds=None if seconds is None else int(seconds), note=note)
+
+    def _make_navigator(self) -> Any:
+        from jamcrammer.modes.planner import Navigator
+
+        return Navigator(
+            self.profile("navigation"),
+            self.cfg.planner,
+            self.input,
+            lambda: self.grab().image,
+            self._make_watcher(),
+            self.paths,
+            bus=self.bus,
+        )
+
+    def read_eta_from_game(self) -> tuple[int | None, str]:
+        """GUI button: open My Parties + the tray, read the Best Guess time, tidy up."""
+        if not self.start_capture():
+            return (None, self.state.last_error or "capture failed")
+        nav = self._make_navigator()
+        eta, note = nav.read_best_guess_eta()
+        if eta is not None:
+            self.set_best_guess_eta(eta, note)
+        else:
+            self.state.bg_eta_note = note
+            self.emit("planner.eta_unread", Level.NOTICE, message=note)
+        return (eta, note)
+
+    def _run_planner(self) -> None:
+        """Den -> Jamaa Derby (PRO) until Best Guess is due -> leave -> hunt Best Guess."""
+        from jamcrammer.core.gate import gate_status
+        from jamcrammer.modes.arcade.derby import DerbyDetector, Screen
+
+        pc = self.cfg.planner
+        nav = self._make_navigator()
+        self.lease.acquire("planner")
+        detector = DerbyDetector(self.profile("jamaa_derby"), self.cfg.derby)
+
+        def track_visible(image: Any) -> bool:
+            return detector.screen(image) != Screen.UNKNOWN
+
+        # 1. the demonstration + time read (skipped when we are already on the track)
+        if pc.demo and not track_visible(self.grab().image):
+            self._status("PLANNER · reading the party tray")
+            eta, note = nav.read_best_guess_eta()
+            if eta is not None:
+                self.set_best_guess_eta(eta, note)
+            else:
+                self.emit("planner.eta_unread", Level.NOTICE, message=note)
+        if self.state.bg_eta_ts is None:
+            self.set_best_guess_eta(pc.eta_default_min * 60, "default")
+        if self._should_stop():
+            return
+
+        # 2. Derby, unless the track is already on screen
+        if not track_visible(self.grab().image):
+            self._status("PLANNER · going to the den")
+            res = nav.go_to_den()
+            self.emit("planner.den", Level.INFO if res.ok else Level.HIGH, message=res.note)
+            if not res.ok or self._should_stop():
+                self.state.last_error = res.note
+                return
+            gate = gate_status("jamaa_derby", self.paths, self._profiles)
+            if not gate.unlocked:
+                self.state.last_error = f"jamaa_derby {gate.summary()}"
+                self.emit(
+                    "engine.gate_locked", Level.HIGH, mode="planner", message=self.state.last_error
+                )
+                return
+            self._status("PLANNER · opening Jamaa Derby (PRO)")
+            res = nav.open_derby(track_visible)
+            self.emit("planner.derby", Level.INFO if res.ok else Level.HIGH, message=res.note)
+            if not res.ok or self._should_stop():
+                self.state.last_error = res.note
+                return
+
+        # 3. farm until Best Guess is due (leave at a leaderboard or the start line)
+        self.cfg.arcade_game = "jamaa_derby"
+
+        def due() -> bool:
+            eta = self.state.bg_eta_s()
+            return eta is not None and eta <= pc.leave_lead_s
+
+        self._run_farm(extra_stop=due, between_races_only=True)
+        if self._should_stop():
+            return
+
+        # 4. leave the Derby and hunt Best Guess in My Parties every hunt_interval_s
+        self._status("PLANNER · leaving the Derby")
+        x, y = self.profile("jamaa_derby").point("close_x_point")
+        self.input.click(x, y)
+        nav._wait(lambda im: not track_visible(im), pc.derby_timeout_s)
+        self.emit("planner.left_derby", Level.NOTICE, message="Best Guess is due; hunting it now")
+        saved = self.cfg.hunt_interval_s
+        self.cfg.hunt_interval_s = pc.hunt_interval_s
+        try:
+            self._hunt_then_farm(presence=False)
+        finally:
+            self.cfg.hunt_interval_s = saved
 
     def _on_derby_track(self) -> bool:
         """The Derby track, start line or leaderboard is on screen and its gate is open."""
@@ -499,8 +622,14 @@ class Engine:
         cv2.imwrite(str(path), image)
         return path
 
-    def _run_farm(self) -> None:
-        """Double Up farmer (M7). Refuses to run until the profile gate is satisfied."""
+    def _run_farm(
+        self,
+        extra_stop: Callable[[], bool] | None = None,
+        between_races_only: bool = False,
+    ) -> None:
+        """Arcade farmer behind the profile gate. ``extra_stop`` adds a stop condition (the
+        planner's deadline); with ``between_races_only`` it is honoured only off the track
+        (leaderboard or start line) so a race is never abandoned mid-way."""
         from jamcrammer.core.gate import gate_status
         from jamcrammer.modes.arcade.double_up import DoubleUpFarmer
 
@@ -548,6 +677,10 @@ class Engine:
             frame = self.snapshot()
             if frame is not None:
                 self.watchdog.tick(frame, known_screen=self._screen_known())
+            if extra_stop is not None and extra_stop():
+                state = str(getattr(farmer, "state", ""))
+                if not between_races_only or state in ("RESULTS", "WAITING", "UNKNOWN"):
+                    return True
             return self._should_stop() or self.pause.paused or self._watchdog_blocks()
 
         farmer.run(guarded_stop, self._status)

@@ -1,0 +1,78 @@
+# Den -> Jamaa Derby -> Best Guess navigation (stage pixels, 1920x1080). Measured on William's
+# 2026-10-27 screenshots (window shots converted to the client area).
+version: 1
+name: navigation
+fields:
+  games_icon_point:
+    type: point
+    value: [793, 37]
+    status: proposed
+    note: the controller icon in the top bar (opens the games menu)
+  tray_toggle_point:
+    type: point
+    value: [1252, 501]
+    status: proposed
+    note: clock+hat button on the right edge of My Parties; opens the Upcoming Parties tray
+  tray_close_point:
+    type: point
+    value: [906, 501]
+    status: proposed
+    note: blue left arrow between the panel and the open tray; closes the tray
+  tray_list_roi:
+    type: roi
+    value: [976, 237, 524, 626]
+    status: proposed
+    note: the Upcoming Parties list; each row = banner + "N minutes" / "1 hr 13 mins"
+  tray_banner_template:
+    type: template
+    value: templates/navigation/best_guess_tray_banner.png
+    status: proposed
+    note: the Best Guess Game row banner in the tray (template match 0.84 vs 0.29 elsewhere)
+  den_button_point:
+    type: point
+    value: [1522, 966]
+    status: proposed
+    note: the hut icon bottom right (go to my den)
+  room_name_roi:
+    type: roi
+    value: [1300, 15, 360, 50]
+    status: proposed
+    note: room title top right ("Bingusthewizard's Den", "Jamaa Township")
+  scroll_thumb_top_point:
+    type: point
+    value: [1452, 242]
+    status: proposed
+    note: the games menu scrollbar thumb when the list is at the top
+  scroll_mid_point:
+    type: point
+    value: [1452, 577]
+    status: proposed
+    note: where the thumb is dragged to (halfway) so the Jamaa Derby tile is visible
+  derby_tile_template:
+    type: template
+    value: templates/navigation/jamaa_derby_tile.png
+    status: proposed
+    note: the Jamaa Derby tile in the games grid (template match 1.0 vs 0.30 elsewhere)
+  derby_tile_fallback_point:
+    type: point
+    value: [555, 820]
+    status: proposed
+    note: where the tile sits after the half scroll, if the template is not found
+  pro_offset:
+    type: list
+    value: [285, 127]
+    status: proposed
+    note: PRO button centre relative to the "Play to earn Gems" text centre on the Derby dialog
+  play_offset:
+    type: list
+    value: [9, 138]
+    status: proposed
+    note: PLAY! button centre relative to the same text (Normal mode, unused)
+  template_scales:
+    type: list
+    value: [0.9, 1.0, 1.1]
+    status: proposed
+  template_threshold:
+    type: number
+    value: 0.6
+    status: proposed

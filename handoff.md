@@ -35,6 +35,9 @@ Round timing seen: question ≈10 s, reveal ≈6 s, a ROUND COMPLETE scroll ever
 
 Race timing seen: ~25 s waiting at the line, ~65 s racing, ~10 s leaderboard, then it restarts by itself. Payout 100 for 1st (75/50/40/30).
 
+## Den Planner (2026-10-27)
+Mode **Den Planner** (first in the mode box). On the Den Planner page type hours/minutes until Best Guess (or press *Read from game*), press Start from anywhere in Jamaa: it reads the tray, goes to the den, opens Jamaa Derby in PRO, farms until 90 s before Best Guess, leaves at a leaderboard, then re-checks My Parties every 20 s, joins Best Guess and farms it. Profile: `profiles/navigation.yaml` (points measured from his screenshots; `Calibration` can move them). Events: `planner.eta`, `planner.den`, `planner.derby`, `planner.left_derby`, `planner.*_missing`. Desktop shortcut: `JamCrammer.lnk`.
+
 ## How William tests Jamaa Derby now
 1. Open Jamaa Derby in the arcade and press Play. In the GUI pick **Arcade Farmer** (the game is `jamaa_derby` in `config.yaml`) and press Start; Dry-run first if you like.
 2. The state pill should show WAITING at the line, RACING once GO fires (jumps logged as `derby.jump`, carrots as `derby.boost`), RESULTS on the leaderboard with the place and gems.
