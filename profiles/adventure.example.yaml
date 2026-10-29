@@ -1,0 +1,61 @@
+# Adventure HUD geometry shared by the adventure route farmers (stage pixels, 1920x1080).
+# Measured 2026-10-29 on William's The Mystery Below (Hard) Learn session
+# captures/sessions/20261029_134501_mystery_below (external monitor, 1920x1009 client).
+version: 1
+name: adventure
+fields:
+  banner_roi:
+    type: roi
+    value: [440, 0, 1040, 36]
+    status: calibrated
+    note: objective banner at the top ("Find 3 GLOW MOTHS and LEAD THEM to the door.")
+  minimap_roi:
+    type: roi
+    value: [1480, 737, 293, 186]
+    status: calibrated
+    note: inside of the minimap frame (fixed map, north up, revealed as explored)
+  minimap_exclude_roi:
+    type: roi
+    value: [1732, 722, 60, 58]
+    status: calibrated
+    note: the minimap's light-blue "+" zoom button (same colour as the player dot)
+  dot_hsv:
+    type: color
+    value: [[90, 30, 190], [120, 210, 255]]
+    status: calibrated
+    note: the player's light-blue minimap dot (OpenCV HSV; measured p5-p95 H92-107 S69-191 V201-251)
+  dot_area:
+    type: list
+    value: [60, 420]
+    status: calibrated
+    note: pixel area of the dot blob (172 measured); smaller/larger blobs are map features
+  items_roi:
+    type: roi
+    value: [120, 50, 280, 130]
+    status: calibrated
+    note: top-left item slots (light blossoms, boomseeds); a pickup or a use changes it
+  hud_rois:
+    type: list
+    value: [[0, 990, 1920, 90], [1880, 0, 40, 1080], [0, 0, 40, 1080], [1460, 715, 340, 230], [440, 0, 1040, 40], [120, 50, 280, 130]]
+    status: calibrated
+    note: screen-fixed parts (bottom bar, side tabs, minimap, banner, items) masked out of scene alignment
+  avatar_roi:
+    type: roi
+    value: [860, 360, 300, 300]
+    status: proposed
+    note: our animal at the screen centre (the camera follows it); masked so any animal aligns
+  dialog_x_template:
+    type: template
+    value: templates/adventures/dialog_x.png
+    status: calibrated
+    note: the blue X of in-adventure dialogs (Cosmo, Graham); match 1.00 on six dialogs, <=0.54 elsewhere
+  dialog_x_search_roi:
+    type: roi
+    value: [1180, 220, 460, 480]
+    status: calibrated
+    note: where a dialog's X can be (dialogs open centred; X at 1409,454 on all six seen)
+  dialog_x_min:
+    type: number
+    value: 0.8
+    status: calibrated
+    note: template score that counts as an open dialog

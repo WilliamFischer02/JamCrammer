@@ -36,14 +36,16 @@ from jamcrammer.services.antiafk import AntiAfk, RoomDriftGuard
 from jamcrammer.services.ledger import GemLedger
 from jamcrammer.services.notify import ChannelResult, Notifier
 from jamcrammer.services.watchdog import Detection, PopupDetector, Watchdog
+from jamcrammer.vision.stage import StageMap
 
 log = get_logger("engine")
 
-MODES = ("planner", "hunt", "farm", "opportunist")
+MODES = ("planner", "hunt", "farm", "adventure", "opportunist")
 MODE_LABELS = {
     "planner": "Den Planner",
     "hunt": "Best Guess Hunter",
     "farm": "Arcade Farmer",
+    "adventure": "Adventure Farmer",
     "opportunist": "Opportunist",
 }
 PREVIEW_IDLE_S = 0.5
@@ -315,6 +317,7 @@ class Engine:
             "hunt": self._run_hunt,
             "farm": self._run_farm,
             "opportunist": self._run_opportunist,
+            "adventure": self._run_adventure,
         }.get(name, self._run_placeholder)
         self._mode_thread = threading.Thread(
             target=self._mode_wrapper, args=(name, target), name=f"mode-{name}", daemon=True
@@ -844,6 +847,90 @@ class Engine:
         self.lease.acquire("farm")
         stats = pilot.run(lambda: self._should_stop() or self.pause.paused, crashed)
         self.state.stats["farm"] = stats.as_dict()
+
+    def _run_adventure(self) -> None:
+        """Adventure route farmer (modes/adventures/replay.py) behind the gate: replays the
+        recorded run of ``adventures.route.target`` and keeps it on course; William's own
+        input pauses it and it continues where he leaves it."""
+        import cv2
+
+        from jamcrammer.core.gate import gate_status
+        from jamcrammer.modes.adventures.replay import FixLog, RouteRunner, Tape
+        from jamcrammer.modes.adventures.route import latest_session, load_or_build
+        from jamcrammer.vision.ocr import ocr_image
+
+        rc = self.cfg.adventures.route
+        gate = gate_status(rc.target, self.paths, self._profiles)
+        if not gate.unlocked and not rc.supervised:
+            self.emit(
+                "engine.gate_locked",
+                Level.HIGH,
+                mode="adventure",
+                message=f"{rc.target} {gate.summary()}",
+            )
+            self._run_placeholder()
+            return
+        if not gate.unlocked:
+            # William's call (adventures.route.supervised): he watches and steers
+            self.emit(
+                "adventure.supervised",
+                Level.HIGH,
+                message=f"SUPERVISED run, {rc.target} {gate.summary()}: stay at the keyboard",
+            )
+        sessions = self.paths.sessions
+        session = sessions / rc.session if rc.session else latest_session(sessions, rc.target)
+        if session is None or not session.exists():
+            self.state.last_error = f"no recorded {rc.target} run under {sessions}"
+            self.emit("adventure.no_route", Level.HIGH, message=self.state.last_error)
+            return
+        prof = self.profile("adventure")
+        raw = cv2.imread(str(prof.template_path("dialog_x_template", self.paths)))
+        if raw is None:
+            self.state.last_error = "dialog X template missing (assets/templates/adventures)"
+            self.emit("adventure.no_template", Level.HIGH, message=self.state.last_error)
+            return
+        x_tmpl = np.asarray(raw, dtype=np.uint8)
+        self._status(f"LOADING · route from {session.name}")
+        route = load_or_build(session, rc.target, prof, rc, x_tmpl)
+        tape = Tape(self._screen_to_stage)
+        tape.start()
+        runner = RouteRunner(
+            route,
+            prof,
+            rc,
+            self.input,
+            lambda: self.grab().image,
+            dialog_x=x_tmpl,
+            presence=self.presence,
+            bus=self.bus,
+            ocr=lambda img: ocr_image(img).text,
+            fixes=FixLog(self.paths.data / "adventures" / f"{rc.target}_fixes.jsonl"),
+            tape=tape,
+        )
+        self._mode_obj = runner
+        self.lease.acquire("adventure")
+
+        def guarded_stop() -> bool:
+            frame = self.snapshot()
+            if frame is not None:
+                # the runner closes in-game dialogs itself; logout and the like still stop it
+                self.watchdog.tick(frame, known_screen=True)
+            return self._should_stop() or self.pause.paused or self._watchdog_blocks()
+
+        try:
+            runner.run(guarded_stop, self._status)
+        finally:
+            tape.stop()
+        self.state.stats["adventure"] = runner.stats.as_dict()
+
+    def _screen_to_stage(self, sx: int, sy: int) -> tuple[int, int] | None:
+        """A screen point inside the AJC client as stage pixels (William's corrective clicks)."""
+        info = self.tracker.info
+        if info is None or not info.contains_screen_point(sx, sy):
+            return None
+        cx, cy = info.to_client(sx, sy)
+        w, h = info.client_size
+        return StageMap(w, h).to_stage(cx, cy)
 
     def _run_placeholder(self) -> None:
         """farm / opportunist arrive in M7 / M9: keep the watchdog alive and say so."""

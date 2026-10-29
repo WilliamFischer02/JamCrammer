@@ -243,3 +243,62 @@ Non-obvious choices and why. Newest at the bottom.
     bug and were cleared.
   - **Measured airtime:** 16 live samples, 0.56-1.45 s, smoothed to 0.91 s. That is longer
     than the PC video's 0.75 s.
+
+## 2026-10-29 — The Mystery Below route farmer (laptop branch)
+
+- **Replay with closed loops, not a scripted solver.**
+  - One 31-minute Hard run has 1436 clicks and 1394 key holds.
+  - A hand-written solver for moths, torches, mirrors and plates would need many more
+    recordings and screens.
+  - Instead the run is the route, and every input is anchored to what the screen shows now:
+    patch matching for clicks, scene and dot alignment for position, the banner for progress.
+  - When it cannot recover, it stops and asks; William's fix is stored and reused there.
+- **Minimap: coarse but absolute.**
+  - Measured over the run: 399 scene px/s against 5.8 minimap px/s, so the dot resolves ~70 px.
+  - It catches gross drift and stuck-ness, and works in the cave's darkness. Fine alignment is
+    scene phase correlation.
+  - The scene image is high-passed so the darkness vignette, which stays fixed around the
+    animal, does not pull the shift to zero.
+  - The animal is masked so a different animal aligns the same.
+- **Motion-compensated click anchors.** Keyframes come at <=5 fps, and the one before a press
+  can be up to 0.2 s old. If the view was scrolling, the clicked thing has moved since: in
+  synthetic tests a fungus was missed by 48 px. The anchor undoes the share of the next
+  frame's scene shift that had happened by the press time.
+- **No step runs twice by accident.** Timing corrections and getting unstuck keep the step
+  index; only the start, an objective ahead, a segment retry or William's resume move it.
+  Before this, a 0.5 s timing correction re-ran a fungus click, a drag and an item-slot click.
+  On a mirror that would be an extra rotation.
+- **After William only walked, skipped clicks still run.** A position further along the route
+  is not proof that its clicks happened. When he clicked during his turn, he is assumed to
+  have done them.
+- **The objective banner is matched by word set** (`token_set_ratio`). OCR of the banner
+  sometimes starts mid-sentence: "deeper into the cit use the boomseeds to find a wa" was
+  read as three objectives before.
+- **"Item changed" only counts while the view held still.** The item slots' area shows the
+  world when no item is displayed, and walking past changed it: 296 of 1503 clicks were
+  flagged, and each would have been retried.
+- **Equip check by cursor handle.** mss frames do not contain the cursor (Windows draws it).
+  `GetCursorInfo` is the same OS-level read as the cursor position, not game memory. A held
+  item changes it; the item slots changing also counts.
+- **The watchdog's unknown-dialog layer stays out** (`known_screen=True`). Adventure dialogs
+  are centred boxes, exactly what that heuristic flags; the runner closes them itself, and
+  logout/fatal checks still run.
+- **Dialogs are searched where they open** (`dialog_x_search_roi`). A full-frame template
+  search would cost 30-60 ms a tick.
+- **Scene gate: hold the route clock only when the scene cannot be aligned at all.** A
+  thumbnail that differs from the recording at the current route time (the level still loading,
+  the drop to the next floor) stops the clock, which then waits for the live view. But a 64x36
+  thumbnail also stops matching after ~140 px of drift. So it only holds when phase correlation
+  finds no shift either: a merely shifted scene is drift, which the course correction handles.
+  After 45 s it re-localises, else it asks for help. Thumbnails leave the HUD out entirely: it
+  used to be zeroed before the mean, which made a black frame correlate ~0.3 with every frame.
+- **The route gate stays honest; supervised runs are William's call.**
+  - On the real run the vision a route farmer relies on is far below the 95% replay threshold:
+    localisation 34.8% leave-out, 60-70% when resuming near the route clock, click targets
+    re-found 38%.
+  - The gate record keeps the 34.8%.
+  - `adventures.route.supervised` (default off) lets the mode send input with the gate locked,
+    with a HIGH event saying so. It is meant for runs he watches and steers. It is not turned
+    on without his explicit yes.
+  - More recordings (different animals) and his stored fixes are what should raise the
+    numbers.

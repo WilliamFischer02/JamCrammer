@@ -163,6 +163,82 @@ class PlannerConfig(StrictModel):
     max_attempts: int = Field(2, ge=1)
 
 
+class RouteConfig(StrictModel):
+    """Route farmer (modes/adventures/replay.py): replays a recorded adventure run and keeps it
+    on course with the minimap dot, scene alignment and click-target matching."""
+
+    target: str = "mystery_below"  # Learn target whose recorded run is the route
+    session: str = ""  # a session folder name; "" = the longest finished run of the target
+    tick_s: float = Field(0.05, gt=0)  # control loop period
+    # building the route
+    patch_px: int = Field(120, ge=16)  # anchor patch around every click
+    thumb_w: int = Field(64, ge=8)  # localisation thumbnails
+    thumb_h: int = Field(36, ge=8)
+    align_scale: float = Field(0.25, gt=0, le=1)  # scene alignment works on this downscale
+    highpass_sigma: float = Field(6.0, gt=0)  # removes the cave's smooth darkness vignette
+    repeat_px: int = Field(40, ge=0)  # clicks this close ...
+    repeat_window_s: float = Field(3.0, gt=0)  # ... and this close in time are one repeat group
+    post_frame_s: float = Field(0.8, ge=0)  # the frame this long after a group shows its result
+    objective_fuzzy: int = Field(80, ge=0, le=100)  # banner text equality
+    objective_min_hits: int = Field(2, ge=1)  # OCR snapshots that must agree on a new banner
+    # clicks
+    patch_radius_px: int = Field(180, ge=0)  # search for a click's patch this far around
+    patch_min_score: float = Field(0.6, ge=0, le=1)
+    patch_accept_px: int = Field(60, ge=0)  # a match further than this from the predicted
+    # point is not trusted (measured: 38% of recorded targets re-found within 40 px)
+    click_wait_s: float = Field(3.0, ge=0)  # wait this long for a target to appear
+    item_check_s: float = Field(1.0, ge=0)  # an item pickup / use must show within this
+    item_change_min: float = Field(6.0, ge=0)  # mean abs change of the item slots that counts
+    items_still_px: float = Field(30.0, ge=0)  # ... measured only while the view held still
+    item_retries: int = Field(2, ge=0)
+    repeat_extra_max: int = Field(4, ge=0)  # extra clicks on a mirror / rock until it matches
+    post_min_sim: float = Field(0.6, ge=-1, le=1)  # local similarity to the recorded result
+    drag_steps: int = Field(12, ge=1)
+    dialog_retries: int = Field(2, ge=0)
+    # staying on course
+    align_every_s: float = Field(0.5, gt=0)
+    scene_min_response: float = Field(0.06, ge=0)  # phase correlation peak that counts
+    drift_scene_px: int = Field(90, ge=0)  # scene offset that needs a correction
+    drift_dot_px: float = Field(2.5, ge=0)  # minimap dot distance for a gross correction
+    # (1 minimap px is ~70 scene px on The Mystery Below; the scene does the fine work)
+    warp_window_s: float = Field(1.5, ge=0)  # timing drift: search this far for the frame
+    servo_tol_scene_px: int = Field(40, ge=0)
+    servo_tol_dot_px: float = Field(1.5, ge=0)
+    servo_burst_min_s: float = Field(0.12, gt=0)
+    servo_burst_max_s: float = Field(0.6, gt=0)
+    servo_timeout_s: float = Field(12.0, gt=0)
+    servo_no_progress: int = Field(3, ge=1)  # bursts without progress before a sidestep
+    walk_px_s: float = Field(260.0, gt=0)  # scene speed while walking (route estimate wins)
+    dot_px_s: float = Field(6.0, gt=0)  # minimap dot speed while walking (route estimate wins)
+    stuck_window_s: float = Field(0.9, gt=0)  # a held key and no motion this long = stuck
+    stuck_min_px: float = Field(6.0, ge=0)  # scene motion below this = not moving
+    stuck_dot_px: float = Field(1.5, ge=0)  # dot motion below this = not moving
+    lookahead_s: float = Field(1.0, ge=0)  # recover toward where the route is this soon
+    fix_match_s: float = Field(4.0, ge=0)  # a stored fix applies within this of its route time
+    # sync and help
+    objective_every_s: float = Field(2.0, gt=0)
+    behind_grace_s: float = Field(45.0, ge=0)  # banner still old this long past its change
+    retry_back_s: float = Field(60.0, ge=0)  # a segment retry starts this far before the change
+    segment_retries: int = Field(2, ge=0)  # then it asks for help
+    resync_window_s: float = Field(120.0, ge=0)  # localise within this of the route time
+    resync_min_sim: float = Field(0.55, ge=-1, le=1)
+    start_min_sim: float = Field(0.6, ge=-1, le=1)  # start mid-route only on a clear match
+    dot_weight: float = Field(0.02, ge=0)  # localisation: score lost per minimap px of distance
+    resume_idle_s: float = Field(2.5, gt=0)  # William's hands off this long: continue
+    scene_hold_sim: float = Field(0.2, ge=-1, le=1)  # live vs recorded thumbnail below this:
+    # the scene is not there yet (loading, the drop to the next level): hold the route clock
+    scene_hold_max_s: float = Field(45.0, gt=0)  # then re-localise, else ask for help
+    # after William steers: look a little behind the route clock and up to a minute ahead,
+    # the minimap dot first (measured 60-70% right; a full-route search was 35%)
+    resume_back_s: float = Field(10.0, ge=0)
+    resume_ahead_s: float = Field(60.0, ge=0)
+    resume_time_scale_s: float = Field(20.0, gt=0)  # one dot px of score per this many seconds
+    resume_dot_cap: float = Field(20.0, gt=0)  # dot distances beyond this all count the same
+    resume_dot_px: float = Field(1.5, ge=0)  # a dot this close makes the resume point sure
+    supervised: bool = False  # William watching: run although the replay gate is locked
+    loop: bool = False  # start the route again after it ends (switch animals by hand)
+
+
 class AdventureConfig(StrictModel):
     """Adventure bots (The Forgotten Desert, The Mystery Below): invite bubbles in Jamaa rooms."""
 
@@ -174,6 +250,7 @@ class AdventureConfig(StrictModel):
     invite_crop_up: float = Field(3.0, ge=0)  # look this many name-line heights above for "Join"
     invite_crop_side: float = Field(4.0, ge=0)  # ... and this many to each side
     invite_upscale: float = Field(2.0, gt=0)  # OCR upscale of the bubble crop
+    route: RouteConfig = RouteConfig()
 
 
 class OpportunistConfig(StrictModel):

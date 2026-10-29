@@ -85,6 +85,63 @@ _Last updated: 2026-10-29 (laptop bring-up; adventure research + design; Forgott
   `data/derby_learned.json` with the PC's copies, which are backed up. Re-add the per-class
   leads after an import.
 
+## The Mystery Below route farmer (2026-10-29, v0, laptop branch)
+- **Mode:** "Adventure Farmer" in the mode box (`engine._run_adventure`). It replays the
+  longest finished `mystery_below` Learn session (`adventures.route.session` picks another) as
+  a route and keeps it on course; `modes/adventures/{route,replay,sight}.py`.
+- **The recording:** William's run of 2026-10-29 13:45 (31 min, Hard, solo).
+  - It starts in Coral Canyons: globe, Adventures, scroll the list, The Mystery Below,
+    Join/Host, Hard, PLAY. HUD clicks are static, so it also starts from his den or any room.
+    Started mid-route, it finds its place.
+  - 4291 steps: 2788 key events, 1436 clicks, 67 drags. 153 repeat groups (mirrors, rocks).
+  - 17 objective banners, from "explore the darkness" to "you did it adventure complete".
+- **Course keeping:**
+  - The minimap dot catches gross drift. One minimap px is about 70 scene px (walk 399 px/s,
+    dot 5.8 px/s).
+  - Scene phase correlation catches fine drift (high-passed against the cave vignette; HUD and
+    our animal masked, so any animal works).
+  - Timing drift moves the route clock. Position drift walks back.
+  - Stuck (a held key and no motion where the recording moved): a stored fix, then a walk to
+    where the route is a second later with sidesteps, then a HIGH help event.
+  - Banner behind for more than 45 s: the segment is retried from 60 s before the missed
+    change, twice, then help.
+- **Clicks:**
+  - Each click's anchor patch is cut where the thing was in the frame before the press
+    (motion-compensated: that frame can be up to 0.2 s older), found again live, and clicked.
+    Otherwise the click goes to the camera-corrected point and is counted unverified.
+  - Dialogs are closed with their blue X whenever one is open; a recorded X click with no
+    dialog is skipped.
+  - Item pickups and uses must change the item slots: retried, then walk to where William
+    stood and once more.
+  - An item-slot click must change the cursor (Windows cursor handle) or the slots.
+  - A repeat group must end looking like the recorded result (the full beam), else extra
+    clicks, up to 4.
+- **William steering:** any input of his pauses it (keys released). With 2.5 s hands-off it
+  localises and continues. If he only walked, the clicks it passed still run.
+  - Every turn of his and every self-fix is a line in
+    `data/adventures/mystery_below_fixes.jsonl`. His keys and clicks are recorded with
+    pynput (injected events, the bot's own, are ignored) and replayed first when it is stuck
+    near that route time again.
+- **Gate:** `mystery_below` needs the `adventure` profile (committed example) and a replay
+  record. `validate_route` writes one: leave-out localisation, each sampled keyframe located
+  with its own +-1 s removed and found within 4 s.
+- **Measured on the real run (honest: the gate is LOCKED):**
+  - Leave-out localisation: 34.8%. Resuming in the forward window with the clock 2-20 s
+    behind: 60-70% right.
+  - A recorded click target re-found in the frame before it, within 40 px: 38%.
+  - The route clicks 48 times a minute, so a time error above about 1 s crosses a click.
+  - With one recording and dark, animated scenes, vision alone cannot place the run more
+    finely than that.
+  - So a match is trusted only within `patch_accept_px` (60) of the camera-predicted point,
+    and otherwise it clicks the prediction.
+  - Live runs need `adventures.route.supervised: true` (William's call): he watches and
+    steers. Each of his corrections is stored and tried first next time.
+- **Not done yet:**
+  - Mirror beams are judged only by similarity to the recorded result, not by beam length.
+  - Phantoms are not fought on purpose; his recorded attack clicks replay at camera-corrected
+    points.
+  - No loop between runs; it ends in the den.
+
 ## Adventures (2026-10-29)
 - Research, rankings and both bot designs are in `docs/ADVENTURES.md`.
 - **Build order:** The Mystery Below first (solo, Normal, checkpointed route replay), then The
