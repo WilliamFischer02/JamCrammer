@@ -1,8 +1,12 @@
 """Stage space: the game renders a fixed 16:9 stage (1920x1080 at fullscreen) scaled uniformly
-by ``min(w/1920, h/1080)`` and centered in the client area (letterboxed). Every profile
-coordinate is a *stage* coordinate; frames are normalized to stage size before vision runs and
-clicks are mapped back to client pixels. Measured 2026-10-26 on the maximized window
-(client 1904x1013 → scale 0.938, origin (52, 0)); fullscreen is the identity.
+to the client **height** (``h/1080``) and centered horizontally: a wider client shows bars at
+the sides, a narrower one crops the stage's left and right edges. Every profile coordinate is a
+*stage* coordinate; frames are normalized to stage size before vision runs and clicks are mapped
+back to client pixels. Measured on the PC's maximized window 2026-10-26 (client 1904x1013 →
+scale 0.938, origin (52, 0)) and the laptop's 2026-10-29 (client 2560x1459, 16:10 screen minus
+the taskbar → scale 1.351, origin (-17, 0): the Expand/Log Out tabs are cut off). A
+``min(w/1920, h/1080)`` letterbox rule agrees with the first and is 12-16 px off on the second.
+Fullscreen 1920x1080 is the identity.
 """
 
 from __future__ import annotations
@@ -30,7 +34,7 @@ class StageMap:
 
     @property
     def scale(self) -> float:
-        return min(self.client_w / self.stage_w, self.client_h / self.stage_h)
+        return self.client_h / self.stage_h
 
     @property
     def content_size(self) -> tuple[int, int]:
@@ -79,9 +83,19 @@ class StageMap:
         x1, y1 = min(w_img, x + w), min(h_img, y + h)
         content = client_image[y0:y1, x0:x1]
         interp = cv2.INTER_AREA if content.shape[1] > self.stage_w else cv2.INTER_CUBIC
-        return np.asarray(
-            cv2.resize(content, (self.stage_w, self.stage_h), interpolation=interp), dtype=np.uint8
-        )
+        if x >= 0:
+            return np.asarray(
+                cv2.resize(content, (self.stage_w, self.stage_h), interpolation=interp),
+                dtype=np.uint8,
+            )
+        # Client narrower than 16:9: the stage's sides are off-screen. Resize what is visible
+        # and leave the cropped stage columns black so every stage coordinate stays put.
+        sx0, _ = self.to_stage(x0, y0)
+        sx1, _ = self.to_stage(x1, y1)
+        sx0, sx1 = max(0, sx0), min(self.stage_w, sx1)
+        out = np.zeros((self.stage_h, self.stage_w, *client_image.shape[2:]), dtype=np.uint8)
+        out[:, sx0:sx1] = cv2.resize(content, (sx1 - sx0, self.stage_h), interpolation=interp)
+        return out
 
 
 def stage_map_for(image: BgrImage) -> StageMap:

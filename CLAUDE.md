@@ -24,8 +24,10 @@ See KICKOFF §5. `jamcrammer/` package, `assets/` (SVG only), `profiles/`, `inbo
 - If William says "new files in the inbox": ingest, Read the key frames yourself, review the report, update profiles/templates/tests, report a checklist.
 - Every input action has a postcondition check; every wait has a timeout; failures degrade to a safe pause; every decision is logged.
 
-## Status (2026-10-26)
-M0-M11 are built and unit/simulation tested (see `handoff.md`). Live acceptance runs that need William present: 30-min `hunt --no-join`, `input-test`, `activity-test`, Learn sessions for Best Guess / Double Up / Derby. Profiles are stage-pixel (1920x1080) coordinates; see `jamcrammer/vision/stage.py`.
+## Status (2026-10-29)
+M0-M11 are built and unit/simulation tested (see `handoff.md`). Live acceptance runs that need William present: 30-min `hunt --no-join`, `input-test`, `activity-test`, Learn sessions for Best Guess / Double Up / Derby. Profiles are stage-pixel (1920x1080) coordinates; see `jamcrammer/vision/stage.py`. Next: adventure bots (`docs/ADVENTURES.md`): The Mystery Below, then The Forgotten Desert.
+
+Two machines: the PC (below) and a laptop (2560x1600 at 200%, AJC maximized -> 2560x1459 client, single screen). Gitignored state (config, profiles, answer bank, replay records) moves between them with `scripts/sync_state.py export|import`, never git. On the laptop, work on the local branch `laptop`; never push or merge laptop changes that touch Jamaa Derby or Best Guess (the PC versions are canonical).
 
 ## Environment facts (discovered 2026-10-26)
 - AJC client: Electron app `AJ Classic.exe` (`%LOCALAPPDATA%\Programs\aj-classic\`), window title exactly `Animal Jam Classic`, class `Chrome_WidgetWin_1`, frameless fullscreen 1920×1080 at (0,0) on the primary monitor, DPI 96 (100%).

@@ -100,7 +100,6 @@ class Engine:
         attach_bus(self.bus)
         self.store = Store(self.paths.db)
         self.bus.subscribe("*", self._persist)
-        self._seed_facts()
         self.notifier = Notifier(cfg.notify, icon=self._icon_path())
         self.notifier.attach(self.bus)
         self.lease = InputLease()
@@ -108,6 +107,7 @@ class Engine:
         self.pause = PauseFlag()
         self.tracker = WindowTracker(cfg.window_title_match, cfg.window_process_name)
         self.state = EngineState(dry_run=cfg.dry_run)
+        self._seed_facts()  # after self.state: a failure is reported there
         self._backend: CaptureBackend | None = None
         self._latest: Frame | None = None
         self._latest_lock = threading.Lock()
@@ -189,7 +189,10 @@ class Engine:
 
     def focus_game(self) -> bool:
         info = self.tracker.info or self.tracker.refresh()
-        return bool(info and bring_to_foreground(info.hwnd, self.cfg.input.foreground_timeout_s))
+        ok = bool(info and bring_to_foreground(info.hwnd, self.cfg.input.foreground_timeout_s))
+        # the focus may tap ALT; count it as ours so presence detection doesn't see "user active"
+        self.input._touch("focus")
+        return ok
 
     def _on_fatal(self, det: Detection) -> None:
         self.kill_now(f"watchdog:{det.kind}")
@@ -292,6 +295,11 @@ class Engine:
             return False
         if not self.start_capture():
             return False
+        # On one screen (the laptop) Start leaves the GUI in front of the game: mss would capture
+        # the GUI and Space/arrow keys would land on its buttons. Bring the game forward first.
+        focused = self.focus_game()
+        if not focused:
+            self.emit("engine.focus_failed", Level.NOTICE, mode=name)
         # Start means "I checked the screen": clear a watchdog pause and an F11 pause
         self.watchdog.resume()
         if self.pause.paused:
@@ -351,7 +359,7 @@ class Engine:
         try:
             if path.exists() and not already_seeded(self.store, "wiki"):
                 n = seed_from_file(self.store, path, "wiki")
-                self.emit("bestguess.seeded", count=n, source="wiki")
+                self.emit("bestguess.seeded", count=n, facts_source="wiki")  # emit owns 'source'
         except Exception as exc:
             self.state.last_error = f"fact seeding failed: {exc}"
 

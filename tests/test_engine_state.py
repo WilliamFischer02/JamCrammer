@@ -33,3 +33,26 @@ def test_palette_mode_and_state_colors() -> None:
     assert PALETTE.for_state("PAUSED_USER") == PALETTE.warn
     assert PALETTE.for_state("IDLE") == PALETTE.idle
     assert PALETTE.for_level("HIGH") == PALETTE.danger
+
+
+def test_engine_starts_on_a_fresh_clone(tmp_path: Path) -> None:
+    """A clone has no data/ yet: the first start seeds the wiki facts and must not crash."""
+    import shutil
+
+    from jamcrammer.app.engine import Engine
+    from jamcrammer.core.config import AppConfig
+    from jamcrammer.core.paths import Paths
+
+    repo = Paths()
+    shutil.copytree(repo.profiles, tmp_path / "profiles")
+    (tmp_path / "assets" / "bestguess").mkdir(parents=True)
+    shutil.copy2(repo.assets / "bestguess" / "facts_wiki.txt", tmp_path / "assets" / "bestguess")
+    cfg = AppConfig()
+    cfg.notify.toast = cfg.notify.sound = False
+    engine = Engine(cfg, Paths(tmp_path))
+    try:
+        assert engine.state.last_error == ""
+        n = engine.store.query("SELECT COUNT(*) AS n FROM bg_facts")[0]["n"]
+        assert n > 200
+    finally:
+        engine.store.close()

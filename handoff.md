@@ -1,6 +1,66 @@
 # Handoff
 
-_Last updated: 2026-10-26 night (Best Guess + Jamaa Derby calibrated from William's recordings; both gates open; GUI relaunched for his test)_
+_Last updated: 2026-10-29 (laptop bring-up; adventure research + design; Forgotten Desert invite finder)_
+
+## Laptop (2026-10-29)
+- **Git on the laptop:** work happens on the local branch `laptop`; `main` stays at
+  `origin/main`, the PC's code. William (2026-10-29): never push or merge laptop changes that
+  touch Jamaa Derby or Best Guess; the PC versions are canonical and already work. The laptop
+  rebuilds what it needs locally. Adventure-only commits may be cherry-picked onto `main`
+  when he says push.
+- **Desktop shortcut:** `OneDrive\Desktop\JamCrammer.lnk` -> `.venv\Scripts\pythonw.exe -m
+  jamcrammer gui` in `C:\dev\JamCrammer`, with the `assets\icons\app.ico` icon.
+- **Machine:** Lenovo 83LY, a single 2560x1600 panel at 200% (DPI 192). AJC runs maximized with
+  a 2560x1459 client (the 45 px title bar and the taskbar are excluded).
+- **Root cause of the instant-closing `run.bat`:** `.venv` is gitignored, so it was never
+  cloned and `scripts\run.bat` exited at its "venv missing" check. Rebuilt with
+  `scripts\setup.ps1`'s steps.
+- **Fresh-clone bugs fixed:**
+  - The first engine start crashed while seeding the wiki facts: the event payload's `source`
+    collided with `emit()`'s own `source`, and the error handler touched `self.state` before it
+    existed.
+  - `test_party_watcher` depended on a gitignored capture.
+- **Laptop bugs fixed:**
+  - `StageMap` assumed a letterbox (`min(w/1920, h/1080)`). AJC actually fits the **height**
+    and crops the sides when the client is narrower than 16:9; this was 12-16 px off here.
+  - No mode focused the game on Start, so on one screen the GUI stayed in front: mss captured
+    it, and keys hit its buttons. Start now focuses AJC.
+- **Rebuilt local state (gitignored, from handoff/decisions):**
+  - `config.yaml`: `arcade_game: jamaa_derby`, `answer_mode: bank_policy`.
+  - `profiles/bestguess.yaml`: the calibrated values below.
+  - The answer bank was re-seeded with the 281 wiki facts.
+  - The replay-gate records are marked as imported: `captures/sessions/20261026_pc_import_*`
+    hold the PC's 97.5% / 99.8% scores.
+  - The Derby, navigation and parties profiles fall back to their committed examples, which hold
+    the live values.
+- **Not carried over:**
+  - The PC's live-learned Best Guess facts (~206).
+  - `data/derby_learned.json`.
+  - Fix: run `scripts\sync_state.py export` on the PC after `git pull`, then
+    `scripts\sync_state.py import` on the laptop. The bundle goes through
+    `OneDrive\WF_SYNC\06_SYNCED_EXPORTS\JamCrammer`, and the answer bank is merged.
+- **Verified on the laptop:**
+  - All tests (including the live capture tests), ruff and mypy pass.
+  - The GUI renders all pages crisply at 200%.
+  - A live Jamaa Township frame: the party hat, games and den click points land on their
+    icons, and room-name OCR reads "Jamaa Township".
+- **Not yet verified on the laptop:** a live Derby race and a live Best Guess round. Dry-run
+  first: the colour thresholds were measured at 1920x1080 and are now applied to a
+  2560->1920 downscale.
+
+## Adventures (2026-10-29)
+- Research, rankings and both bot designs are in `docs/ADVENTURES.md`.
+- **Build order:** The Mystery Below first (solo, Normal, checkpointed route replay), then The
+  Forgotten Desert (members only).
+- **Built so far:**
+  - `modes/adventures/invites.py`: finds "Join Me - The Forgotten Desert" bubbles. It is tested
+    on two live Township frames and is not yet wired to a mode.
+  - The Learn targets `mystery_below` and `forgotten_desert`, with inbox folders under
+    `inbox/adventures/`.
+- **Membership:** confirmed 2026-10-29, so The Forgotten Desert is unblocked.
+- **Waiting on William:**
+  - 3 solo Normal Mystery Below runs recorded with `learn --target mystery_below`.
+  - Forgotten Desert lobby and in-game screenshots.
 
 ## State
 - **M0-M11 built and committed** (see git log and `decisions.md`): capture/input/safety primitives, Popup Watchdog, Anti-AFK, notifications, Gem Ledger, Party Watcher + Hunter, PySide6 GUI, Learn (recorder, inbox ingest, analysis, report, review wizard, replay harness), Calibration canvas + gate, Double Up / Jamaa Derby / Gem Ball / Swoopy farmers, Opportunist, Best Guess Phase C.

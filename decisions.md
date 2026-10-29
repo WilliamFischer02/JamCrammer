@@ -151,3 +151,45 @@ Non-obvious choices and why. Newest at the bottom.
 - **Account:** his character is now "Bingusthewizard" (own name in `bestguess.own_name`); the Best Guess tag check uses it.
 - **Shortcut:** `Desktop\JamCrammer.lnk` → `.venv\Scripts\pythonw.exe -m jamcrammer gui` in `C:\dev\JamCrammer` (OneDrive desktop).
 - **Not automated:** the Derby "leave" when the end screen is not showing (the planner waits for a leaderboard/start line), and Best Guess rows that are not the third item (the Hunter identifies the row by OCR/pHash, not by position).
+
+## 2026-10-29 — Laptop bring-up
+
+- **The stage fits the client height, not `min(w/1920, h/1080)`.**
+  - The laptop's maximized client is 2560x1459, slightly narrower than 16:9.
+  - HUD pieces cut from a live PC frame (news, party hat, den hut, globe, chat buttons) matched
+    there at scale **1.351 = 1459/1080**, with a constant shift of only +4/+1 stage px.
+  - The letterbox rule predicted 1.333, which was 12-16 client px off toward the bottom-right.
+  - The PC's maximized window (1904x1013, wider than 16:9) fits both rules, which is why the
+    old one went unnoticed.
+  - Narrower clients therefore crop the stage's sides (the Expand / Log Out tabs are cut off);
+    `normalize()` leaves the cropped stage columns black, so coordinates never shift.
+  - Untested: clients much narrower than 1.75:1, e.g. true fullscreen 2560x1600. Keep AJC
+    maximized on the laptop.
+- **Start focuses the game.** On a single screen the GUI covers AJC after Start: mss would
+  capture the GUI, and Space/arrow presses would land on its buttons. `start_mode` calls
+  `focus_game()` (the same verified `bring_to_foreground` the anti-AFK uses). Because the focus
+  may tap ALT, it is recorded as bot input, so presence detection doesn't read it as "user
+  active". It runs in dry-run too: it is a window-manager action, not game input.
+- **Gitignored state is carried by `scripts/sync_state.py`, not git.**
+  - The bundle includes config, the real profiles, the replay records, `derby_learned.json`,
+    and an SQLite-backup copy of the DB.
+  - Import backs up whatever it replaces.
+  - It **merges** `bg_facts`: union of facts, max of counts, and on a disagreement the side
+    with more confirmations wins. Both machines keep learning.
+- **Replay-gate records restored as imports.** The PC's Best Guess (97.5%, 396 frames) and Derby
+  (99.8%) dense replays opened those gates. Their sessions are not on the laptop, so
+  `captures/sessions/20261026_pc_import_{bestguess,jamaa_derby}/analysis/replay.json` carry the
+  scores with `imported_from: PC`. The gate line names them. A laptop Learn session replaces
+  them once recorded.
+- **Fresh-clone crash.** `Engine.__init__` seeded the wiki facts before `self.state` existed,
+  and the seed's event used the payload key `source`, which collides with `emit(source=...)`.
+  The first launch on any new machine died; on the PC the bank was already seeded. Seeding now
+  runs after the state is created, the key is `facts_source`, and
+  `test_engine_starts_on_a_fresh_clone` covers it.
+- **Adventure invites are found by OCR in two passes** (`modes/adventures/invites.py`). The
+  first pass is full-frame OCR for fragments of the adventure name, matched by a token prefix
+  or suffix of >=4 chars or by fuzzy match. The room-name label covered "...otten" on the laptop
+  frame, and the pale blue "Join Me" header is rarely read at 1x. The second pass OCRs an
+  upscaled crop above each candidate for "join"; that header is the click point. A candidate
+  without a header is reported but never clicked. A template would fail because the bubble is
+  translucent over arbitrary scenery.
