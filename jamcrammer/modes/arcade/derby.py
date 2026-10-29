@@ -333,6 +333,8 @@ class DerbyFarmer:
         self._hits_dir = hits_dir
         self._stall = StallMonitor(cfg)
         self._pending: BandRecord | None = None  # the band that just passed the hooves
+        # a judged band stays at the hooves after a stumble; never judge it twice
+        self._await_next_band = False
         self._last_press: tuple[float, str, int] | None = None  # (ts, kind, edge) of our press
         self._tracked_colour: list[list[int]] | None = None
         self._tracked_crop: BgrImage | None = None
@@ -443,6 +445,7 @@ class DerbyFarmer:
         self._first_seen = None
         self._stall.reset()
         self._pending = None
+        self._await_next_band = False
         self._last_press = None
         self._jump_retry_pending = False
         self._results_seen_ts = None
@@ -574,7 +577,14 @@ class DerbyFarmer:
         """When a band's edge crosses the hooves open a record; while it passes watch for a
         stall; close the record as hit or cleared."""
         c = self.cfg
-        if nearest is not None and nearest.left <= front and self._pending is None:
+        if self._await_next_band and (nearest is None or nearest.left > front):
+            self._await_next_band = False  # the judged band has gone; the next is still ahead
+        if (
+            nearest is not None
+            and nearest.left <= front
+            and self._pending is None
+            and not self._await_next_band
+        ):
             press = self._last_press
             use_press = press is not None and now - press[0] <= c.press_match_s
             self._pending = BandRecord(
@@ -610,6 +620,7 @@ class DerbyFarmer:
 
     def _close_record(self, rec: BandRecord, now: float) -> None:
         self._pending = None
+        self._await_next_band = True
         trigger = int(self.profile.number("jump_trigger_x"))
         default = default_ranges(self.cfg)[rec.kind]
         note = self.learned.note(rec, self.cfg, trigger, default) if self.cfg.learn_enabled else ""
@@ -686,6 +697,10 @@ class DerbyFarmer:
         age = now - self._last_tick_ts if self._last_tick_ts else 0.0
         edge_at_press = round(band.left - self._speed * age)
         self._last_press = (now, band.kind, int(edge_at_press))
+        rec = self._pending
+        if rec is not None and rec.press_edge is None and rec.kind == band.kind:
+            # pressed after the edge reached the hooves: a late press for the passing band
+            rec.press_edge, rec.press_ts = int(edge_at_press), now
         self._jump_baseline = obs.horse_top
         self._jump_retry_pending = True
         self._obs_since_jump = 0

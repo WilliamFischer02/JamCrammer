@@ -211,12 +211,15 @@ def test_real_results_row_and_horse() -> None:
 
 
 def test_stumbles_are_detected_and_learned(tmp_path: Path) -> None:
-    """Pressing far too late hits every band; the stall after each hit is recognised and the
-    learner moves that class's lead earlier, persisted to the learned file."""
+    """Pressing late (after the edge reached the hooves, inside the window the farmer still
+    acts in) hits bands; the stall after each hit is recognised, the late press is matched to
+    the passing band and the learner moves that class's lead earlier, persisted to the
+    learned file. (At -260 px the farmer never pressed at all; the test only passed while
+    every stalled band was re-judged.)"""
     world = synth.DerbyWorld(seed=4)
     sim = Sim(world)
     prof = _profile()
-    prof.set_value("jump_lead_px", -260)  # press long after the edge has passed the hooves
+    prof.set_value("jump_lead_px", -100)  # press after the edge has passed the hooves
     prof.set_value("jump_lead_px_narrow", 0)
     bus = EventBus()
     events: list[str] = []
@@ -239,3 +242,25 @@ def test_stumbles_are_detected_and_learned(tmp_path: Path) -> None:
     assert "derby.hit" in events and "derby.learned" in events
     assert learned.exists() and any(v > 0 for v in farmer.learned.lead_px.values())
     assert list((tmp_path / "hits").glob("*.png"))
+
+
+def test_a_stumble_is_judged_once_however_long_the_stall(tmp_path: Path) -> None:
+    """Live 2026-10-29: the stalled band stays at the hooves for 1-3 s after a stumble; it was
+    re-opened and re-judged every tick (48 hits and 5-10 lead steps for ~6 stumbles)."""
+    world = synth.DerbyWorld(seed=4, stall_s=2.0)
+    sim = Sim(world)
+    prof = _profile()
+    prof.set_value("jump_lead_px", -260)
+    prof.set_value("jump_lead_px_narrow", 0)
+    farmer = DerbyFarmer(
+        prof,
+        DerbyConfig(fps=20.0),
+        sim,
+        sim.grab,
+        ocr=sim.ocr,
+        clock=sim.clock,
+        sleep=sim.sleep,
+        learned_path=tmp_path / "derby_learned.json",
+    )
+    farmer.run(lambda: farmer.stats.races >= 1)
+    assert world.hits > 0 and farmer.stats.hits == world.hits, (world.hits, farmer.stats.hits)
