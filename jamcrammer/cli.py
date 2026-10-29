@@ -18,7 +18,16 @@ from jamcrammer.core.config import load_config
 from jamcrammer.core.logging import setup_logging
 from jamcrammer.core.paths import Paths
 
-LEARN_TARGETS = ("bestguess", "double_up", "jamaa_derby", "gem_ball", "parties", "custom")
+LEARN_TARGETS = (
+    "bestguess",
+    "double_up",
+    "jamaa_derby",
+    "gem_ball",
+    "parties",
+    "mystery_below",
+    "forgotten_desert",
+    "custom",
+)
 MODES = ("hunt", "farm", "opportunist")
 EXIT_NOT_IMPLEMENTED = 2
 

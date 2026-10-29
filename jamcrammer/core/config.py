@@ -163,6 +163,19 @@ class PlannerConfig(StrictModel):
     max_attempts: int = Field(2, ge=1)
 
 
+class AdventureConfig(StrictModel):
+    """Adventure bots (The Forgotten Desert, The Mystery Below): invite bubbles in Jamaa rooms."""
+
+    invite_keywords: list[str] = ["forgotten desert"]  # adventure names to join
+    invite_join_words: list[str] = ["join", "join me"]  # the bubble's clickable header
+    invite_fuzzy: int = Field(75, ge=0, le=100)  # partial_ratio for (occluded) name fragments
+    invite_min_chars: int = Field(4, ge=1)  # shorter OCR fragments never count as a name match
+    invite_line_gap: float = Field(1.5, ge=0)  # lines of one bubble are at most this far apart
+    invite_crop_up: float = Field(3.0, ge=0)  # look this many name-line heights above for "Join"
+    invite_crop_side: float = Field(4.0, ge=0)  # ... and this many to each side
+    invite_upscale: float = Field(2.0, gt=0)  # OCR upscale of the bubble crop
+
+
 class OpportunistConfig(StrictModel):
     entry_timeout_s: float = Field(8.0, gt=0)
     exit_timeout_s: float = Field(5.0, gt=0)
@@ -384,6 +397,7 @@ class AppConfig(StrictModel):
     bestguess: BestGuessConfig = BestGuessConfig()
     opportunist: OpportunistConfig = OpportunistConfig()
     planner: PlannerConfig = PlannerConfig()
+    adventures: AdventureConfig = AdventureConfig()
     derby: DerbyConfig = DerbyConfig()
     gem_ball: GemBallConfig = GemBallConfig()
     swoopy: SwoopyConfig = SwoopyConfig()

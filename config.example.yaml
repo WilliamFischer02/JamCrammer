@@ -112,6 +112,17 @@ planner:
   hunt_interval_s: 20                        # My Parties re-check cadence once Best Guess is due
   max_attempts: 2
 
+# --- Adventures (The Forgotten Desert / The Mystery Below, docs/ADVENTURES.md) ---
+adventures:
+  invite_keywords: [forgotten desert]        # "Join Me" bubbles naming these adventures are joined
+  invite_join_words: [join, join me]         # the bubble's clickable blue header
+  invite_fuzzy: 75                           # name fragments: the room label can cover half the bubble
+  invite_min_chars: 4
+  invite_line_gap: 1.5                       # name lines of one bubble, in line heights
+  invite_crop_up: 3.0                        # "Join" is searched up to 3 name-line heights above
+  invite_crop_side: 4.0
+  invite_upscale: 2.0
+
 # --- Opportunist (KICKOFF 10) ---
 opportunist:
   entry_timeout_s: 8                         # the board must show within this after the entry clicks
