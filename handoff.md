@@ -48,6 +48,43 @@ _Last updated: 2026-10-29 (laptop bring-up; adventure research + design; Forgott
   first: the colour thresholds were measured at 1920x1080 and are now applied to a
   2560->1920 downscale.
 
+## Derby on the laptop (2026-10-29)
+- **Where AJC runs:** an external 1920x1080 monitor left of the laptop, maximized: a 1920x1009
+  client at DPI 96. The GUI stays on the laptop panel. Learn and farming both happen there.
+- **First live race (12:39):** 23 jumps, ~6 real stumbles, all on 2- and 3-column bands once the
+  boosts were spent. The bot pressed 50-160 px before the hooves; William presses much earlier.
+  Two bugs:
+  - A stumbled band was re-judged every tick: 48 "hits" and 5-10 lead steps per stumble.
+  - A press after the edge reached the hooves was never matched to its band.
+  Both are fixed. The inflated learned file was kept as
+  `data/derby_learned_20261029_overcounted.json`.
+- **William's 5 Learn sessions (12:52-12:58)** were analysed with
+  `python -m jamcrammer.learn.analyze.derby_timing <session>`: 108 bands, 12 stumbles.
+  - **Detection:** every type is right at every width, checked by eye on the crops. The hedge
+    class covers three different obstacles: the 1-column leafy hedge, the 2-column tall grass
+    and the 3-column flowered bush. One false positive: the checkered finish read as a
+    3-column hedge, which is harmless.
+  - **His median press, in px ahead of the hooves at ~845 px/s:**
+    - 1-column: 295-409 (water 295, mud 349, hay 391, hedge 409).
+    - 2-column: 120-263.
+    - 3-column: ~114-160.
+  - These are now `jump_lead_px_<kind>_<wclass>` in the laptop's gitignored
+    `profiles/jamaa_derby.yaml` and scale with the live speed.
+  - **He holds Space through landings** (key repeat at 32 ms), so the next jump fires on
+    touchdown. The bot now taps every tick until just past the predicted landing when a jump
+    comes due in the air.
+  - **Boosts:** a stumble's slow zone takes 2.5-3 s to leave unboosted and 0.6-1 s boosted. The
+    bot keeps one carrot (`boost_reserve`) for that and spends it unused after 28 s.
+  - **Airtime** is measured live per jump (`derby.landed`) and smoothed into the learned file.
+- **Still unknown:**
+  - The screen after the bot's first leaderboard (UNKNOWN for 30 s, then a pause). The farmer
+    now saves that frame to `captures/derby/unknown/`.
+  - The race place was not read; the leaderboard reader works on all 5 of William's frames
+    (four 1st / 150 gems, one 3rd).
+- **Import caution:** `sync_state.py import` would replace `profiles/jamaa_derby.yaml` and
+  `data/derby_learned.json` with the PC's copies, which are backed up. Re-add the per-class
+  leads after an import.
+
 ## Adventures (2026-10-29)
 - Research, rankings and both bot designs are in `docs/ADVENTURES.md`.
 - **Build order:** The Mystery Below first (solo, Normal, checkpointed route replay), then The

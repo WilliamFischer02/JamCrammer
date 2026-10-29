@@ -45,6 +45,7 @@ class BandRecord:
     boosted: bool
     colour: list[list[int]] | None = None  # HSV p5 / p50 / p95 of the band's columns
     outcome: str = "pending"  # cleared | hit
+    rejump: bool = False  # jumped by tapping through a landing: its timing was the landing's
 
     def as_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -57,6 +58,7 @@ class LearnedDerby:
     ranges: dict[str, list[list[int]]] = field(default_factory=dict)  # kind -> [lo, hi]
     hits: int = 0
     cleared: int = 0
+    airtime_s: float | None = None  # press to landing, measured live (smoothed)
     history: deque[dict[str, Any]] = field(default_factory=lambda: deque(maxlen=300))
 
     @classmethod
@@ -72,6 +74,8 @@ class LearnedDerby:
         obj.ranges = {str(k): v for k, v in doc.get("ranges", {}).items()}
         obj.hits = int(doc.get("hits", 0))
         obj.cleared = int(doc.get("cleared", 0))
+        air = doc.get("airtime_s")
+        obj.airtime_s = float(air) if air else None
         obj.history.extend(doc.get("history", [])[-300:])
         return obj
 
@@ -85,6 +89,7 @@ class LearnedDerby:
             "ranges": self.ranges,
             "hits": self.hits,
             "cleared": self.cleared,
+            "airtime_s": self.airtime_s,
             "history": list(self.history),
         }
         self.path.write_text(json.dumps(doc, indent=1), encoding="utf-8")
@@ -111,6 +116,9 @@ class LearnedDerby:
         self.hits += 1
         note = ""
         key = f"{rec.kind}:{rec.wclass}"
+        if rec.rejump:
+            self.save()  # the landing came too late: nothing about this band's lead to learn
+            return "landing-bound"
         if rec.press_edge is None:
             if rec.colour is not None:
                 note = self._widen(rec.kind, rec.colour, default)

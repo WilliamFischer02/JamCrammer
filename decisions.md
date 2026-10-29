@@ -193,3 +193,37 @@ Non-obvious choices and why. Newest at the bottom.
   upscaled crop above each candidate for "join"; that header is the click point. A candidate
   without a header is reported but never clicked. A template would fail because the bubble is
   translucent over arbitrary scenery.
+
+## 2026-10-29 — Derby tuned on the laptop from William's Learn sessions (laptop branch only)
+
+- **A band is judged once.** After a stumble the band sits at the hooves for 1-3 s. Opening a
+  new record whenever `_pending` was empty re-judged it every tick: one stumble gave 5-10 hits
+  and lead steps. `_await_next_band` now holds until the nearest band is ahead of the hooves
+  again. A press made while the band is already passing becomes that band's late press, so a
+  stumble teaches "earlier". The old stumble test pressed at -260 px, which is outside the
+  window the farmer acts in, and only passed through the re-judging.
+- **Per-class leads come from William's own presses, not a physical model.**
+  - The strip measures a band below our lane, and the bands' ragged edges put the lane edge
+    50-100 px from the strip edge, by a different amount per art piece.
+  - A reach model (speed x airtime - width) would need the hitbox and an exact airtime that
+    5 fps keyframes can't give (0.8-1.1 s, versus the PC video's 0.75).
+  - His 85 grounded first presses, which cleared, give a robust median per kind and width.
+    Classes with fewer than 4 samples use the 3-column median and are marked `proposed`.
+  - The lead scales with live speed / 845 to keep the time margin. The old fixed `jump_lead_s`
+    is skipped for class leads, because his press already includes the same input latency.
+- **Tapping through a landing.** A press in the air is ignored by the game. William holds Space
+  and key repeat (32 ms) fires the jump on touchdown. When the next jump comes due while the
+  horse is up (horse box says airborne, or less than one airtime since the last press), the
+  farmer taps every tick from then until 0.15 s past the predicted landing, never longer than
+  0.9 s, so it can't cause a second jump. Synthetic: a 200-250 px gap is cleared only with the
+  train. Such a band's record is tagged `rejump` and teaches no lead, since its timing was the
+  landing's.
+- **Tight gaps:** a 1- or 2-column band with less than `tight_gap_px` (400) of ground before the
+  next band is jumped `tight_extra_px` (40) earlier. Synthetic: a 150 px gap is cleared only
+  with it.
+- **Boost reserve:** one carrot is kept back and clicked the moment a stumble is recognised.
+  His runs: 2.5-3 s to recover unboosted versus 0.6-1 s boosted. It is released on a clear
+  stretch after 28 s (a clean race is ~40-45 s of racing).
+- **Live airtime:** the farmer tracks the horse's ground row and logs press-to-touchdown per
+  jump (`derby.landed`), smoothed into `derby_learned.json` and used for the train's landing
+  prediction. The default is 0.8 s until measured.

@@ -230,6 +230,22 @@ class DerbyConfig(StrictModel):
     hit_min_obs: int = Field(2, ge=1)
     hit_window_s: float = Field(1.3, gt=0)
     learn_enabled: bool = True
+    # Tapping through a landing (William holds Space so the next jump fires on touchdown)
+    rejump_hold_ms: int = Field(12, ge=1)  # each tap of the landing train
+    rejump_after_land_s: float = Field(0.15, ge=0)  # keep tapping past the predicted landing
+    rejump_max_s: float = Field(0.9, gt=0)  # never longer: no accidental second jump
+    airtime_default_s: float = Field(0.8, gt=0)  # press to landing until one is measured
+    airtime_min_s: float = Field(0.4, gt=0)  # plausible measured airtimes ...
+    airtime_max_s: float = Field(1.6, gt=0)  # ... anything else is a misread
+    airtime_alpha: float = Field(0.2, gt=0, le=1)
+    ground_alpha: float = Field(0.2, gt=0, le=1)  # the horse's ground row, smoothed
+    # A one/two-column band with little ground before the next: jump it a bit earlier
+    tight_gap_px: int = Field(400, ge=0)
+    tight_extra_px: float = Field(40.0, ge=0)
+    # Carrots kept back to get out of a stumble's slow zone (William's habit)
+    boost_reserve: int = Field(1, ge=0)
+    boost_reserve_release_s: float = Field(28.0, ge=0)  # unused by then: clear stretch
+    boost_recover: bool = True
     learn_lead_step_px: float = Field(15.0, ge=0)
     learn_lead_max_px: float = Field(160.0, ge=0)
     learn_early_px: float = Field(120.0, ge=0)

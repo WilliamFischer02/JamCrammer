@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import cv2
 import numpy as np
@@ -11,9 +12,10 @@ import pytest
 from jamcrammer.core.config import DerbyConfig
 from jamcrammer.core.events import EventBus
 from jamcrammer.core.paths import Paths
-from jamcrammer.core.profiles import Profile, load_profile
+from jamcrammer.core.profiles import Profile, ProfileField
 from jamcrammer.core.store import Store
 from jamcrammer.modes.arcade.derby import (
+    Band,
     DerbyDetector,
     DerbyFarmer,
     Screen,
@@ -30,7 +32,8 @@ CFG = DerbyConfig()
 
 
 def _profile() -> Profile:
-    prof = load_profile("jamaa_derby", Paths())
+    # the committed example, never this machine's calibration (profiles/jamaa_derby.yaml)
+    prof = Profile.from_yaml(Paths().profiles / "jamaa_derby.example.yaml")
     values = {
         "strip_roi": list(synth.STRIP_ROI),
         "horse_front_x": synth.HORSE_FRONT_X,
@@ -264,3 +267,80 @@ def test_a_stumble_is_judged_once_however_long_the_stall(tmp_path: Path) -> None
     )
     farmer.run(lambda: farmer.stats.races >= 1)
     assert world.hits > 0 and farmer.stats.hits == world.hits, (world.hits, farmer.stats.hits)
+
+
+def _farmer(
+    world: synth.DerbyWorld, prof: Profile, tmp_path: Path, events: list[Any]
+) -> DerbyFarmer:
+    sim = Sim(world)
+    bus = EventBus()
+    bus.subscribe("*", events.append)
+    return DerbyFarmer(
+        prof,
+        DerbyConfig(fps=20.0),
+        sim,
+        sim.grab,
+        bus=bus,
+        ocr=sim.ocr,
+        clock=sim.clock,
+        sleep=sim.sleep,
+        learned_path=tmp_path / "derby_learned.json",
+    )
+
+
+def test_tight_pair_is_cleared_by_tapping_through_the_landing(tmp_path: Path) -> None:
+    """William holds Space through a landing so the next jump fires on touchdown. Here the
+    second band is due while the horse is still up from the first: a single press would be
+    swallowed in the air; the tap train fires the jump as the hooves land."""
+    world = synth.DerbyWorld(seed=1, race_len_px=9000)
+    world.bands = [synth.Band("hay", 3000.0, 350), synth.Band("mud", 3000.0 + 350 + 250, 316)]
+    prof = _profile()
+    prof.set_value("jump_lead_px", 60)  # jump the first band well before its edge ...
+    prof.set_value("jump_lead_px_narrow", 0)
+    events: list[Any] = []
+    farmer = _farmer(world, prof, tmp_path, events)
+    farmer.cfg.boosts_per_race = 0
+    farmer.cfg.tight_extra_px = 0  # isolate the tap train
+    farmer.run(lambda: farmer.stats.races >= 1)
+    types = [e.type for e in events]
+    assert world.hits == 0, (world.hits, world.keys)
+    assert "derby.rejump" in types
+    taps = next(e.payload["taps"] for e in events if e.type == "derby.rejump")
+    assert taps >= 1
+
+
+def test_per_class_lead_from_the_profile_scales_with_speed(tmp_path: Path) -> None:
+    prof = _profile()
+    for key, value in (("jump_lead_px_hay_1col", 390), ("jump_lead_ref_px_s", 845)):
+        prof.fields[key] = ProfileField(type="number", value=value, status="calibrated")
+    farmer = _farmer(synth.DerbyWorld(seed=1), prof, tmp_path, [])
+    band = Band("hay", 1200, 1200 + 330)
+    farmer._speed = 845.0
+    assert farmer._lead_for(band, 0.0) == (390.0, 0.0)
+    farmer._speed = 845.0 / 2
+    assert farmer._lead_for(band, 0.0)[0] == 195.0
+    tight = Band("mud", band.right + 200, band.right + 520)
+    assert farmer._lead_for(band, 0.0, tight)[0] == 195.0 + farmer.cfg.tight_extra_px
+    # a class without its own value falls back to the old rule
+    assert farmer._lead_for(Band("water", 1200, 1200 + 330), 0.0)[0] == prof.number(
+        "jump_lead_px"
+    ) + prof.number("jump_lead_px_narrow")
+
+
+def test_reserve_carrot_gets_the_horse_out_of_a_stumble(tmp_path: Path) -> None:
+    """One carrot is kept back on clear stretches and clicked the moment a stumble is seen."""
+    world = synth.DerbyWorld(seed=4, stall_s=1.5)
+    prof = _profile()
+    prof.set_value("jump_lead_px", -100)  # late presses: stumbles
+    prof.set_value("jump_lead_px_narrow", 0)
+    events: list[Any] = []
+    farmer = _farmer(world, prof, tmp_path, events)
+    farmer.cfg.learn_enabled = False
+    farmer.run(lambda: farmer.stats.races >= 1)
+    reasons = [e.payload["reason"] for e in events if e.type == "derby.boost"]
+    assert "recover" in reasons, reasons
+    first_hit = next(i for i, e in enumerate(events) if e.type == "derby.hit")
+    clear_before_hit = [
+        e for e in events[:first_hit] if e.type == "derby.boost" and e.payload["reason"] == "clear"
+    ]
+    assert len(clear_before_hit) <= farmer.cfg.boosts_per_race - farmer.cfg.boost_reserve
