@@ -498,3 +498,62 @@ def load_or_build(
     session: Path, target: str, prof: Profile, cfg: RouteConfig, x_tmpl: BgrImage
 ) -> Route:
     return Route.load(session) or build_route(session, target, prof, cfg, x_tmpl)
+
+
+@dataclass
+class SessionInfo:
+    """What the Adventures page lists about a recorded run (read cheaply: the first and last
+    lines of meta.jsonl, the cached route's header)."""
+
+    path: Path
+    started: str
+    minutes: float
+    finished: bool
+    route_steps: int = 0
+    route_clicks: int = 0
+    route_objectives: int = 0
+    route_current: bool = False  # the cached route matches this code's ROUTE_VERSION
+
+
+TAIL_BYTES = 8192  # the end record is the last line of meta.jsonl
+
+
+def session_info(session: Path) -> SessionInfo:
+    meta = session / "meta.jsonl"
+    started, span, finished = session.name[:15], 0.0, False
+    try:
+        with meta.open("rb") as fh:
+            head = json.loads(fh.readline() or b"{}")
+            fh.seek(0, 2)
+            size = fh.tell()
+            fh.seek(max(0, size - TAIL_BYTES))
+            tail = fh.read().decode("utf-8", "replace").strip().splitlines()
+        end = json.loads(tail[-1]) if tail else {}
+        if end.get("t") == "end":
+            st = end.get("stats", {})
+            span = float(st.get("ended_ts", 0)) - float(
+                st.get("started_ts", head.get("started_ts", 0))
+            )
+            finished = True
+    except (OSError, ValueError):
+        pass
+    info = SessionInfo(session, started, span / 60.0, finished)
+    rj = session / "analysis" / "route.json"
+    if rj.exists():
+        try:
+            doc = json.loads(rj.read_text(encoding="utf-8"))
+            info.route_current = doc.get("version") == ROUTE_VERSION
+            info.route_steps = len(doc.get("steps", []))
+            info.route_clicks = sum(1 for s in doc.get("steps", []) if s.get("kind") != "key")
+            info.route_objectives = len(doc.get("objectives", []))
+        except (OSError, ValueError):
+            pass
+    return info
+
+
+def list_sessions(sessions_dir: Path, target: str) -> list[SessionInfo]:
+    """Recorded runs of ``target``, newest first."""
+    if not sessions_dir.exists():
+        return []
+    dirs = sorted((d for d in sessions_dir.glob(f"*_{target}*") if d.is_dir()), reverse=True)
+    return [session_info(d) for d in dirs]

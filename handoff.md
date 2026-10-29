@@ -86,6 +86,15 @@ _Last updated: 2026-10-29 (laptop bring-up; adventure research + design; Forgott
   leads after an import.
 
 ## The Mystery Below route farmer (2026-10-29, v0, laptop branch)
+- **Adventures tab** (`app/pages/adventures.py`, after Arcade). It holds:
+  - the adventure, the recorded run (automatic = the longest finished) with its route
+    summary, and Rebuild route (`engine.rebuild_route`, which also writes the honest replay
+    record);
+  - Supervised and Loop, and Start adventure / Stop;
+  - live route time, objective and counters;
+  - the latest fixes from `data/adventures/<target>_fixes.jsonl`.
+  The Forgotten Desert is listed, gated like The Mystery Below, but is not suited to a
+  route farmer yet.
 - **Mode:** "Adventure Farmer" in the mode box (`engine._run_adventure`). It replays the
   longest finished `mystery_below` Learn session (`adventures.route.session` picks another) as
   a route and keeps it on course; `modes/adventures/{route,replay,sight}.py`.

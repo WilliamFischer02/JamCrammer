@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 
 
 def build_pages(engine: Engine, window: MainWindow) -> list[Page]:
+    from jamcrammer.app.pages.adventures import AdventuresPage
     from jamcrammer.app.pages.answerbank import AnswerBankPage
     from jamcrammer.app.pages.calibration import CalibrationPage
     from jamcrammer.app.pages.dashboard import DashboardPage
@@ -29,6 +30,7 @@ def build_pages(engine: Engine, window: MainWindow) -> list[Page]:
         PlannerPage(engine, window),
         BestGuessPage(engine, window),
         ArcadePage(engine, window),
+        AdventuresPage(engine, window),
         OpportunistPage(engine, window),
         LearnPage(engine, window),
         CalibrationPage(engine, window),

@@ -923,6 +923,31 @@ class Engine:
             tape.stop()
         self.state.stats["adventure"] = runner.stats.as_dict()
 
+    def rebuild_route(self, session: Path) -> str:
+        """Build the adventure route from a recorded run, validate it and write the replay
+        record the gate reads (Adventures page). Minutes for a long run: call off the GUI thread."""
+        import cv2
+
+        from jamcrammer.core.gate import write_replay_record
+        from jamcrammer.modes.adventures.route import build_route, validate_route
+
+        rc = self.cfg.adventures.route
+        prof = self.profile("adventure")
+        raw = cv2.imread(str(prof.template_path("dialog_x_template", self.paths)))
+        if raw is None:
+            return "dialog X template missing (assets/templates/adventures)"
+        route = build_route(session, rc.target, prof, rc, np.asarray(raw, dtype=np.uint8))
+        acc, n = validate_route(route, rc)
+        write_replay_record(session, acc, n, "route_localize")
+        clicks = sum(s.kind != "key" for s in route.steps)
+        self.emit(
+            "adventure.route_built", session=session.name, steps=len(route.steps), accuracy=acc
+        )
+        return (
+            f"{len(route.steps)} steps ({clicks} clicks), {len(route.objectives)} objectives; "
+            f"localisation check {acc:.0%} over {n} frames"
+        )
+
     def _screen_to_stage(self, sx: int, sy: int) -> tuple[int, int] | None:
         """A screen point inside the AJC client as stage pixels (William's corrective clicks)."""
         info = self.tracker.info

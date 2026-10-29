@@ -52,6 +52,12 @@ REQUIRED_FIELDS: dict[str, list[tuple[str, str]]] = {
         ("adventure", "items_roi"),
         ("adventure", "dialog_x_template"),
     ],
+    "forgotten_desert": [
+        ("adventure", "banner_roi"),
+        ("adventure", "minimap_roi"),
+        ("adventure", "items_roi"),
+        ("adventure", "dialog_x_template"),
+    ],
     "swoopy_eagle": [
         ("swoopy_eagle", "play_roi"),
         ("swoopy_eagle", "bird_hsv"),
@@ -70,6 +76,7 @@ REPLAY_TARGET = {
     "double_up": "double_up",
     "jamaa_derby": "jamaa_derby",
     "mystery_below": "mystery_below",
+    "forgotten_desert": "forgotten_desert",
     "gem_ball": None,
     "swoopy_eagle": None,
     "hunt": None,
