@@ -106,7 +106,14 @@ class LearnedDerby:
 
     # --- updates ----------------------------------------------------------------------------------
 
-    def note(self, rec: BandRecord, cfg: DerbyConfig, trigger_x: int, default: HsvRange) -> str:
+    def note(
+        self,
+        rec: BandRecord,
+        cfg: DerbyConfig,
+        trigger_x: int,
+        default: HsvRange,
+        verdict: str | None = None,
+    ) -> str:
         """Fold one judged band into the adjustments. Returns a short note of what changed."""
         self.history.append(rec.as_dict())
         if rec.outcome != "hit":
@@ -125,7 +132,11 @@ class LearnedDerby:
         else:
             offset = rec.press_edge - trigger_x  # >0: pressed before the edge got there
             step = cfg.learn_lead_step_px
-            if offset < 0:
+            if verdict == "late":
+                delta = step  # stumbled before touchdown: the jump came too late
+            elif verdict == "early":
+                delta = -step  # landed in the band: jumped too early
+            elif offset < 0:
                 delta = step  # late: press earlier next time
             elif offset > cfg.learn_early_px:
                 delta = -step  # early: landed before the band arrived

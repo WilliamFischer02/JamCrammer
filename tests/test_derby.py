@@ -344,3 +344,40 @@ def test_reserve_carrot_gets_the_horse_out_of_a_stumble(tmp_path: Path) -> None:
         e for e in events[:first_hit] if e.type == "derby.boost" and e.payload["reason"] == "clear"
     ]
     assert len(clear_before_hit) <= farmer.cfg.boosts_per_race - farmer.cfg.boost_reserve
+
+
+def test_an_early_lead_presses_once_per_band(tmp_path: Path) -> None:
+    """13:43 live run: with William's ~400 px leads the band was still ahead of the hooves when
+    the cooldown ran out, so it was pressed for again (a tap train that re-jumped on landing)."""
+    world = synth.DerbyWorld(seed=1, race_len_px=14000)
+    world.bands = [synth.Band("hay", 3000.0 + i * 2000, 350) for i in range(5)]
+    prof = _profile()
+    for key, value in (("jump_lead_px_hay_1col", 400), ("jump_lead_ref_px_s", 830)):
+        prof.fields[key] = ProfileField(type="number", value=value, status="calibrated")
+    events: list[Any] = []
+    farmer = _farmer(world, prof, tmp_path, events)
+    farmer.cfg.boosts_per_race = 0
+    farmer.run(lambda: farmer.stats.races >= 1)
+    presses = [k for _t, k in world.keys if k == "space"]
+    assert world.hits == 0 and world.jumps == 5, (world.hits, world.jumps)
+    assert len(presses) <= 5 + farmer.stats.as_dict().get("retries", 0), presses
+    assert not [e for e in events if e.type == "derby.rejump"]
+
+
+def test_race_clock_starts_at_go_and_stumbles_are_judged_by_touchdown(tmp_path: Path) -> None:
+    from jamcrammer.modes.arcade.derby import RaceResult
+    from jamcrammer.modes.arcade.derby_learn import BandRecord
+
+    assert DerbyFarmer._race_t(25.0, RaceResult(started_ts=0.0, go_ts=20.0)) == 5.0
+    assert DerbyFarmer._race_t(25.0, RaceResult(started_ts=0.0)) == 25.0
+    prof = _profile()
+    prof.fields["jump_lead_px_mud_1col"] = ProfileField(
+        type="number", value=350, status="calibrated"
+    )
+    farmer = _farmer(synth.DerbyWorld(seed=1), prof, tmp_path, [])
+    farmer.airtime_s = 0.9
+    rec = BandRecord(10.4, "mud", 330, "1col", 1100, 10.0, 845.0, False, outcome="hit")
+    assert farmer._verdict(rec, 10.5) == "late"  # stalled while it should still be in the air
+    assert farmer._verdict(rec, 11.0) == "early"  # stalled after touchdown: landed in the band
+    rec.kind = "water"  # no per-class lead: the offset rule decides
+    assert farmer._verdict(rec, 11.0) is None

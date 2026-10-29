@@ -264,6 +264,7 @@ class DerbyDetector:
 @dataclass
 class RaceResult:
     started_ts: float
+    go_ts: float | None = None  # first frame of racing (started_ts is the start line)
     duration_s: float = 0.0
     place: int | None = None
     gems: int | None = None
@@ -515,6 +516,8 @@ class DerbyFarmer:
         if res is None:
             res = self._new_race(now)
             res.notes = "joined mid-race"
+        if res.go_ts is None:
+            res.go_ts = now
         front = int(self.profile.number("jump_trigger_x"))  # the hooves: where the game judges
         ahead = [b for b in obs.bands if b.right > front]
         nearest = self._track(min(ahead, key=lambda b: b.left, default=None), now)
@@ -531,7 +534,8 @@ class DerbyFarmer:
             key=lambda b: b.left,
             default=None,
         )
-        if nearest is not None and nearest.left > front - self.cfg.band_pass_px:
+        due = nearest is not None and nearest.left > front - self.cfg.band_pass_px
+        if nearest is not None and due and not self._pressed_for(nearest, now):
             # where the edge is *now* (the frame is frame_age old) and when it reaches the hooves
             edge_now = nearest.left - self._speed * self._frame_age
             lead_px, lead_s = self._lead_for(nearest, now, following)
@@ -557,14 +561,19 @@ class DerbyFarmer:
             and obs.carrots_left
             and now - self._last_boost >= self.cfg.boost_gap_s
             and now - self._last_jump >= self.cfg.boost_after_jump_s
-            and now - res.started_ts >= self.cfg.boost_earliest_s
+            and self._race_t(now, res) >= self.cfg.boost_earliest_s
             and self._boosts_left > self._reserve(now, res)
         ):
             self._click_boost(now, res, "clear")
 
+    @staticmethod
+    def _race_t(now: float, res: RaceResult) -> float:
+        """Seconds since GO (the start line's countdown is not race time)."""
+        return now - (res.go_ts if res.go_ts is not None else res.started_ts)
+
     def _reserve(self, now: float, res: RaceResult) -> int:
         """Carrots kept for a stumble; spent on a clear stretch late in the race."""
-        if now - res.started_ts >= self.cfg.boost_reserve_release_s:
+        if self._race_t(now, res) >= self.cfg.boost_reserve_release_s:
             return 0
         return self.cfg.boost_reserve
 
@@ -644,6 +653,17 @@ class DerbyFarmer:
         self.airtime_s = round((1 - a) * self.airtime_s + a * sample, 3)
         self.learned.airtime_s = self.airtime_s
         self._emit("derby.landed", airtime_s=round(sample, 3), estimate_s=self.airtime_s)
+
+    def _pressed_for(self, band: Band, now: float) -> bool:
+        """Our last press was for this band: it sits where that band's edge should be now.
+        With William's early leads a band is still ahead of the hooves after the cooldown;
+        a second press would be a jump on landing that lands in it (13:43 live run)."""
+        lp = self._last_press
+        if lp is None or lp[1] != band.kind:
+            return False
+        ts, _kind, edge = lp
+        expected = edge - self._speed * (now - ts)
+        return abs(band.left - expected) <= self.cfg.same_band_px
 
     def _in_air(self, now: float) -> bool:
         """In the air by the horse box, or by the clock since our last press."""
@@ -739,7 +759,12 @@ class DerbyFarmer:
         self._await_next_band = True
         trigger = int(self.profile.number("jump_trigger_x"))
         default = default_ranges(self.cfg)[rec.kind]
-        note = self.learned.note(rec, self.cfg, trigger, default) if self.cfg.learn_enabled else ""
+        verdict = self._verdict(rec, now)
+        note = (
+            self.learned.note(rec, self.cfg, trigger, default, verdict)
+            if self.cfg.learn_enabled
+            else ""
+        )
         if rec.outcome == "hit":
             self.stats.hits += 1
             race = self._race
@@ -763,6 +788,17 @@ class DerbyFarmer:
             )
             if note:
                 self._emit("derby.learned", change=note, kind=rec.kind, wclass=rec.wclass)
+
+    def _verdict(self, rec: BandRecord, now: float) -> str | None:
+        """With per-class leads every press is far ahead of the hooves, so the old
+        offset rule would call every stumble early. The measured airtime says which: a
+        stall seen before touchdown means the horse never cleared the edge (late); after
+        touchdown it landed in the band (early)."""
+        key = f"jump_lead_px_{rec.kind}_{rec.wclass}"
+        if rec.outcome != "hit" or rec.press_ts is None or not self.profile.has(key):
+            return None
+        touchdown = rec.press_ts + self.airtime_s - self.cfg.learn_air_margin_s
+        return "early" if now >= touchdown else "late"
 
     def _save_hit_crop(self, rec: BandRecord, now: float) -> Path | None:
         crop_img = getattr(self, "_pending_crop", None)
@@ -828,7 +864,7 @@ class DerbyFarmer:
         self._last_press_rejump = rejump
         age = (t_jump - self._last_tick_ts) if self._last_tick_ts else 0.0
         edge_at_press = round(band.left - self._speed * age)
-        self._last_press = (now, band.kind, int(edge_at_press))
+        self._last_press = (t_jump, band.kind, int(edge_at_press))
         rec = self._pending
         if rec is not None and rec.press_edge is None and rec.kind == band.kind:
             # pressed after the edge reached the hooves: a late press for the passing band

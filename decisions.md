@@ -227,3 +227,19 @@ Non-obvious choices and why. Newest at the bottom.
 - **Live airtime:** the farmer tracks the horse's ground row and logs press-to-touchdown per
   jump (`derby.landed`), smoothed into `derby_learned.json` and used for the train's landing
   prediction. The default is 0.8 s until measured.
+- **13:43 live run with the per-class leads: three fixes.**
+  - **One press per band.** At a ~400 px lead the band is still ahead of the hooves when the
+    0.5 s cooldown ends, so it was pressed for again. The horse was up, so a tap train
+    started and the horse re-jumped on landing, into the band. `_pressed_for` now skips a band
+    of the last press's kind that sits within `same_band_px` (150) of where that band's edge
+    should be. Synthetic, 5 bands: 5 presses with it, 50 presses and 5 trains without.
+  - **Race clock from GO.** `started_ts` is the start line (~20 s of countdown), so the boost
+    reserve was released 8 s into the race and all three carrots were gone before the first
+    stumble. Boost timing now uses `go_ts`, the first racing frame.
+  - **The learner's verdict comes from the measured airtime.** With per-class leads every
+    press is more than 120 px ahead, so the offset rule called every stumble "early". Now a
+    stall seen before touchdown is late (+15 px), and one seen after touchdown means the horse
+    landed in the band: early (-15 px). The three corrections from that run came from the
+    bug and were cleared.
+  - **Measured airtime:** 16 live samples, 0.56-1.45 s, smoothed to 0.91 s. That is longer
+    than the PC video's 0.75 s.

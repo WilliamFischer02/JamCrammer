@@ -246,6 +246,10 @@ class DerbyConfig(StrictModel):
     boost_reserve: int = Field(1, ge=0)
     boost_reserve_release_s: float = Field(28.0, ge=0)  # unused by then: clear stretch
     boost_recover: bool = True
+    same_band_px: int = Field(150, ge=0)  # a band this close to where our last press's
+    # band should be now is that band: never pressed for twice (early leads outlast the
+    # cooldown while the band is still ahead of the hooves)
+    learn_air_margin_s: float = Field(0.1, ge=0)  # stumble this soon before touchdown = late
     learn_lead_step_px: float = Field(15.0, ge=0)
     learn_lead_max_px: float = Field(160.0, ge=0)
     learn_early_px: float = Field(120.0, ge=0)
