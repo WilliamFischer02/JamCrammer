@@ -179,6 +179,10 @@ class LevelRunner:
             name = f"{time.strftime('%Y%m%d_%H%M%S')}_{self.k:02d}_{tag}.jpg"
             img = self._grab() if frame is None else frame
             cv2.imwrite(str(self._shots / name), img, [cv2.IMWRITE_JPEG_QUALITY, 80])
+            if tag.startswith("walk_") and self.nav.trace:
+                (self._shots / (name[:-4] + ".txt")).write_text(
+                    "\n".join(self.nav.trace), encoding="utf-8"
+                )
         except OSError:
             pass
 
@@ -260,17 +264,24 @@ class LevelRunner:
             self._sleep(self._tick)
 
     def _act_at(self, spot: Spot, action: str) -> str:
-        """Walk to the spot, find the thing, act, verify by the counter."""
+        """Walk to the spot, find the thing, act, verify by the counter. A target already on
+        screen (the next crystal of a path, a fungus by it) is walked at by screen; the
+        minimap plan is for the hops where nothing of the kind is in view."""
         c = self.cfg
-        res = self.nav.go_to((spot.x, spot.y), stop=self._stop, tol=c.approach_px)
-        self.stats.blocks += res.blocks
-        if not res.ok and res.reason != "timeout":
-            self.stats.walks_failed += 1
-            self._emit(
-                "adventure.walk_failed", spot=spot.id, reason=res.reason, dist=round(res.dist, 1)
-            )
-            self._shot(f"walk_{res.reason}")
-            return f"walk_{res.reason}"
+        if self._visible(spot, BLOB_KIND[action]) is None:
+            res = self.nav.go_to((spot.x, spot.y), stop=self._stop, tol=c.approach_px)
+            self.stats.blocks += res.blocks
+            if not res.ok and res.reason != "timeout":
+                self.stats.walks_failed += 1
+                self._emit(
+                    "adventure.walk_failed",
+                    spot=spot.id,
+                    reason=res.reason,
+                    dist=round(res.dist, 1),
+                    trace=self.nav.trace[-12:],
+                )
+                self._shot(f"walk_{res.reason}")
+                return f"walk_{res.reason}"
         slot = SLOT_OF[action]
         for attempt in range(c.act_retries + 1):
             blob = self._target(spot, action)
@@ -280,7 +291,7 @@ class LevelRunner:
                 self._shot("not_seen")
                 return "not_seen"
             if action == "light":
-                blob = self._approach(blob, "unlit", c.drop_reach_px) or blob
+                blob = self._approach(blob, "unlit", c.drop_reach_px, bursts=10) or blob
             before_frame = self._grab()
             before = self.inv.update(before_frame, self._clock()).get(slot)
             if action == "light":
@@ -306,6 +317,25 @@ class LevelRunner:
         self.stats.skipped += 1
         self._shot("not_taken")
         return "not_taken"
+
+    def _visible(self, spot: Spot, kind: str) -> objects.Blob | None:
+        """A blob of the kind near where the spot should be and within ``screen_walk_px``
+        of the animal, after any dialog is closed."""
+        frame = self._grab()
+        if self._close_dialog(frame):
+            frame = self._grab()
+        dot = sight.minimap_dot(frame, self.prof)
+        avatar = (float(self.lvl.avatar[0]), float(self.lvl.avatar[1]))
+        pred = self.lvl.to_screen(dot, (spot.x, spot.y)) if dot else avatar
+        blobs = (
+            objects.crystals(frame, self.prof)
+            if kind != "fungus"
+            else objects.fungi(frame, self.prof)
+        )
+        blob = objects.nearest(blobs, pred, kind)
+        if blob is None or blob.dist(avatar) > self.cfg.screen_walk_px:
+            return None
+        return blob
 
     def _approach(
         self, blob: objects.Blob, kind: str, reach: int, bursts: int = 4

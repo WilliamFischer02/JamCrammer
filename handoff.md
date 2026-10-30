@@ -108,6 +108,21 @@ _Last updated: 2026-10-30 (The Mystery Below: level model, menus by state, moth 
   `data/derby_learned.json` with the PC's copies, which are backed up. Re-add the per-class
   leads after an import.
 
+## The Mystery Below: fifth live run (2026-10-30 13:58): back and forth after the first door
+- Pick, first crystal (verified lit), the dialog, the door: fine. Then the minimap walk to
+  crystal 1 (20 px away, through the corridor) ran back and forth for 30 s until William
+  stopped it. The screenshot shows the animal at the lit crystal with the next unlit
+  crystal in view at the top right: the lit crystal itself (not in the floor mask) blocked
+  the diagonal, the stuck rule learned a wall there, the replan went round, and so on.
+- **Fixed:** a target already on screen (an unlit crystal or a fungus within 900 px of the
+  animal, near where the spot should be) is walked at by screen in bursts, no minimap plan:
+  crystal to crystal along a path is always like that. The minimap plan is for hops where
+  nothing of the kind is in view. The navigator sidesteps across its heading for 0.5 s on
+  the first stuck (a crystal, a rock, an NPC in the way), learns a wall only on the second,
+  and never blocks the goal cell. Every walk keeps a trace (dot, aim, keys, sidesteps,
+  walls) that goes into `adventure.walk_failed` and next to the failure screenshot as .txt.
+- 187 tests, ruff, mypy clean.
+
 ## The Mystery Below: fourth live run (2026-10-30 13:19): out of the start room, 9 crystals lit
 - **What worked:** menus, the pin pick, the first crystal, the walk out, restocking from fungi
   (three picks), nine `lit` outcomes with the counter stepping 2, 1, 0.

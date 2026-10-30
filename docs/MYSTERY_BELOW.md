@@ -140,7 +140,9 @@ and switched William's animal. A room must read as one for 1.5 s before the glob
 2. Dialogs are closed by their blue X (also while walking: Cosmo's dialog holds the animal,
    which would otherwise look like a wall).
 3. For each act: `light` needs a blossom (else restock from the nearest fungus spots, up to
-   three); walk to the spot by A* on the floor mask with the live dot (`nav.py`: a held key
+   three); if the crystal / fungus is already in view (within 900 px, near where the spot
+   should be) walk at it by screen in bursts, else walk to the spot by A* on the floor mask
+   with the live dot (`nav.py`: a held key
    and the dot within 1 px of where the still period began, for 1 s = an unmapped wall,
    learned 3 cells wide, path replanned; more than 8 of those or no path = the walk failed);
    find the nearest unlit crystal / fungus to where the spot should be on screen, walking at

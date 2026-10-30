@@ -263,6 +263,10 @@ class LevelConfig(StrictModel):
     nav_stuck_px: float = Field(1.0, ge=0)
     nav_timeout_s: float = Field(60.0, gt=0)
     nav_max_blocks: int = Field(8, ge=0)  # blocked cells learned in one go_to before giving up
+    nav_sidestep_s: float = Field(0.5, gt=0)  # stuck: step across the heading this long
+    # first (a crystal, a rock, an NPC in the way), then learn a wall
+    screen_walk_px: int = Field(900, ge=0)  # a target blob this close to the animal is
+    # walked at by screen, no minimap plan (crystal to crystal along a path)
     nav_dot_wait_s: float = Field(4.0, gt=0)  # no dot (a dialog, loading) this long: fail
     nav_snap_px: int = Field(8, ge=0)  # a target off the floor snaps to floor this close
     # (no path at all: walk straight at the target and let the walls be learned)

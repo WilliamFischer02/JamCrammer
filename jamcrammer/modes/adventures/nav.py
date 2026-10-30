@@ -147,6 +147,8 @@ class Navigator:
         self.held: set[str] = set()
         self.dot: Point | None = None
         self.frame: BgrImage | None = None
+        self.trace: list[str] = []  # the last go_to, for the record
+        self._sidestepped = False
         # one go_to's working state
         self._path: list[Cell] | None = None
         self._goal: Cell | None = None
@@ -184,8 +186,10 @@ class Navigator:
         tol = c.nav_tol_px if tol is None else tol
         deadline = self._clock() + (c.nav_timeout_s if timeout is None else timeout)
         res = NavResult(False, "timeout")
+        self.trace = [f"go_to {target[0]:.0f},{target[1]:.0f} tol {tol}"]
         self._goal = self.floor.snap(self.floor.cell(target), c.nav_snap_px)
         self._path = self._still_since = self._last_dot = self._no_dot_since = None
+        self._sidestepped = False
         if self._goal is None:
             res.reason = "no_path"
             return res
@@ -206,9 +210,7 @@ class Navigator:
                     res.ok, res.reason = True, "arrived"
                     return res
                 if self._stuck(dot, now):
-                    res.blocks += 1
-                    res.log.append(f"blocked at {dot[0]:.0f},{dot[1]:.0f}")
-                    if res.blocks > c.nav_max_blocks:
+                    if self._on_stuck(dot, now, res):
                         res.reason = "blocked"
                         return res
                     continue
@@ -216,7 +218,13 @@ class Navigator:
                     res.reason = "no_path"
                     return res
                 aim = self._aim(dot)
-                self._hold(keys_toward(aim[0] - dot[0], aim[1] - dot[1]))
+                keys = keys_toward(aim[0] - dot[0], aim[1] - dot[1])
+                if keys != self.held:
+                    self.trace.append(
+                        f"{now:.1f} dot {dot[0]:.0f},{dot[1]:.0f} aim {aim[0]:.0f},{aim[1]:.0f} "
+                        + "+".join(sorted(keys))
+                    )
+                self._hold(keys)
                 self._sleep(self._tick)
             res.reason = "stopped" if stop() else "timeout"
             return res
@@ -249,12 +257,35 @@ class Navigator:
         ):
             self._still_since, self._last_dot = now, dot  # moving: a new anchor
             return False
-        if now - self._still_since < self.cfg.nav_stuck_s:
+        return now - self._still_since >= self.cfg.nav_stuck_s
+
+    def _on_stuck(self, dot: Point, now: float, res: NavResult) -> bool:
+        """Stuck: a sidestep first, then a learned wall and a new plan. True when it is time
+        to give up (``nav_max_blocks`` walls learned in this go_to)."""
+        if not self._sidestepped:
+            self._sidestep(dot)  # something in the way, not a wall: step across
             return False
+        self._sidestepped = False
         self._learn_block(dot)
         self._hold(set())
         self._path = self._still_since = self._last_dot = None
-        return True
+        res.blocks += 1
+        res.log.append(f"blocked at {dot[0]:.0f},{dot[1]:.0f}")
+        self.trace.append(f"{now:.1f} blocked at {dot[0]:.0f},{dot[1]:.0f}")
+        return res.blocks > self.cfg.nav_max_blocks
+
+    def _sidestep(self, dot: Point) -> None:
+        """Stuck once: step across the heading for ``nav_sidestep_s`` (a crystal, a rock or
+        an NPC is in the way as often as a wall), then carry on with the same path."""
+        dx = (1 if "right" in self.held else 0) - (1 if "left" in self.held else 0)
+        dy = (1 if "down" in self.held else 0) - (1 if "up" in self.held else 0)
+        side = keys_toward(-dy, dx) if (dx or dy) else {"left"}
+        self.trace.append(f"sidestep {'+'.join(sorted(side))} at {dot[0]:.0f},{dot[1]:.0f}")
+        self._hold(side)
+        self._sleep(self.cfg.nav_sidestep_s)
+        self._hold(set())
+        self._sidestepped = True
+        self._still_since = self._last_dot = None
 
     def _plan(self, dot: Point, res: NavResult) -> bool:
         """A* on the floor; with no path (the mask has gaps at doors, the dot is off the
@@ -286,7 +317,9 @@ class Navigator:
         here = self.floor.cell(dot)
         for step in (1, 2):
             ahead = (here[0] + dx * step, here[1] + dy * step)
-            self.floor.block(ahead)
+            cells = [ahead]
             if step == 1:  # a wall is wider than one cell: its neighbours across the heading
-                self.floor.block((ahead[0] + dy, ahead[1] + dx))
-                self.floor.block((ahead[0] - dy, ahead[1] - dx))
+                cells += [(ahead[0] + dy, ahead[1] + dx), (ahead[0] - dy, ahead[1] - dx)]
+            for c in cells:
+                if c != self._goal:  # the goal is where the thing is, never a wall
+                    self.floor.block(c)

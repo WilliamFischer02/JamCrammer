@@ -401,6 +401,12 @@ Non-obvious choices and why. Newest at the bottom.
 - **A fungus is picked by its pin, not by itself.** The paw pin appears over a fungus in
   reach; the recordings' pickup clicks are all on it. So the pick act walks up until the pin
   shows (template + yellow check) and clicks the pin.
+- **By screen when the thing is in view, by minimap only when it is not.** The crystals of a
+  path are a screen apart; a minimap plan between them fights objects the mask does not
+  know (the lit crystal blocked the diagonal on the 13:58 run and the walk oscillated).
+  Walking at the blob in bursts is direct and self-correcting.
+- **Stuck means a sidestep first, a wall second.** Things stand on the floor: the first
+  stuck steps across the heading; only a second stuck learns a wall, never at the goal.
 - **A crystal is lit only when the counter drops and the screen shows it.** The 13:19 run
   consumed a blossom off the crystal: the counter alone lies. The Courage text (masked
   template, 0 false positives on 100 other clicks) or a glow where it was dark is required.
