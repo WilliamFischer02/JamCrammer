@@ -75,6 +75,7 @@ class LevelRunner:
         counter_ocr: Ocr,
         counter_retry: Ocr | None = None,
         dialog_x: BgrImage,
+        courage: objects.CourageText | None = None,
         presence: Presence | None = None,
         bus: EventBus | None = None,
         clock: Callable[[], float] = time.monotonic,
@@ -86,7 +87,7 @@ class LevelRunner:
         self.lvl, self.prof, self.cfg = lvl, prof, cfg
         self._shots = shots
         self._in, self._grab = inp, grab
-        self._banner_ocr, self._x = banner_ocr, dialog_x
+        self._banner_ocr, self._x, self._courage = banner_ocr, dialog_x, courage
         self._presence, self._bus = presence, bus
         self._clock, self._sleep, self._tick = clock, sleep, tick_s
         self.inv = Inventory(prof, counter_ocr, counter_retry)
@@ -155,11 +156,15 @@ class LevelRunner:
                     outcome=outcome,
                     counts=[self.inv.counts.blossoms, self.inv.counts.boomseeds],
                 )
-                self.k += 1
                 if outcome in ("lit", "picked", "arrived", "already"):
                     self._fails = 0
+                    self.k += 1
+                elif act.action == "light":
+                    # a crystal left dark breaks its moth's path: never move past it
+                    self._help(f"crystal {act.spot}: {outcome}")
                 else:
                     self._fails += 1
+                    self.k += 1
                     if self._fails >= HELP_AFTER_FAILS:
                         self._help(outcome)
             return "stopped"
@@ -233,10 +238,26 @@ class LevelRunner:
             self.stats.blocks += res.blocks
             return "arrived" if res.ok else f"walk_{res.reason}"
         if act.action == "light":
-            self.inv.update(self._grab(), self._clock())
-            if self.inv.counts.blossoms == 0 and not self._restock():
-                return "no_blossoms"
+            out = ""
+            for _attempt in range(self.cfg.light_attempts):
+                stock = self._stock(0)
+                if not stock and not self._restock():
+                    return "no_blossoms"
+                out = self._act_at(spot, "light")
+                if out in ("lit", "already") or out.startswith("walk_"):
+                    return out
+            return out
         return self._act_at(spot, act.action)
+
+    def _stock(self, slot: int) -> int | None:
+        """The counter as a number, read for up to ``stock_read_s``; None when it never
+        reads (the slot is not there yet: nothing was picked)."""
+        end = self._clock() + self.cfg.stock_read_s
+        while True:
+            n = self.inv.update(self._grab(), self._clock()).get(slot)
+            if n is not None or self._clock() >= end or self._stop():
+                return n
+            self._sleep(self._tick)
 
     def _act_at(self, spot: Spot, action: str) -> str:
         """Walk to the spot, find the thing, act, verify by the counter."""
@@ -254,9 +275,14 @@ class LevelRunner:
         for attempt in range(c.act_retries + 1):
             blob = self._target(spot, action)
             if blob is None:
+                if action == "light" and self._already_lit(spot):
+                    return "already"
                 self._shot("not_seen")
                 return "not_seen"
-            before = self.inv.update(self._grab(), self._clock()).get(slot)
+            if action == "light":
+                blob = self._approach(blob, "unlit", c.drop_reach_px) or blob
+            before_frame = self._grab()
+            before = self.inv.update(before_frame, self._clock()).get(slot)
             if action == "light":
                 sx, sy = self.prof.point("item_slot_1")
                 if attempt % 2 == 0:
@@ -265,19 +291,95 @@ class LevelRunner:
                     self._in.click(sx, sy)
                     self._sleep(0.2)
                     self._in.click(blob.x, blob.y)
-                want = "down"
-            else:
-                self._in.click(blob.x, blob.y)
-                want = "up"
-            if self._counter_moved(slot, before, want):
-                if action == "light":
+                if not self._counter_moved(slot, before, "down"):
+                    continue
+                if self._lit(before_frame, (blob.x, blob.y)):
                     self.stats.lit += 1
                     return "lit"
+                self._emit("adventure.dropped_dark", spot=spot.id, at=[blob.x, blob.y])
+                self._shot("dropped_dark")
+                continue  # a blossom went, the crystal stayed dark: again, closer
+            self._in.click(blob.x, blob.y)
+            if self._counter_moved(slot, before, "up"):
                 self.stats.picked += 1
                 return "picked"
         self.stats.skipped += 1
         self._shot("not_taken")
         return "not_taken"
+
+    def _approach(
+        self, blob: objects.Blob, kind: str, reach: int, bursts: int = 4
+    ) -> objects.Blob | None:
+        """Walk at the blob in short bursts until it is within ``reach`` of the animal,
+        re-finding it (nearest of its kind) after each burst. The blob as last seen."""
+        avatar = (float(self.lvl.avatar[0]), float(self.lvl.avatar[1]))
+        for _ in range(bursts):
+            if blob.dist(avatar) <= reach:
+                return blob
+            keys = keys_toward(blob.x - avatar[0], blob.y - avatar[1])
+            for k in sorted(keys):
+                self._in.key_down(k)
+            self._sleep(self.cfg.walk_toward_s * 0.5)
+            for k in sorted(keys):
+                self._in.key_up(k)
+            frame = self._grab()
+            self._close_dialog(frame)
+            blobs = (
+                objects.crystals(frame, self.prof)
+                if kind != "fungus"
+                else objects.fungi(frame, self.prof)
+            )
+            again = objects.nearest(blobs, (blob.x, blob.y), kind)
+            if again is not None:
+                blob = again
+        return blob
+
+    def _wait_unlit(self, spot: Spot) -> objects.Blob | None:
+        """The next crystal of a path turns from muddy to unlit only once the moth has
+        reached the one before: wait up to ``unlit_wait_s`` for one near the spot."""
+        c = self.cfg
+        if getattr(self, "_waited_spot", None) == spot.id:
+            return None  # waited here already
+        self._waited_spot = spot.id
+        end = self._clock() + c.unlit_wait_s
+        avatar = (float(self.lvl.avatar[0]), float(self.lvl.avatar[1]))
+        while self._clock() < end and not self._stop():
+            frame = self._grab()
+            self._close_dialog(frame)
+            dot = sight.minimap_dot(frame, self.prof)
+            pred = self.lvl.to_screen(dot, (spot.x, spot.y)) if dot else avatar
+            blob = objects.nearest(objects.crystals(frame, self.prof), pred, "unlit")
+            if blob is not None:
+                return blob
+            self._sleep(0.5)
+        return None
+
+    def _already_lit(self, spot: Spot) -> bool:
+        """No unlit crystal at the spot, but a lit one: done before (a duplicate spot, or
+        William lit it)."""
+        frame = self._grab()
+        dot = sight.minimap_dot(frame, self.prof)
+        avatar = (float(self.lvl.avatar[0]), float(self.lvl.avatar[1]))
+        pred = self.lvl.to_screen(dot, (spot.x, spot.y)) if dot else avatar
+        lit = objects.nearest(objects.crystals(frame, self.prof), pred, "lit")
+        return lit is not None and lit.dist(pred) <= self.cfg.glow_radius_px
+
+    def _lit(self, before: BgrImage, at: tuple[int, int]) -> bool:
+        """The crystal at ``at`` lit up: the Courage text pops near it, or a glow appears
+        where it was dark, within ``lit_verify_s`` (the camera still)."""
+        c = self.cfg
+        end = self._clock() + c.lit_verify_s
+        while self._clock() < end and not self._stop():
+            frame = self._grab()
+            if objects.new_glow(before, frame, at, c.glow_radius_px) >= c.glow_new_px:
+                return True
+            if (
+                self._courage is not None
+                and self._courage.near(frame, at, c.courage_radius_px) >= self._courage.min
+            ):
+                return True
+            self._sleep(0.1)
+        return False
 
     def _target(self, spot: Spot, action: str) -> objects.Blob | None:
         """What to click for the act: the crystal, or for a pick the paw pin over the
@@ -311,6 +413,8 @@ class LevelRunner:
                 else objects.fungi(frame, self.prof)
             )
             blob = objects.nearest(blobs, pred, kind)
+            if blob is None and kind == "unlit" and self._wait_unlit(spot) is not None:
+                continue  # it turned unlit as the moth arrived: look again
             if blob is None:
                 if last is not None:
                     return last  # seen a moment ago; now under the animal or its tag
@@ -363,13 +467,20 @@ class LevelRunner:
         return None
 
     def _counter_moved(self, slot: int, before: int | None, want: str) -> bool:
+        """The counter went the wanted way within ``act_verify_s``. A drop with no readable
+        stock before is never a success; a pick is, once the slot reads 1+ (it appears with
+        the first pickup)."""
+        if before is None and want == "down":
+            return False
         end = self._clock() + self.cfg.act_verify_s
         while self._clock() < end and not self._stop():
             now = self.inv.update(self._grab(), self._clock()).get(slot)
-            if before is None:
-                return now is not None  # unreadable before: any reading counts as done
-            if now is not None and ((now < before) if want == "down" else (now > before)):
-                return True
+            if now is not None:
+                if before is None:
+                    if now >= 1:
+                        return True
+                elif (now < before) if want == "down" else (now > before):
+                    return True
             self._sleep(self._tick)
         return False
 

@@ -381,16 +381,16 @@ def test_the_runner_lights_the_crystals_from_the_plan_and_restocks() -> None:
     assert runner.stats.helps == 0 and not world.keys
 
 
-def test_an_unseen_crystal_is_skipped_and_three_failures_ask_for_help() -> None:
+def test_an_unseen_crystal_asks_for_help_and_moves_on_once_it_is_lit() -> None:
+    """A crystal it cannot see is never skipped: it asks for help and repeats the act; when
+    William has lit it himself (a lit crystal where the spot is) it moves on."""
     world = synth.World(PROF)
     synth.layout(world)
     world.items = 3
     lvl = _level(world)
-    far = Spot(len(lvl.spots), "crystal", "moths", *mm_of(3900.0, 2400.0))  # nothing there
+    far = Spot(len(lvl.spots), "crystal", "moths", *mm_of(3000.0, 1800.0))  # nothing there yet
     lvl.spots.append(far)
-    lvl.plan["moths"] = [Act(far.id, "light", 1.0, "crystal")] * 3 + [
-        Act(1, "light", 2.0, "crystal")
-    ]
+    lvl.plan["moths"] = [Act(far.id, "light", 1.0, "crystal"), Act(1, "light", 2.0, "crystal")]
 
     class Presence:
         def __init__(self) -> None:
@@ -416,14 +416,17 @@ def test_an_unseen_crystal_is_skipped_and_three_failures_ask_for_help() -> None:
 
     def stop() -> bool:
         if runner.state == "HELP" and presence.active_from is None:
-            presence.active_from = world.t + 0.5  # William comes
-        return world.t > 400 or runner.k >= 4
+            presence.active_from = world.t + 0.5  # William comes and lights it himself
+            world.things.append(synth.Thing("crystal", 3000, 1800, done=True))
+        return world.t > 400 or runner.k >= 2
 
     runner.run(stop)
     types = [e.type for e in events]
-    assert "adventure.help" in types and runner.stats.helps == 1
-    assert types.count("adventure.not_seen") >= 3 and runner.stats.user_turns == 1
-    assert runner.k == 4 and runner.stats.lit == 1, runner.stats.as_dict()
+    assert "adventure.help" in types and runner.stats.helps == 1, runner.stats.as_dict()
+    assert types.count("adventure.not_seen") >= 1 and runner.stats.user_turns == 1
+    outcomes = [e.payload["outcome"] for e in events if e.type == "adventure.act"]
+    assert outcomes == ["not_seen", "already", "lit"], outcomes
+    assert runner.k == 2 and runner.stats.lit == 1, runner.stats.as_dict()
 
 
 # --- the real recordings, when they are on this machine --------------------------------

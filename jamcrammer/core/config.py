@@ -276,6 +276,15 @@ class LevelConfig(StrictModel):
     pin_stop_px: int = Field(50, ge=0)  # ... approach the fungus to this close, no further
     pin_looks: int = Field(8, ge=1)  # looks (approach a little, look again) for the pin
     pin_search_px: int = Field(450, ge=0)  # a pin this close to the animal is the one
+    # lighting a crystal, for certain
+    stock_read_s: float = Field(1.5, gt=0)  # read the counter this long for a number
+    drop_reach_px: int = Field(260, ge=0)  # walk up until the crystal is this close
+    lit_verify_s: float = Field(4.0, gt=0)  # the lit signal must show within this
+    glow_new_px: int = Field(3000, ge=0)  # newly bright pixels near the crystal = lit
+    glow_radius_px: int = Field(200, ge=0)
+    courage_radius_px: int = Field(350, ge=0)  # the Courage text pops this close
+    unlit_wait_s: float = Field(8.0, ge=0)  # the next crystal turns unlit as the moth comes
+    light_attempts: int = Field(3, ge=1)  # drops at one crystal before asking for help
     room_hold_s: float = Field(1.5, gt=0)  # a room must read as one this long before the
     # globe is clicked (a panel sliding away reads as a room for a moment)
     list_clicks: int = Field(3, ge=1)  # scroll-arrow clicks per look at the adventure list

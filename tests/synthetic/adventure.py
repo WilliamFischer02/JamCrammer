@@ -180,7 +180,7 @@ class World:
             c = (
                 (250, 240, 200)  # pale cyan: lit
                 if th.done
-                else ((60, 220, 80) if th.kind == "fungus" else (150, 60, 20))  # green / navy
+                else ((60, 220, 80) if th.kind == "fungus" else (130, 50, 15))  # green / navy
             )
             cx, cy = int(th.x - x0), int(th.y - y0)
             cv2.rectangle(img, (cx - 30, cy - 30), (cx + 30, cy + 30), c, -1)

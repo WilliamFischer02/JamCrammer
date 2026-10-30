@@ -108,6 +108,28 @@ _Last updated: 2026-10-30 (The Mystery Below: level model, menus by state, moth 
   `data/derby_learned.json` with the PC's copies, which are backed up. Re-add the per-class
   leads after an import.
 
+## The Mystery Below: fourth live run (2026-10-30 13:19): out of the start room, 9 crystals lit
+- **What worked:** menus, the pin pick, the first crystal, the walk out, restocking from fungi
+  (three picks), nine `lit` outcomes with the counter stepping 2, 1, 0.
+- **What did not:** it dropped with an unreadable stock and counted a stray reading as
+  success; it moved past crystals it could not see (`not_seen`, two were already lit: a
+  duplicate spot) and past one it failed (`not_taken`); and once the counter dropped while
+  the blossom landed off the crystal, so the next crystal of that path stayed muddy (a path's
+  crystals turn muddy → unlit one by one as the moth advances) and the run drifted.
+- **Fixed (certain lighting):** the stock is read for up to 1.5 s and must be a number ≥ 1
+  (else restock); the animal walks up to the crystal (`drop_reach_px` 260) before the drop;
+  a light counts only when the counter drops **and** a lit signal shows within 4 s (the
+  "Courage" text by a masked template, `assets/templates/adventures/courage.png`, 0.9+:
+  none of 100 other recorded clicks score that; or 3,000+ newly bright pixels where it was
+  dark); a drop that left it dark is retried closer (`light_attempts` 3); a crystal that is
+  not seen waits up to 8 s for the moth to turn it unlit, and a lit one where the spot is
+  counts as `already`. **A light that still fails never moves on:** HIGH help, and the same
+  act again after William's turn (if he lit it himself it reads `already` and goes on). A
+  pick counts when the slot reads 1+ or goes up; a drop with no readable stock never does.
+- Not measured live yet: the Courage / glow recall at 10 Hz polling (the recordings' sparse
+  keyframes gave 12 of 39 and 7 of 41 on the text alone).
+- 187 tests, ruff, mypy clean.
+
 ## The Mystery Below: third live run (2026-10-30 13:04, fixed)
 - **Menus worked** (room → ... → lobby → in_adventure in 20 s, one stray room read).
 - **Start room:** `no_pin` twice, then the fungus `not_seen`. The runner approached the fungus

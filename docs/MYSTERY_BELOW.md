@@ -150,9 +150,15 @@ and switched William's animal. A room must read as one for 1.5 s before the glob
    within 450 px of the animal counts, the fungus may be under the animal by then). The pin is found by colour (a white blob of 800-9,000 px with
    500+ px of yellow-to-beige paw inside), not by template: William's screenshot of the pin
    scored 0.62 against the recorded template (a paler paw, a slightly different size) while
-   the colour test finds both. A **light** drags the blossom slot (200,100)
-   onto the crystal, or clicks the slot then the crystal; the counter must move within
-   2.5 s, two retries, else the act is skipped. The first act of the plan is the start
+   the colour test finds both. A **light** needs a readable stock of 1+ (else restock), walks up to the crystal (260 px),
+   drags the blossom slot (200,100) onto it or clicks the slot then it; the counter must
+   drop within 2.5 s **and** the crystal must show lit within 4 s (the "Courage" text by a
+   masked template at 0.9+, or 3,000 newly bright pixels where it was dark); a drop that
+   left it dark is retried closer, three drops in all. A crystal not seen waits up to 8 s
+   for the moth to turn it unlit (a path's crystals go muddy → unlit one by one), and a lit
+   crystal where the spot is counts as done. A light that still fails asks for help and is
+   tried again after William's turn: it is never skipped, because the rest of its path
+   would stay muddy. The first act of the plan is the start
    room's pickup (the counter only appears with it); no "!" click is needed there, Cosmo's
    dialog closes and the door opens by itself.
 4. William's input pauses it (keys released); 2.5 s of quiet and it goes on with the next act.

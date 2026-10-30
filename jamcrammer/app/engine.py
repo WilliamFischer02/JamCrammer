@@ -932,6 +932,8 @@ class Engine:
         """The menus by state and the moth chamber from the level model
         (modes/adventures/{opening,level_runner}.py). Returns the route time the replay
         continues from (the banner the level runner stopped at), or None to stop."""
+        import cv2
+
         from jamcrammer.modes.adventures.level import Level as LevelModel
         from jamcrammer.modes.adventures.level import level_dir
         from jamcrammer.modes.adventures.level_runner import LevelRunner
@@ -954,6 +956,14 @@ class Engine:
                 self.watchdog.tick(frame, known_screen=True)
             return self._should_stop() or self.pause.paused or self._watchdog_blocks()
 
+        from jamcrammer.modes.adventures.objects import CourageText
+
+        courage_raw = cv2.imread(str(prof.template_path("courage_template", self.paths)))
+        courage = (
+            CourageText(np.asarray(courage_raw, dtype=np.uint8), prof)
+            if courage_raw is not None
+            else None
+        )
         grab = lambda: self.grab().image  # noqa: E731
         self.lease.acquire("adventure")  # the menu clicks are ours from here
         self._status("MENUS · into the adventure")
@@ -983,6 +993,7 @@ class Engine:
             counter_ocr=lambda img: ocr_image(img, upscale=4.0).text,
             counter_retry=lambda img: ocr_image(img, upscale=2.0).text,
             dialog_x=x_tmpl,
+            courage=courage,
             presence=self.presence,
             bus=self.bus,
             shots=self.paths.captures / "adventure_shots",

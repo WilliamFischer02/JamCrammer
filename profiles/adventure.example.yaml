@@ -181,3 +181,18 @@ fields:
     value: [450, 970]
     status: calibrated
     note: the adventure list scroll-down arrow (one click scrolls a little; the up arrow is at 450,258)
+  courage_template:
+    type: template
+    value: templates/adventures/courage.png
+    status: calibrated
+    note: the "Courage" of the "COURAGE +25" that pops over a crystal as it lights (run B, 24.6 s)
+  courage_mask_hsv:
+    type: color
+    value: [[95, 80, 60], [130, 255, 255]]
+    status: calibrated
+    note: only the blue letters of the template count (masked match); 0 of 100 other clicks >= 0.9
+  courage_min:
+    type: number
+    value: 0.9
+    status: calibrated
+    note: masked correlation that counts as the Courage text

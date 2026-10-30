@@ -401,6 +401,12 @@ Non-obvious choices and why. Newest at the bottom.
 - **A fungus is picked by its pin, not by itself.** The paw pin appears over a fungus in
   reach; the recordings' pickup clicks are all on it. So the pick act walks up until the pin
   shows (template + yellow check) and clicks the pin.
+- **A crystal is lit only when the counter drops and the screen shows it.** The 13:19 run
+  consumed a blossom off the crystal: the counter alone lies. The Courage text (masked
+  template, 0 false positives on 100 other clicks) or a glow where it was dark is required.
+- **A crystal left dark stops the run, it does not get skipped.** Each path's crystals turn
+  unlit one by one behind the moth; skipping one leaves the rest muddy and every later act
+  fails. So a failed light asks for help and is tried again, never moved past.
 - **A list entry is matched by its nearest adventure name, never by a fragment.** The old
   rule ("mystery" in any word at 75) clicked another adventure on the 12:37 run; the nearest
   of the 20 names, by ratio, is unambiguous on the recorded list (the mystery below at 61,

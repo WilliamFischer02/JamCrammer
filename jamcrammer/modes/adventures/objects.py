@@ -107,3 +107,42 @@ def find_marker(
     if not cands:
         return None
     return min(cands, key=lambda b: b.dist(near)) if near is not None else cands[0]
+
+
+GLOW_V = 235  # a lit crystal's glow
+DARK_V = 160  # ... where it was dark before
+
+
+def new_glow(before: BgrImage, after: BgrImage, at: tuple[int, int], radius: int) -> int:
+    """Pixels within ``radius`` of ``at`` that are bright now and were dark before (the
+    camera still): a crystal lighting up. Measured on the recordings: a few thousand."""
+    x, y = at
+    sl = (slice(max(0, y - radius), y + radius), slice(max(0, x - radius), x + radius))
+    vb = cv2.cvtColor(before[sl], cv2.COLOR_BGR2HSV)[:, :, 2]
+    va = cv2.cvtColor(after[sl], cv2.COLOR_BGR2HSV)[:, :, 2]
+    if vb.shape != va.shape:
+        return 0
+    return int(np.count_nonzero((va >= GLOW_V) & (vb < DARK_V)))
+
+
+class CourageText:
+    """The "Courage" of the "COURAGE +25" that pops over a crystal as it lights: a masked
+    template match (only the blue letters count). 0.9+ on 12 of 39 recorded uses and on
+    none of 100 other clicks; live polling catches the two seconds it shows far better than
+    the recordings' sparse keyframes did."""
+
+    def __init__(self, tmpl: BgrImage, prof: Profile) -> None:
+        self.tmpl = tmpl
+        lo, hi = prof.color("courage_mask_hsv")
+        mask = cv2.inRange(cv2.cvtColor(tmpl, cv2.COLOR_BGR2HSV), np.array(lo), np.array(hi))
+        self.mask = cv2.dilate(mask, np.ones((3, 3), np.uint8))
+        self.min = prof.number("courage_min")
+
+    def near(self, frame: BgrImage, at: tuple[int, int], radius: int) -> float:
+        """The best score within ``radius`` of ``at``, 0 when none."""
+        res = cv2.matchTemplate(frame, self.tmpl, cv2.TM_CCORR_NORMED, mask=self.mask)
+        res = np.nan_to_num(res)
+        _mn, score, _mnl, loc = cv2.minMaxLoc(res)
+        th, tw = self.tmpl.shape[:2]
+        cx, cy = loc[0] + tw // 2, loc[1] + th // 2
+        return float(score) if float(np.hypot(cx - at[0], cy - at[1])) <= radius else 0.0
