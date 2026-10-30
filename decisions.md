@@ -401,6 +401,12 @@ Non-obvious choices and why. Newest at the bottom.
 - **A fungus is picked by its pin, not by itself.** The paw pin appears over a fungus in
   reach; the recordings' pickup clicks are all on it. So the pick act walks up until the pin
   shows (template + yellow check) and clicks the pin.
+- **One help per act, then skip.** Help that changes nothing twice is a loop; after William's
+  turn a light that still fails is skipped with a notice (he lit it by hand, or the spot is no
+  crystal), and a lit crystal within the map's error of the spot counts as done.
+- **Smashes come from the recording's repeated clicks and are verified by Courage pops.**
+  Rocks are grey like the cave, so they are clicked where the map says and the "Courage"
+  text says whether anything broke; purple crystals are found by colour first.
 - **An act's banner is the one 3 s before its click, not at it.** Some banners are caused
   by the act (the pick banner comes as you reach the fungus); gating on them deadlocks.
 - **An act never runs before its banner.** The recording says under which banner each act

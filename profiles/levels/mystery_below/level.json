@@ -2428,10 +2428,38 @@
     "phase": "first_moth"
    },
    {
+    "spot": 71,
+    "action": "smash",
+    "t": 58.61196279525757,
+    "kind": "repeat",
+    "phase": "first_moth"
+   },
+   {
     "spot": 5,
     "action": "pick",
     "t": 60.86860752105713,
     "kind": "fungus",
+    "phase": "first_moth"
+   },
+   {
+    "spot": 72,
+    "action": "smash",
+    "t": 64.70019245147705,
+    "kind": "repeat",
+    "phase": "first_moth"
+   },
+   {
+    "spot": 74,
+    "action": "smash",
+    "t": 68.6376531124115,
+    "kind": "repeat",
+    "phase": "first_moth"
+   },
+   {
+    "spot": 73,
+    "action": "smash",
+    "t": 71.5517144203186,
+    "kind": "repeat",
     "phase": "first_moth"
    },
    {
@@ -2449,6 +2477,55 @@
     "phase": "first_moth"
    },
    {
+    "spot": 109,
+    "action": "smash",
+    "t": 93.86416053771973,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 187,
+    "action": "smash",
+    "t": 98.77285170555115,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 105,
+    "action": "smash",
+    "t": 101.74769735336304,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 188,
+    "action": "smash",
+    "t": 104.50396275520325,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 107,
+    "action": "smash",
+    "t": 127.53394412994385,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 108,
+    "action": "smash",
+    "t": 136.7738494873047,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 103,
+    "action": "smash",
+    "t": 147.44037127494812,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
     "spot": 39,
     "action": "pick",
     "t": 155.42007207870483,
@@ -2456,10 +2533,66 @@
     "phase": "moths"
    },
    {
+    "spot": 110,
+    "action": "smash",
+    "t": 156.78513526916504,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 111,
+    "action": "smash",
+    "t": 159.1824107170105,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 112,
+    "action": "smash",
+    "t": 164.423672914505,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 113,
+    "action": "smash",
+    "t": 176.84066939353943,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 114,
+    "action": "smash",
+    "t": 179.62256455421448,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 114,
+    "action": "smash",
+    "t": 181.61761379241943,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 189,
+    "action": "smash",
+    "t": 192.3974950313568,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
     "spot": 36,
     "action": "light",
     "t": 203.22106266021729,
     "kind": "crystal",
+    "phase": "moths"
+   },
+   {
+    "spot": 116,
+    "action": "smash",
+    "t": 206.3013813495636,
+    "kind": "repeat",
     "phase": "moths"
    },
    {
@@ -2495,6 +2628,13 @@
     "action": "light",
     "t": 228.64866185188293,
     "kind": "crystal",
+    "phase": "moths"
+   },
+   {
+    "spot": 102,
+    "action": "smash",
+    "t": 237.31996321678162,
+    "kind": "repeat",
     "phase": "moths"
    },
    {
@@ -2561,10 +2701,80 @@
     "phase": "moths"
    },
    {
+    "spot": 86,
+    "action": "smash",
+    "t": 281.6646885871887,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 79,
+    "action": "smash",
+    "t": 293.58226895332336,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 77,
+    "action": "smash",
+    "t": 296.16406631469727,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 190,
+    "action": "smash",
+    "t": 299.8125479221344,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
     "spot": 11,
     "action": "pick",
     "t": 300.30206823349,
     "kind": "fungus",
+    "phase": "moths"
+   },
+   {
+    "spot": 75,
+    "action": "smash",
+    "t": 302.918231010437,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 75,
+    "action": "smash",
+    "t": 304.5206079483032,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 77,
+    "action": "smash",
+    "t": 308.3431611061096,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 81,
+    "action": "smash",
+    "t": 320.7770004272461,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 80,
+    "action": "smash",
+    "t": 323.04338335990906,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 80,
+    "action": "smash",
+    "t": 324.9333071708679,
+    "kind": "repeat",
     "phase": "moths"
    },
    {
@@ -2596,6 +2806,13 @@
     "phase": "moths"
    },
    {
+    "spot": 86,
+    "action": "smash",
+    "t": 345.076203584671,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
     "spot": 12,
     "action": "light",
     "t": 348.2343535423279,
@@ -2624,6 +2841,20 @@
     "phase": "moths"
    },
    {
+    "spot": 191,
+    "action": "smash",
+    "t": 374.76450991630554,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 192,
+    "action": "smash",
+    "t": 379.1219515800476,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
     "spot": 171,
     "action": "pick",
     "t": 381.773015499115,
@@ -2638,10 +2869,24 @@
     "phase": "moths"
    },
    {
+    "spot": 94,
+    "action": "smash",
+    "t": 391.5295445919037,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
     "spot": 173,
     "action": "light",
     "t": 391.8356649875641,
     "kind": "crystal",
+    "phase": "moths"
+   },
+   {
+    "spot": 94,
+    "action": "smash",
+    "t": 396.7107803821564,
+    "kind": "repeat",
     "phase": "moths"
    },
    {
@@ -2663,6 +2908,20 @@
     "action": "light",
     "t": 441.19497752189636,
     "kind": "crystal",
+    "phase": "moths"
+   },
+   {
+    "spot": 90,
+    "action": "smash",
+    "t": 442.28078389167786,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 90,
+    "action": "smash",
+    "t": 443.35529613494873,
+    "kind": "repeat",
     "phase": "moths"
    },
    {
@@ -2694,6 +2953,13 @@
     "phase": "moths"
    },
    {
+    "spot": 96,
+    "action": "smash",
+    "t": 471.3922383785248,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
     "spot": 18,
     "action": "pick",
     "t": 481.12937116622925,
@@ -2712,6 +2978,20 @@
     "action": "light",
     "t": 514.0815260410309,
     "kind": "crystal",
+    "phase": "moths"
+   },
+   {
+    "spot": 89,
+    "action": "smash",
+    "t": 518.9290132522583,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 89,
+    "action": "smash",
+    "t": 521.8344914913177,
+    "kind": "repeat",
     "phase": "moths"
    },
    {

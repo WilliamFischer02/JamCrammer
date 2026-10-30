@@ -108,6 +108,23 @@ _Last updated: 2026-10-30 (The Mystery Below: level model, menus by state, moth 
   `data/derby_learned.json` with the PC's copies, which are backed up. Re-add the per-class
   leads after an import.
 
+## The Mystery Below: ninth live run (2026-10-30 15:15): three crystals, then a help loop
+- Opening, pick, first crystal, the door wait, the corridor's first crystal: all right. Then
+  act 3 (the corridor's second crystal) found nothing unlit where the map put it, the lit
+  one was 470 px off (within the map's error but past the 200 px "already" radius), so it
+  asked for help again and again, each time William's turn changed nothing.
+- **Fixed:** a lit crystal within `pred_tol_px` (600) of the spot counts as done; a light that
+  fails again after one help is skipped (`adventure.skipped`, NOTICE), never looped.
+- **Smash acts:** the reference run's repeated clicks of 4+ in the moth chamber (40 groups:
+  cracked rocks, purple crystals) are plan acts now. A smash walks there (by screen if a
+  purple blob is near the prediction), approaches, clicks up to 18 times every 0.25 s and
+  stops after 3 clicks without a Courage pop once it has hit, or 6 with none (nothing
+  breakable there). Smashes never ask for help: they are CP, not the path.
+- Plan now: 36 lights, 16 picks, 40 smashes, the door. Restocking is the same as before
+  (the nearest fungus spot when the stock reads 0).
+- The synthetic world's texture is dimmer (V < 190) so bright grey never reads as a glow.
+- 188 tests, ruff, mypy clean. Smashing is not verified live (no rocks in the synthetic world).
+
 ## The Mystery Below: eighth live run (2026-10-30 14:52): still, again (the banner was never read)
 - `adventure.phase_wait` with `now: ""` for 50 s: the runner's banner OCR returned nothing.
   The banner strip (`banner_roi`, 36 px tall) reads as **nothing at 1x and perfectly at 2x**

@@ -38,8 +38,9 @@ BgrImage = npt.NDArray[np.uint8]
 AREA = "moths"
 DIALOG_GONE_S = 0.6
 HELP_AFTER_FAILS = 3
-BLOB_KIND = {"light": "unlit", "pick": "fungus"}
+BLOB_KIND = {"light": "unlit", "pick": "fungus", "smash": "decoy"}
 SLOT_OF = {"light": 0, "pick": 0, "boom": 1}
+DONE = ("lit", "picked", "arrived", "already", "smashed", "nothing")
 
 
 @dataclass
@@ -112,6 +113,7 @@ class LevelRunner:
         self._fails = 0
         self._last_banner = -1e9
         self._bad_drops: list[tuple[float, float]] = []  # this act's drops that lit nothing
+        self._helped_k = -1  # the act William was already asked to help with
 
     @property
     def screen_known(self) -> bool:
@@ -183,11 +185,18 @@ class LevelRunner:
     def _after(self, act: Act, outcome: str) -> None:
         """Move on, or not: a crystal left dark breaks its moth's path, so a failed light
         asks for help and is tried again; other failures move on, three in a row ask."""
-        if outcome in ("lit", "picked", "arrived", "already"):
+        if outcome in DONE:
             self._fails = 0
             self.k += 1
-        elif act.action == "light":
+        elif act.action == "light" and self._helped_k != self.k:
+            self._helped_k = self.k
             self._help(f"crystal {act.spot}: {outcome}")
+        elif act.action == "light":
+            # helped once and it still fails: William could not fix it either (a spot that
+            # is not a crystal, one he lit by hand that reads as nothing); on to the next
+            self._emit("adventure.skipped", Level.NOTICE, k=self.k, spot=act.spot, outcome=outcome)
+            self.stats.skipped += 1
+            self.k += 1
         else:
             self._fails += 1
             self.k += 1
@@ -274,6 +283,8 @@ class LevelRunner:
             res = self.nav.go_to((spot.x, spot.y), stop=self._stop, tol=self.cfg.approach_px)
             self.stats.blocks += res.blocks
             return "arrived" if res.ok else f"walk_{res.reason}"
+        if act.action == "smash":
+            return self._smash(spot)
         if act.action == "light":
             out = ""
             for _attempt in range(self.cfg.light_attempts):
@@ -441,7 +452,60 @@ class LevelRunner:
         avatar = (float(self.lvl.avatar[0]), float(self.lvl.avatar[1]))
         pred = self.lvl.to_screen(dot, (spot.x, spot.y)) if dot else avatar
         lit = objects.nearest(objects.crystals(frame, self.prof), pred, "lit")
-        return lit is not None and lit.dist(pred) <= self.cfg.glow_radius_px
+        return lit is not None and lit.dist(pred) <= self.cfg.pred_tol_px
+
+    def _smash(self, spot: Spot) -> str:
+        """A cracked rock or a purple crystal: walk there, click it until the Courage pops
+        stop (``smash_quiet`` quiet clicks after a hit), or give up after ``smash_probe``
+        clicks with no pop at all (nothing breakable there). Never a failure: these are CP,
+        not the path."""
+        c = self.cfg
+        avatar = (float(self.lvl.avatar[0]), float(self.lvl.avatar[1]))
+        target = self._visible(spot, "decoy")
+        if target is None:
+            res = self.nav.go_to((spot.x, spot.y), stop=self._stop, tol=c.approach_px)
+            self.stats.blocks += res.blocks
+            if not res.ok and res.reason != "timeout":
+                self._emit("adventure.walk_failed", spot=spot.id, reason=res.reason, what="smash")
+                return "nothing"
+        frame = self._grab()
+        dot = sight.minimap_dot(frame, self.prof)
+        pred = self.lvl.to_screen(dot, (spot.x, spot.y)) if dot else avatar
+        purple = objects.nearest(
+            self._plausible(objects.crystals(frame, self.prof), pred), pred, "decoy"
+        )
+        if purple is not None:
+            purple = self._approach(purple, "decoy", c.drop_reach_px, bursts=6) or purple
+            at = (purple.x, purple.y)
+        else:
+            at = (round(pred[0]), round(pred[1]))
+            if float(np.hypot(at[0] - avatar[0], at[1] - avatar[1])) > c.screen_walk_px:
+                return "nothing"  # the rock would be off screen: the spot is off
+        hits, clicks = self._click_until_quiet(at)
+        self._emit("adventure.smash", spot=spot.id, at=list(at), hits=hits, clicks=clicks)
+        return "smashed" if hits else "nothing"
+
+    def _click_until_quiet(self, at: tuple[int, int]) -> tuple[int, int]:
+        """Click ``at`` until the Courage pops stop; (hits, clicks)."""
+        c = self.cfg
+        hits = quiet = n = 0
+        for n in range(1, c.smash_clicks + 1):
+            self._in.click(at[0], at[1])
+            end = self._clock() + c.smash_gap_s
+            popped = False
+            while self._clock() < end and not self._stop():
+                frame = self._grab()
+                if self._courage is not None and (
+                    self._courage.near(frame, at, c.courage_radius_px) >= self._courage.min
+                ):
+                    popped = True
+                self._sleep(self._tick)
+            hits, quiet = (hits + 1, 0) if popped else (hits, quiet + 1)
+            if (hits and quiet >= c.smash_quiet) or (not hits and n >= c.smash_probe):
+                break
+            if self._stop():
+                break
+        return hits, n
 
     def _lit(self, before: BgrImage, at: tuple[int, int]) -> bool:
         """The crystal at ``at`` lit up: the Courage text pops near it, or a glow appears

@@ -167,8 +167,12 @@ and switched William's animal. A room must read as one for 1.5 s before the glob
    would stay muddy. The first act of the plan is the start
    room's pickup (the counter only appears with it); no "!" click is needed there, Cosmo's
    dialog closes and the door opens by itself.
-4. William's input pauses it (keys released); 2.5 s of quiet and it goes on with the next act.
-5. Three failed acts in a row raise `adventure.help` (HIGH) and wait for him.
+4. **Smash** acts (the reference run's groups of 4+ clicks in the chamber: cracked rocks,
+   purple crystals): walk there, click up to 18 times every 0.25 s, stop 3 clicks after the
+   last Courage pop, or after 6 with none. Never a failure.
+5. William's input pauses it (keys released); 2.5 s of quiet and it goes on with the next act.
+6. A failed light asks for help once and is skipped if it still fails after his turn; three
+   other failures in a row raise `adventure.help` (HIGH) and wait for him.
 
 Events: `adventure.menu`, `adventure.phase`, `adventure.act` (action, spot, outcome, counts),
 `adventure.not_seen`, `adventure.walk_failed`, `adventure.restock`, `adventure.handover`.

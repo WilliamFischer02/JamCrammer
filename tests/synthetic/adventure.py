@@ -50,13 +50,13 @@ def _texture(seed: int) -> BgrImage:
     for _ in range(2600):
         x, y = int(rng.integers(0, WORLD_W)), int(rng.integers(0, WORLD_H))
         r = int(rng.integers(6, 40))
-        v = int(rng.integers(30, 220))
+        v = int(rng.integers(30, 190))  # never as bright as a lit crystal's glow
         c = tuple(int(np.clip(v + d, 0, 255)) for d in rng.integers(-18, 18, 3))
         cv2.circle(img, (x, y), r, c, -1)
     for _ in range(500):
         p0 = (int(rng.integers(0, WORLD_W)), int(rng.integers(0, WORLD_H)))
         p1 = (p0[0] + int(rng.integers(-120, 120)), p0[1] + int(rng.integers(-120, 120)))
-        v = int(rng.integers(0, 255))
+        v = int(rng.integers(0, 190))
         c = tuple(int(np.clip(v + d, 0, 255)) for d in rng.integers(-18, 18, 3))
         cv2.line(img, p0, p1, c, int(rng.integers(2, 6)))
     return img

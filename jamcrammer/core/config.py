@@ -296,6 +296,12 @@ class LevelConfig(StrictModel):
     # click: the walk to it began then (the pick banner itself only comes as you reach the
     # fungus, so the first act must not wait for it)
     # (the door after the first moth, the next room) before asking for help
+    smash_min_clicks: int = Field(4, ge=1)  # repeated clicks in the recording that count as
+    # a smash (a cracked rock, a purple crystal; fewer is a walk-click)
+    smash_clicks: int = Field(18, ge=1)  # clicks on a rock / purple crystal at most
+    smash_gap_s: float = Field(0.25, gt=0)
+    smash_quiet: int = Field(3, ge=1)  # clicks without a Courage pop after a hit: it is gone
+    smash_probe: int = Field(6, ge=1)  # clicks without any Courage pop: nothing there
     bad_drop_px: int = Field(120, ge=0)  # a drop that left the crystal dark: no target
     # this close to it again in this act (it was Cosmo, a decoy, the floor)
     room_hold_s: float = Field(1.5, gt=0)  # a room must read as one this long before the

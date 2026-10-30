@@ -74,6 +74,8 @@ SPOT_KINDS = {
     (1, "pickup"): "boom_pile",
 }
 ACTIONS = {"crystal": "light", "fungus": "pick", "boom_target": "boom", "boom_pile": "pick"}
+SMASH_AREAS = ("moths",)  # repeated clicks here are rocks and purple crystals (the city's
+# repeats are mirrors, which turn, not break)
 SPOT_COLOURS = {
     "crystal": (0, 0, 255),
     "fungus": (0, 220, 0),
@@ -449,24 +451,7 @@ def build_level(
         if door is not None and (dot := route.dot_at(door.t)) is not None:
             spot = _merge(lvl, "door", "moths", dot, run=session.name, r=DOOR_MERGE_PX)
             acts.setdefault("moths", []).append(Act(spot.id, "door", door.t, "door", "door"))
-        # repeated clicks (mirrors, rocks) as spots, for the map
-        seen: set[int] = set()
-        for st in route.steps:
-            if st.kind != "click" or st.zone != "world" or st.group < 0 or st.group in seen:
-                continue
-            seen.add(st.group)
-            area = area_at(spans, st.t)
-            dot = route.dot_at(st.t)
-            if area is None or dot is None:
-                continue  # pragma: no cover - a click with no banner / dot yet
-            _merge(
-                lvl,
-                "repeat",
-                area,
-                lvl.to_minimap(dot, (st.ax, st.ay)),
-                run=session.name,
-                r=cfg.spot_merge_px,
-            )
+        _repeats(lvl, route, run=session.name, spans=spans, acts=acts, cfg=cfg)
         if session is sessions[-1]:
             lvl.plan = {a: sorted(v, key=lambda x: x.t) for a, v in acts.items()}
     return lvl
@@ -492,3 +477,40 @@ def finished_sessions(sessions_dir: Path, target: str) -> list[Path]:
         if "complete" in texts:
             out.append(d)
     return out
+
+
+def _repeats(
+    lvl: Level,
+    route: Route,
+    *,
+    run: str,
+    spans: list[tuple[str, float, float]],
+    acts: dict[str, list[Act]],
+    cfg: LevelConfig,
+) -> None:
+    """Repeated clicks (mirrors, rocks) as spots, for the map; the run's groups of
+    smash_min_clicks or more in the moth chamber become smash acts."""
+    sizes: dict[int, int] = {}
+    for st in route.steps:
+        if st.kind == "click" and st.zone == "world" and st.group >= 0:
+            sizes[st.group] = sizes.get(st.group, 0) + 1
+    seen: set[int] = set()
+    for st in route.steps:
+        if st.kind != "click" or st.zone != "world" or st.group < 0 or st.group in seen:
+            continue
+        seen.add(st.group)
+        area = area_at(spans, st.t)
+        dot = route.dot_at(st.t)
+        if area is None or dot is None:
+            continue  # pragma: no cover - a click with no banner / dot yet
+        rep = _merge(
+            lvl,
+            "repeat",
+            area,
+            lvl.to_minimap(dot, (st.ax, st.ay)),
+            run=run,
+            r=cfg.spot_merge_px,
+        )
+        if area in SMASH_AREAS and sizes.get(st.group, 0) >= cfg.smash_min_clicks:
+            phase = lvl.phase_at(route, st.t - cfg.act_lead_s)
+            acts.setdefault(area, []).append(Act(rep.id, "smash", st.t, "repeat", phase))
