@@ -38,6 +38,8 @@ from jamcrammer.services.notify import ChannelResult, Notifier
 from jamcrammer.services.watchdog import Detection, PopupDetector, Watchdog
 from jamcrammer.vision.stage import StageMap
 
+BANNER_UPSCALE = 2.0  # the 36 px objective banner reads as nothing at 1x, perfectly at 2x
+
 log = get_logger("engine")
 
 MODES = ("planner", "hunt", "farm", "adventure", "opportunist")
@@ -908,7 +910,7 @@ class Engine:
             dialog_x=x_tmpl,
             presence=self.presence,
             bus=self.bus,
-            ocr=lambda img: ocr_image(img).text,
+            ocr=lambda img: ocr_image(img, upscale=BANNER_UPSCALE).text,
             fixes=FixLog(self.paths.data / "adventures" / f"{rc.target}_fixes.jsonl"),
             tape=tape,
         )
@@ -989,7 +991,7 @@ class Engine:
             lc,
             self.input,
             grab,
-            banner_ocr=lambda img: ocr_image(img).text,
+            banner_ocr=lambda img: ocr_image(img, upscale=BANNER_UPSCALE).text,
             counter_ocr=lambda img: ocr_image(img, upscale=4.0).text,
             counter_retry=lambda img: ocr_image(img, upscale=2.0).text,
             dialog_x=x_tmpl,

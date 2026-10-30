@@ -108,6 +108,15 @@ _Last updated: 2026-10-30 (The Mystery Below: level model, menus by state, moth 
   `data/derby_learned.json` with the PC's copies, which are backed up. Re-add the per-class
   leads after an import.
 
+## The Mystery Below: eighth live run (2026-10-30 14:52): still, again (the banner was never read)
+- `adventure.phase_wait` with `now: ""` for 50 s: the runner's banner OCR returned nothing.
+  The banner strip (`banner_roi`, 36 px tall) reads as **nothing at 1x and perfectly at 2x**
+  (checked on six recorded banners and the live screenshot). The level runner, and the
+  route replay before it, had never read a banner; the earlier runs got by because nothing
+  waited on one. Fixed: both get the banner at `BANNER_UPSCALE` (2.0) in `engine.py`.
+- William's note: the first crystal is not visible from the loading point (darkness); the
+  plan goes fungus first anyway, and the crystal is found once lit up close.
+
 ## The Mystery Below: seventh live run (2026-10-30 14:34): stood still at the start
 - **Stood still:** the first act (the pick) was gated on the "pick some light blossoms"
   banner, which only appears as you reach the fungus: a deadlock. An act's phase is now the
