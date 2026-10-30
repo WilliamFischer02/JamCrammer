@@ -34,17 +34,19 @@ def profile() -> Profile:
 def _texture(seed: int) -> BgrImage:
     rng = np.random.default_rng(seed)
     img = np.full((WORLD_H, WORLD_W, 3), 70, np.uint8)
+    # dull rock: luminance varies, saturation stays low, so only the things have colour
     for _ in range(2600):
         x, y = int(rng.integers(0, WORLD_W)), int(rng.integers(0, WORLD_H))
         r = int(rng.integers(6, 40))
-        c = tuple(int(v) for v in rng.integers(30, 220, 3))
+        v = int(rng.integers(30, 220))
+        c = tuple(int(np.clip(v + d, 0, 255)) for d in rng.integers(-18, 18, 3))
         cv2.circle(img, (x, y), r, c, -1)
     for _ in range(500):
         p0 = (int(rng.integers(0, WORLD_W)), int(rng.integers(0, WORLD_H)))
         p1 = (p0[0] + int(rng.integers(-120, 120)), p0[1] + int(rng.integers(-120, 120)))
-        cv2.line(
-            img, p0, p1, tuple(int(v) for v in rng.integers(0, 255, 3)), int(rng.integers(2, 6))
-        )
+        v = int(rng.integers(0, 255))
+        c = tuple(int(np.clip(v + d, 0, 255)) for d in rng.integers(-18, 18, 3))
+        cv2.line(img, p0, p1, c, int(rng.integers(2, 6)))
     return img
 
 
@@ -153,9 +155,9 @@ class World:
             img[sy0 - y0 : sy1 - y0, sx0 - x0 : sx1 - x0] = self.base[sy0:sy1, sx0:sx1]
         for th in self.things:
             c = (
-                (60, 200, 60)
+                (250, 240, 200)  # pale cyan: lit
                 if th.done
-                else ((220, 120, 40) if th.kind == "fungus" else (40, 40, 230))
+                else ((60, 220, 80) if th.kind == "fungus" else (150, 60, 20))  # green / navy
             )
             cx, cy = int(th.x - x0), int(th.y - y0)
             cv2.rectangle(img, (cx - 30, cy - 30), (cx + 30, cy + 30), c, -1)

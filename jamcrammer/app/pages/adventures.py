@@ -229,13 +229,24 @@ class AdventuresPage(ModePage):
         if info.route_current:
             self.route_line.setText(
                 f"{session.name}: {info.route_steps} steps ({info.route_clicks} clicks), "
-                f"{info.route_objectives} objectives, {info.minutes:.0f} min"
+                f"{info.route_objectives} objectives, {info.minutes:.0f} min; {self._level_note()}"
             )
         else:
             self.route_line.setText(
                 f"{session.name}: route not built yet. Start builds it first (a few minutes for "
                 "a long run), or press Rebuild route now."
             )
+
+    def _level_note(self) -> str:
+        """The level model on disk (docs/MYSTERY_BELOW.md): what the moth chamber runs from."""
+        from jamcrammer.modes.adventures.level import Level, level_dir
+
+        target = self.engine.cfg.adventures.route.target
+        lvl = Level.load(level_dir(self.engine.paths.profiles, target))
+        if lvl is None:
+            return "no level model yet (Rebuild route builds it)"
+        acts = sum(len(v) for v in lvl.plan.values())
+        return f"level model from {len(lvl.sessions)} runs: {len(lvl.spots)} spots, {acts} acts"
 
     # --- actions -------------------------------------------------------------------------
 

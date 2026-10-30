@@ -240,11 +240,21 @@ class RouteRunner:
     # --- the loop ------------------------------------------------------------------------
 
     def run(
-        self, should_stop: Callable[[], bool], status: Callable[[str], None] | None = None
+        self,
+        should_stop: Callable[[], bool],
+        status: Callable[[str], None] | None = None,
+        *,
+        start_rt: float | None = None,
     ) -> None:
+        """``start_rt``: begin at that route time (a handover from the level runner at a
+        banner) instead of localising."""
         self._stop = should_stop
         try:
-            self._start()
+            if start_rt is None:
+                self._start()
+            else:
+                self._jump(start_rt, "handover")
+                self.state = "PLAY"
             self._loop(status)
         finally:
             self._release_all()
@@ -325,7 +335,9 @@ class RouteRunner:
     def _guards(self, frame: BgrImage, now: float) -> bool:
         """Dialog, objective, course and stuck checks; True when one of them acted."""
         c = self.cfg
-        if self._close_dialog(frame):
+        if self.rt >= self.route.opening_end and self._close_dialog(frame):
+            # never in the opening: the Join / Host dialog has the same blue X as Cosmo's,
+            # and closing it is how the first supervised run undid its own menu clicks
             return True
         if self._hold_since is not None and now - self._last_align < c.align_every_s:
             return True  # still waiting for the recorded scene
@@ -492,7 +504,10 @@ class RouteRunner:
         cursor0 = self._cursor()
         before = self._grab()
         retries = self._act(s, x, y)
-        if s.zone == "items" and s.kind == "click":
+        inside = self.route.inside(s.t)
+        if not inside:
+            pass  # a menu click: the slots are not there to change
+        elif s.zone == "items" and s.kind == "click":
             retries += self._expect(
                 lambda: self._cursor() != cursor0 or self._items_changed(before),
                 lambda: self._act(s, x, y),

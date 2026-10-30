@@ -241,6 +241,48 @@ class RouteConfig(StrictModel):
     loop: bool = False  # start the route again after it ends (switch animals by hand)
 
 
+class LevelConfig(StrictModel):
+    """Level model farmer (modes/adventures/level.py, level_runner.py): the recorded runs become
+    a map in minimap coordinates (floor, crystals, fungi, the door) and the bot plans on it:
+    menus by state, the moth chamber by spots, the rest by route replay for now."""
+
+    enabled: bool = True
+    sessions: list[str] = []  # Learn session folders the level is built from; [] = every
+    # finished run of the target (the newest is the reference plan)
+    spot_merge_px: float = Field(5.0, ge=0)  # events this close on the minimap are one spot
+    floor_min_v: int = Field(28, ge=0, le=255)  # minimap pixels at least this bright are floor
+    floor_min_frames: int = Field(3, ge=1)  # ... in at least this many sampled frames (a zoomed
+    # minimap or a flash is bright everywhere for a moment)
+    floor_dilate_px: int = Field(1, ge=0)  # the recorded dot track widens the floor by this
+    use_click_window_s: float = Field(2.5, ge=0)  # a counter change this soon after a world
+    # click: that click did it (its target is the crystal / fungus)
+    # navigation on the floor mask
+    nav_tol_px: float = Field(2.0, gt=0)  # arrived when the dot is this close (minimap px)
+    nav_lookahead_px: float = Field(4.0, gt=0)  # steer at the path point this far ahead
+    nav_stuck_s: float = Field(1.0, gt=0)  # keys held and the dot still this long: blocked
+    nav_stuck_px: float = Field(1.0, ge=0)
+    nav_timeout_s: float = Field(60.0, gt=0)
+    nav_max_blocks: int = Field(8, ge=0)  # blocked cells learned in one go_to before giving up
+    nav_dot_wait_s: float = Field(4.0, gt=0)  # no dot (a dialog, loading) this long: fail
+    nav_snap_px: int = Field(4, ge=0)  # a target off the floor snaps to floor this close
+    # acting on what is on screen
+    reach_px: int = Field(420, ge=0)  # a blob this close to the animal can be clicked
+    act_verify_s: float = Field(2.5, gt=0)  # the item counter must change within this
+    act_retries: int = Field(2, ge=0)
+    approach_px: float = Field(3.0, gt=0)  # go this close (minimap px) to a spot, then look
+    walk_toward_s: float = Field(1.2, gt=0)  # a blob out of reach: walk at it this long
+    look_retries: int = Field(3, ge=0)  # looks (walk, look again) for the crystal at a spot
+    inventory_every_s: float = Field(1.0, gt=0)
+    banner_every_s: float = Field(2.0, gt=0)
+    resume_idle_s: float = Field(2.5, gt=0)  # William's hands off this long: continue
+    # the menus
+    menu_step_s: float = Field(4.0, gt=0)  # each menu click must show its panel within this
+    menu_retries: int = Field(2, ge=0)
+    load_max_s: float = Field(60.0, gt=0)  # PLAY to the first banner
+    join: bool = True  # Join an Adventure (as William recorded); False: Host
+    hard: bool = True
+
+
 class AdventureConfig(StrictModel):
     """Adventure bots (The Forgotten Desert, The Mystery Below): invite bubbles in Jamaa rooms."""
 
@@ -253,6 +295,7 @@ class AdventureConfig(StrictModel):
     invite_crop_side: float = Field(4.0, ge=0)  # ... and this many to each side
     invite_upscale: float = Field(2.0, gt=0)  # OCR upscale of the bubble crop
     route: RouteConfig = RouteConfig()
+    level: LevelConfig = LevelConfig()
 
 
 class OpportunistConfig(StrictModel):

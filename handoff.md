@@ -1,6 +1,6 @@
 # Handoff
 
-_Last updated: 2026-10-30 (The Mystery Below: first live start from the den, three fixes)_
+_Last updated: 2026-10-30 (The Mystery Below: level model, menus by state, moth chamber from a plan)_
 
 ## Laptop (2026-10-29)
 - **Git on the laptop:** work happens on the local branch `laptop`; `main` stays at
@@ -107,6 +107,47 @@ _Last updated: 2026-10-30 (The Mystery Below: first live start from the den, thr
 - **Import caution:** `sync_state.py import` would replace `profiles/jamaa_derby.yaml` and
   `data/derby_learned.json` with the PC's copies, which are backed up. Re-add the per-class
   leads after an import.
+
+## The Mystery Below: level model (2026-10-30, laptop branch, not run live yet)
+Full write-up: `docs/MYSTERY_BELOW.md`. In short:
+- **Why:** the two supervised runs of 2026-10-30 09:53 / 09:54 died in the menus. The dialog
+  closer saw the Join/Host dialog's blue X (same template as Cosmo's) at (1441,426) and closed
+  it; HUD clicks were checked for an item-slot change (a panel opening over the slots) and
+  retried; the second run read the World Map's blue as the minimap dot. William's second
+  recording (`20261030_100745_mystery_below`, 22 min) came with his design: map the level.
+- **The minimap is the map.** Fixed, north-up, revealed as explored, identical pixel for pixel
+  across runs, one per area (moth chamber, torch hall, city). 70 scene px per minimap px,
+  our animal at (1005,500), arrow keys map straight onto its axes.
+- **Items are the exact signal.** The "N/3" counters of the two slots were OCR'd on every
+  keyframe by the recorder; each change is a use or a pickup, and the world click just before
+  it placed on the minimap is the crystal / fungus. 46 crystal spots, 17 fungi, the door, 52
+  repeat spots (mirrors, rocks) in the city, with the reference run's 52 acts as the plan.
+- **New modules** (`jamcrammer/modes/adventures/`): `level.py` (model + builder, files under
+  `profiles/levels/mystery_below/`: level.json, `<area>_floor.png`, `<area>_map.png`),
+  `inventory.py` (counters by OCR: 92% at upscale 4, 0 wrong, retry at 2), `objects.py`
+  (crystals unlit/lit/decoy and fungi by HSV blobs), `nav.py` (A* on the floor mask, the live
+  dot, walls learned from a still dot), `opening.py` (menus by OCR state), `level_runner.py`
+  (the moth chamber: walk to the spot, find by colour, act, verify by the counter, restock
+  from the nearest fungus, William pauses it, three failures = HIGH help, the door banner
+  hands over to route replay at that banner's time).
+- **Engine:** `adventures.level.enabled` (default true) runs Opening → LevelRunner →
+  RouteRunner(start_rt=the door). Rebuild route on the Adventures tab also rebuilds the level.
+  Config: `adventures.level.*` (`core/config.py` LevelConfig). Profile: colour ranges, counter
+  ROIs, menu points, `minimap_scale`, `avatar_xy`, `item_slot_1/2`.
+- **Replay fixes:** no dialog closing and no item checks before the first banner; a HUD click
+  never expects an item change (`ROUTE_VERSION` 5: routes rebuild once).
+- **Verified:** 12 new tests on the synthetic adventure (menus, walking around an unmapped
+  wall, colours, counters, the model's files and banners, the runner lighting from a plan with
+  a restock and handing over, help after three unseen crystals); detectors measured on both
+  recordings (unlit crystal near the click 72-83%, fungus 91-93%, lit crystal 35%: the counter
+  verifies, not the glow). 183 tests, ruff, mypy clean. **Nothing of this has run live.**
+- **Next: a supervised run from the den.** Expect `adventure.menu` states room → world_map →
+  adventures → adventure_dialog → difficulty → lobby → loading → in_adventure, then
+  `adventure.phase` and one `adventure.act` per crystal / fungus with its outcome. `not_seen`
+  = the colour range or the spot is off there; `walk_*` = the floor mask or a wall; the moth
+  phase ends with `adventure.handover` and the old replay takes the torches and the city.
+- **Synthetic world:** its texture is grey now and its things navy / pale cyan / green, so the
+  real colour ranges find them; the route tests still pass on it.
 
 ## The Mystery Below: the first live start, from the den (2026-10-29 23:24, fixed 2026-10-30)
 - **What happened:** Start in the den raised a HIGH alert at once (`adventure.supervised`,

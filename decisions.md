@@ -367,3 +367,34 @@ Non-obvious choices and why. Newest at the bottom.
 - **`adventure.supervised` is NOTICE.** It announces a setting he chose; HIGH (three sounds, a
   long toast) is for things that need him now.
 
+## 2026-10-30 — The Mystery Below: a level model instead of blind replay (laptop branch)
+
+- **Minimap coordinates are the world frame.** The minimap is the same map in every run and
+  gives an absolute position even in the dark; scene pixels drift with the camera and the
+  thumbnails localised the route right only a third of the time. Everything the level model
+  stores (floor, spots, the plan) is in minimap px; screen positions are derived from the dot.
+- **The item counters verify acts.** A lit crystal's glow is detected only a third of the
+  time (the glow washes out), the counter's "N/3" is read 92% of the time and never wrong, and
+  a use always takes one. So an act is done when the counter moves, never when the picture
+  looks right.
+- **Spots are approximate, the screen decides.** The clicks placed on the minimap scatter 3-5
+  px (dot quantised to a pixel, a second of camera lag). Rather than chase exact positions,
+  the runner walks to within 3 px (a third of a screen) and finds the thing by colour there.
+- **The plan is the reference run's act order, not a path model.** William's order differs
+  between runs and the game does not care; the newest run's sequence is replayed act by act,
+  an act whose crystal is not visible is skipped (it may already be lit), and restocking is
+  "nearest fungus spot", not his detour.
+- **Menus by OCR state, not by replayed clicks.** The Join/Host dialog has the same blue X as
+  the in-game dialogs, so a dialog closer must never run in the menus; and each menu click is
+  only right if the next panel shows. "PLAY" OCRs as "nay", so the lobby is recognised by the
+  adventure's name in its header.
+- **Walls are learned, not surveyed.** A held key with a still dot for a second marks a
+  3-cell wall and the path is replanned; a dialog holding the animal is closed first so it is
+  not mistaken for a wall. A survey mode driving the animal around was William's idea; the
+  recorded minimaps already show the floors, so it is not built.
+- **Torches and the city stay on replay for now** (`mode: replay` per phase). The model has
+  their spots (mirrors, rocks, piles) but no beam detector or switch timing yet; each phase
+  moves to the plan as it is built, and the handover is at the phase's banner.
+- **Join, not Host, and Hard**, because both recordings did that and it ran solo; both are
+  config switches (`adventures.level.join`, `.hard`).
+

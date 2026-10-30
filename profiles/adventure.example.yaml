@@ -59,3 +59,100 @@ fields:
     value: 0.8
     status: calibrated
     note: template score that counts as an open dialog
+  # --- level model (modes/adventures/level.py, nav.py, objects.py, inventory.py, opening.py) ---
+  # Measured 2026-10-30 on the two Hard runs 20261029_134501 and 20261030_100745.
+  minimap_scale:
+    type: number
+    value: 70
+    status: calibrated
+    note: scene px per minimap px (both axes; walk 400 px/s vs dot 5.9 px/s; windowed fit 66-72)
+  avatar_xy:
+    type: point
+    value: [1005, 500]
+    status: calibrated
+    note: our animal's screen centre (name tag median 1000,525 over 3500 adventure frames)
+  item_counter_rois:
+    type: list
+    value: [[180, 36, 80, 44], [180, 176, 80, 44]]
+    status: calibrated
+    note: the "N/3" counters of the two item slots (light blossoms at y 48, boomseeds at y 188)
+  crystal_unlit_hsv:
+    type: color
+    value: [[85, 130, 60], [115, 255, 215]]
+    status: calibrated
+    note: a dark-blue unlit crystal (measured at 39 recorded uses H 75-105 S 139-249 V 77-199)
+  crystal_lit_hsv:
+    type: color
+    value: [[85, 20, 215], [110, 150, 255]]
+    status: calibrated
+    note: a lit crystal glows pale cyan (bright pixels after a use H 93-101 S 68-127)
+  crystal_decoy_hsv:
+    type: color
+    value: [[130, 90, 80], [165, 255, 255]]
+    status: proposed
+    note: purple decoy / destroyable crystals
+  fungus_hsv:
+    type: color
+    value: [[50, 90, 140], [90, 255, 255]]
+    status: calibrated
+    note: the green glow fungus cap (measured at 15 recorded pickups H 54-87 S 98-176 V 164-255)
+  blob_area:
+    type: list
+    value: [1500, 400000]
+    status: proposed
+    note: pixel area of a crystal / fungus blob on screen
+  menu_globe:
+    type: point
+    value: [1729, 992]
+    status: calibrated
+    note: the globe in the bottom bar (den or any room) opens the WORLD MAP
+  menu_adventures:
+    type: point
+    value: [159, 809]
+    status: calibrated
+    note: the Adventures button at the left of the WORLD MAP
+  menu_list_drag:
+    type: list
+    value: [697, 340, 693, 899]
+    status: calibrated
+    note: drag the adventure list's scrollbar thumb to the bottom (The Mystery Below is entry 18)
+  menu_list_roi:
+    type: roi
+    value: [200, 180, 400, 800]
+    status: calibrated
+    note: the adventure list's entry names
+  menu_join:
+    type: point
+    value: [826, 592]
+    status: calibrated
+    note: Join an Adventure in the Adventure dialog (William joins; Host is at 1130,560)
+  menu_host:
+    type: point
+    value: [1130, 560]
+    status: proposed
+    note: Host an Adventure
+  menu_hard:
+    type: point
+    value: [1100, 630]
+    status: calibrated
+    note: Hard in the Difficulty Mode dialog (Normal at 840,630)
+  menu_normal:
+    type: point
+    value: [840, 630]
+    status: proposed
+    note: Normal in the Difficulty Mode dialog
+  menu_play:
+    type: point
+    value: [955, 1010]
+    status: calibrated
+    note: PLAY in the adventure lobby panel
+  item_slot_1:
+    type: point
+    value: [200, 100]
+    status: calibrated
+    note: the light blossom slot icon (drag it onto a crystal; William's drags started 198-250, 69-113)
+  item_slot_2:
+    type: point
+    value: [200, 240]
+    status: proposed
+    note: the boomseed slot icon

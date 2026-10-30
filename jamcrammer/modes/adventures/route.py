@@ -37,7 +37,7 @@ from jamcrammer.vision.ocr import normalize_text
 from jamcrammer.vision.stage import StageMap
 
 BgrImage = npt.NDArray[np.uint8]
-ROUTE_VERSION = 4
+ROUTE_VERSION = 5
 DRAG_MIN_PX = 25  # a press and release further apart than this is a drag
 DIALOG_X_RADIUS = 40  # a click this close to a dialog's X closes the dialog
 
@@ -381,7 +381,8 @@ def _annotate_clicks(route: Route, prof: Profile, cfg: RouteConfig, x_tmpl: BgrI
         after = route.frame_index_at(s.t + s.dur + cfg.item_check_s)
         moved = sum(f.motion for f in route.frames[s.ref + 1 : after + 1])
         s.items_change = (
-            moved <= cfg.items_still_px  # walking changes the slots' area when they are hidden
+            s.zone in ("world", "items")  # a HUD click opens a panel over the slots
+            and moved <= cfg.items_still_px  # walking changes the slots' area when hidden
             and sight.region_change(img, route.image(after), prof.roi("items_roi"))
             >= cfg.item_change_min
         )

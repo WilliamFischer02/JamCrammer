@@ -892,6 +892,11 @@ class Engine:
         x_tmpl = np.asarray(raw, dtype=np.uint8)
         self._status(f"LOADING · route from {session.name}")
         route = load_or_build(session, rc.target, prof, rc, x_tmpl)
+        start_rt: float | None = None
+        if self.cfg.adventures.level.enabled:
+            start_rt = self._run_level(route, prof, x_tmpl)
+            if start_rt is None:
+                return
         tape = Tape(self._screen_to_stage)
         tape.start()
         runner = RouteRunner(
@@ -918,10 +923,84 @@ class Engine:
             return self._should_stop() or self.pause.paused or self._watchdog_blocks()
 
         try:
-            runner.run(guarded_stop, self._status)
+            runner.run(guarded_stop, self._status, start_rt=start_rt)
         finally:
             tape.stop()
         self.state.stats["adventure"] = runner.stats.as_dict()
+
+    def _run_level(self, route: Any, prof: Profile, x_tmpl: Any) -> float | None:
+        """The menus by state and the moth chamber from the level model
+        (modes/adventures/{opening,level_runner}.py). Returns the route time the replay
+        continues from (the banner the level runner stopped at), or None to stop."""
+        from jamcrammer.modes.adventures.level import Level as LevelModel
+        from jamcrammer.modes.adventures.level import level_dir
+        from jamcrammer.modes.adventures.level_runner import LevelRunner
+        from jamcrammer.modes.adventures.opening import Opening
+        from jamcrammer.vision.ocr import ocr_image
+
+        rc, lc = self.cfg.adventures.route, self.cfg.adventures.level
+        lvl = LevelModel.load(level_dir(self.paths.profiles, rc.target))
+        if lvl is None:
+            self.emit(
+                "adventure.no_level",
+                Level.NOTICE,
+                message=f"no level model for {rc.target} (Adventures tab: Rebuild); route replay only",
+            )
+            return 0.0
+
+        def guarded_stop() -> bool:
+            frame = self.snapshot()
+            if frame is not None:
+                self.watchdog.tick(frame, known_screen=True)
+            return self._should_stop() or self.pause.paused or self._watchdog_blocks()
+
+        grab = lambda: self.grab().image  # noqa: E731
+        self.lease.acquire("adventure")  # the menu clicks are ours from here
+        self._status("MENUS · into the adventure")
+        opening = Opening(
+            lvl,
+            prof,
+            lc,
+            click=self.input.click,
+            drag=self.input.drag,
+            grab=grab,
+            ocr=ocr_image,
+            bus=self.bus,
+            clock=time.monotonic,
+            sleep=time.sleep,
+        )
+        if not opening.run(guarded_stop):
+            self.state.stats["adventure_menus"] = {"steps": opening.steps}
+            return None
+        runner = LevelRunner(
+            lvl,
+            prof,
+            lc,
+            self.input,
+            grab,
+            banner_ocr=lambda img: ocr_image(img).text,
+            counter_ocr=lambda img: ocr_image(img, upscale=4.0).text,
+            counter_retry=lambda img: ocr_image(img, upscale=2.0).text,
+            dialog_x=x_tmpl,
+            presence=self.presence,
+            bus=self.bus,
+        )
+        self._mode_obj = runner
+        out = runner.run(guarded_stop, self._status)
+        self.state.stats["adventure_level"] = {"outcome": out, **runner.stats.as_dict()}
+        if out == "stopped":
+            return None
+        # continue by replay at the banner it reached (the door), else from the plan's end
+        key = runner.phase or "door"
+        for o in route.objectives:
+            p = lvl.phase_of(o.text)
+            if p is not None and p.key == key and p.mode != "plan":
+                self.emit("adventure.handover", Level.NOTICE, phase=key, rt=round(o.t, 1))
+                return float(o.t)
+        door = next(
+            (o for o in route.objectives if (p := lvl.phase_of(o.text)) and p.key == "door"), None
+        )
+        return float(door.t) if door is not None else 0.0
 
     def rebuild_route(self, session: Path) -> str:
         """Build the adventure route from a recorded run, validate it and write the replay
@@ -936,17 +1015,54 @@ class Engine:
         raw = cv2.imread(str(prof.template_path("dialog_x_template", self.paths)))
         if raw is None:
             return "dialog X template missing (assets/templates/adventures)"
-        route = build_route(session, rc.target, prof, rc, np.asarray(raw, dtype=np.uint8))
+        x_tmpl = np.asarray(raw, dtype=np.uint8)
+        route = build_route(session, rc.target, prof, rc, x_tmpl)
         acc, n = validate_route(route, rc)
         write_replay_record(session, acc, n, "route_localize")
         clicks = sum(s.kind != "key" for s in route.steps)
         self.emit(
             "adventure.route_built", session=session.name, steps=len(route.steps), accuracy=acc
         )
+        level_note = self._rebuild_level(prof, x_tmpl)
         return (
             f"{len(route.steps)} steps ({clicks} clicks), {len(route.objectives)} objectives; "
-            f"localisation check {acc:.0%} over {n} frames"
+            f"localisation check {acc:.0%} over {n} frames; {level_note}"
         )
+
+    def _rebuild_level(self, prof: Profile, x_tmpl: Any) -> str:
+        """The level model from every finished run of the target (docs/MYSTERY_BELOW.md),
+        saved under profiles/levels/<target>/ for the level runner."""
+        from jamcrammer.modes.adventures.level import (
+            PHASES_BY_TARGET,
+            build_level,
+            finished_sessions,
+            level_dir,
+        )
+
+        rc, lc = self.cfg.adventures.route, self.cfg.adventures.level
+        if rc.target not in PHASES_BY_TARGET:
+            return "no level model for this adventure"
+        sessions = (
+            [self.paths.sessions / name for name in lc.sessions]
+            if lc.sessions
+            else finished_sessions(self.paths.sessions, rc.target)
+        )
+        sessions = [s for s in sessions if s.exists()]
+        if not sessions:
+            return "level: no finished run to build from"
+        try:
+            lvl = build_level(sessions, rc.target, prof, cfg=lc, route_cfg=rc, x_tmpl=x_tmpl)
+            lvl.save(level_dir(self.paths.profiles, rc.target))
+        except Exception as exc:  # a half-recorded run must not take the page down
+            return f"level build failed: {exc}"
+        self.emit(
+            "adventure.level_built",
+            target=rc.target,
+            runs=len(sessions),
+            spots=len(lvl.spots),
+            acts=sum(len(v) for v in lvl.plan.values()),
+        )
+        return f"level from {len(sessions)} runs: {len(lvl.spots)} spots"
 
     def _screen_to_stage(self, sx: int, sy: int) -> tuple[int, int] | None:
         """A screen point inside the AJC client as stage pixels (William's corrective clicks)."""
