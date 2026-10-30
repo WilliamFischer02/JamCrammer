@@ -108,6 +108,17 @@ _Last updated: 2026-10-30 (The Mystery Below: level model, menus by state, moth 
   `data/derby_learned.json` with the PC's copies, which are backed up. Re-add the per-class
   leads after an import.
 
+## The Mystery Below: seventh live run (2026-10-30 14:34): stood still at the start
+- **Stood still:** the first act (the pick) was gated on the "pick some light blossoms"
+  banner, which only appears as you reach the fungus: a deadlock. An act's phase is now the
+  banner 3 s before its click (`act_lead_s`; the walk to it began then): the pick is gated
+  on "explore the darkness", the corridor's crystal still on "make a path" (the door).
+- **The list:** `menu_list_down` was (450,970), a list row (it opened "The Search for
+  Greely" on the 14:13 run and closed the panel on this one); the arrow is at (694,972),
+  measured on three live screenshots. The game keeps the list's scroll position, which is
+  why later tries found the entry at once. The entry matcher was never the problem here.
+- 188 tests, ruff, mypy clean.
+
 ## The Mystery Below: sixth live run (2026-10-30 14:13): Cosmo taken for a crystal
 - Pick and the first crystal fine. Then, still in the start room, the next act (the
   corridor's crystal) found nothing unlit near its prediction and took the nearest blue

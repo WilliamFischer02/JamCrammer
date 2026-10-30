@@ -434,7 +434,13 @@ def build_level(
                 continue
             spot = _merge(lvl, kind, area, ev.mm, run=session.name, r=cfg.spot_merge_px)
             acts.setdefault(area, []).append(
-                Act(spot.id, ACTIONS[kind], ev.click_t, kind, lvl.phase_at(route, ev.click_t))
+                Act(
+                    spot.id,
+                    ACTIONS[kind],
+                    ev.click_t,
+                    kind,
+                    lvl.phase_at(route, ev.click_t - cfg.act_lead_s),
+                )
             )
         # the door: where the "open the door" banner came
         door = next(

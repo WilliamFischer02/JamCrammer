@@ -401,6 +401,8 @@ Non-obvious choices and why. Newest at the bottom.
 - **A fungus is picked by its pin, not by itself.** The paw pin appears over a fungus in
   reach; the recordings' pickup clicks are all on it. So the pick act walks up until the pin
   shows (template + yellow check) and clicks the pin.
+- **An act's banner is the one 3 s before its click, not at it.** Some banners are caused
+  by the act (the pick banner comes as you reach the fungus); gating on them deadlocks.
 - **An act never runs before its banner.** The recording says under which banner each act
   happened; the game gates rooms and crystals by the same banners (the door opens with "make
   a path", the next crystal turns unlit as the moth arrives). Running ahead of the banner

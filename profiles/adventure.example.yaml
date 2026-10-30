@@ -178,9 +178,9 @@ fields:
     note: paw px inside the pin box (recordings 1079-1422, William's screenshot 908; text <= 450)
   menu_list_down:
     type: point
-    value: [450, 970]
+    value: [694, 972]
     status: calibrated
-    note: the adventure list scroll-down arrow (one click scrolls a little; the up arrow is at 450,258)
+    note: the adventure list scroll-down arrow, measured on three live screenshots (blue blob at 694,972); 450,970 was a list row
   courage_template:
     type: template
     value: templates/adventures/courage.png

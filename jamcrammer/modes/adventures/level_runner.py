@@ -618,8 +618,7 @@ class LevelRunner:
             "adventure.help",
             Level.HIGH,
             k=self.k,
-            message=f"Adventure farmer needs a hand: {why} three times running. "
-            "Take over; I go on when you let go.",
+            message=f"Adventure farmer needs a hand: {why}. Take over; I go on when you let go.",
         )
         while not self._stop() and not self._user_now():
             self._sleep(self._tick)

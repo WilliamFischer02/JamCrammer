@@ -292,6 +292,9 @@ class LevelConfig(StrictModel):
     pred_tol_px: int = Field(600, ge=0)  # a target must be this close to where the map
     # says the spot is (spots are good to 3-5 minimap px, 210-350 scene px)
     phase_wait_s: float = Field(90.0, gt=0)  # an act waits this long for its banner phase
+    act_lead_s: float = Field(3.0, ge=0)  # an act's phase is the banner this long before its
+    # click: the walk to it began then (the pick banner itself only comes as you reach the
+    # fungus, so the first act must not wait for it)
     # (the door after the first moth, the next room) before asking for help
     bad_drop_px: int = Field(120, ge=0)  # a drop that left the crystal dark: no target
     # this close to it again in this act (it was Cosmo, a decoy, the floor)
