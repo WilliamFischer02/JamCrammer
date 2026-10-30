@@ -1,6 +1,6 @@
 # Handoff
 
-_Last updated: 2026-10-29 (laptop bring-up; adventure research + design; Forgotten Desert invite finder)_
+_Last updated: 2026-10-30 (The Mystery Below: first live start from the den, three fixes)_
 
 ## Laptop (2026-10-29)
 - **Git on the laptop:** work happens on the local branch `laptop`; `main` stays at
@@ -107,6 +107,42 @@ _Last updated: 2026-10-29 (laptop bring-up; adventure research + design; Forgott
 - **Import caution:** `sync_state.py import` would replace `profiles/jamaa_derby.yaml` and
   `data/derby_learned.json` with the PC's copies, which are backed up. Re-add the per-class
   leads after an import.
+
+## The Mystery Below: the first live start, from the den (2026-10-29 23:24, fixed 2026-10-30)
+- **What happened:** Start in the den raised a HIGH alert at once (`adventure.supervised`,
+  toast + three sounds), the route localised to **1880 s, the end of the recording** (which
+  ends in that same den, thumbnail match 0.996), his mouse put it into USER, and it sat there
+  for 14 minutes without a line in the log until he stopped it. A minute later the idle
+  watchdog raised a second HIGH (`unknown_modal`) on the zoomed den view.
+- **Three bugs, fixed on the laptop branch** (`modes/adventures/replay.py`, `route.py`,
+  `app/engine.py`, `core/config.py`; tests in `tests/test_adventure_route.py`):
+  1. **The user turn never ended.** `PresenceDetector.user_active()` is "the OS saw input
+     after our last injection"; it never resets while nothing is injected, and nothing is
+     injected while waiting for him. The turn now ends when the OS has been quiet for
+     `resume_idle_s` (2.5 s); a takeover is his input *and* within that window.
+  2. **Starting from a room matched the end of the route.** Start now looks for the minimap
+     dot for `start_look_s` (1 s). No dot = a room, not the adventure: the route starts from
+     the top (globe, Adventures, ... PLAY; the HUD clicks are static). With a dot it matches
+     only inside the adventure (first banner to completion banner) at frames whose dot is
+     within `drift_dot_px` of the live one. Event `adventure.start_from_the_top` (NOTICE) says
+     which. Measured leave-out of the dot-gated start: within 4 s only 20-30% of the time (the
+     route revisits the same spots), so a mid-route start relies on the banner check.
+  3. **The opening was treated as the adventure.** Before the first banner (11.8 s) the
+     recording is Coral Canyons menus; from the den the scene gate would have held the clock
+     (sim 0.35) until the 45 s help alarm. Scene hold, course and stuck checks now start at the
+     first banner; a user turn in the opening resumes at the same route time.
+- **`adventure.supervised` is NOTICE now** (a toast), not HIGH: it is his own setting.
+- **Still expect** the idle watchdog's HIGH `unknown_modal` when capture is running with no
+  mode and the den is zoomed/edited; that is M2 behaviour, untouched.
+- **AJC geometry checked 2026-10-30:** external monitor, client 1920x1009 at DPI 96, same as
+  the recording.
+- **What the supervised run from the den should look like:** toast "SUPERVISED run";
+  `adventure.start_from_the_top` (dot=false); globe click at 1.6 s, Adventures, the list
+  drag, The Mystery Below, Join/Host, Hard, PLAY; then `adventure.scene_wait` while the
+  level loads and `scene_ready` when the cave shows. Each of his corrections lands in
+  `data/adventures/mystery_below_fixes.jsonl`. Watch for: a wrong list entry after the drag
+  (the patch is accepted only within 60 px of the recorded spot; steer and it continues), and
+  `adventure.help` (HIGH) if the banner stays behind for 45 s plus two segment retries.
 
 ## The Mystery Below route farmer (2026-10-29, v0, laptop branch)
 - **Adventures tab** (`app/pages/adventures.py`, after Arcade). It holds:

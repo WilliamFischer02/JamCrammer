@@ -96,6 +96,22 @@ class Route:
     def duration(self) -> float:
         return self.frames[-1].t if self.frames else 0.0
 
+    @property
+    def opening_end(self) -> float:
+        """Route time the adventure itself starts: the first objective banner. Before it the
+        recording is menus (globe, Adventures, Join, PLAY) in whatever room William was in, so
+        nothing there is worth aligning to and the HUD clicks are the same from any room."""
+        return self.objectives[0].t if self.objectives else 0.0
+
+    @property
+    def completion_t(self) -> float:
+        """Route time of the completion banner (the last objective change). The frames after
+        it are the prize and the exit, ending in the room the next run starts from."""
+        return self.objectives[-1].t if len(self.objectives) > 1 else self.duration
+
+    def inside(self, t: float) -> bool:
+        return self.opening_end <= t < self.completion_t
+
     # --- lookups -------------------------------------------------------------------------
 
     def frame_index_at(self, t: float) -> int:

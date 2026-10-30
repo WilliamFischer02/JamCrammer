@@ -223,6 +223,8 @@ class RouteConfig(StrictModel):
     resync_window_s: float = Field(120.0, ge=0)  # localise within this of the route time
     resync_min_sim: float = Field(0.55, ge=-1, le=1)
     start_min_sim: float = Field(0.6, ge=-1, le=1)  # start mid-route only on a clear match
+    start_look_s: float = Field(1.0, ge=0)  # look this long for the minimap dot at Start:
+    # none means we are outside the adventure (a den, a room), so the route starts from the top
     dot_weight: float = Field(0.02, ge=0)  # localisation: score lost per minimap px of distance
     resume_idle_s: float = Field(2.5, gt=0)  # William's hands off this long: continue
     scene_hold_sim: float = Field(0.2, ge=-1, le=1)  # live vs recorded thumbnail below this:

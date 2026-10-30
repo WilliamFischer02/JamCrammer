@@ -874,7 +874,7 @@ class Engine:
             # William's call (adventures.route.supervised): he watches and steers
             self.emit(
                 "adventure.supervised",
-                Level.HIGH,
+                Level.NOTICE,  # his own setting: a toast, not the repeating HIGH alarm
                 message=f"SUPERVISED run, {rc.target} {gate.summary()}: stay at the keyboard",
             )
         sessions = self.paths.sessions

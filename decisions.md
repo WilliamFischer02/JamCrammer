@@ -339,3 +339,31 @@ Non-obvious choices and why. Newest at the bottom.
     on without his explicit yes.
   - More recordings (different animals) and his stored fixes are what should raise the
     numbers.
+
+## 2026-10-30 — The Mystery Below: starting from the den (laptop branch)
+
+- **A start without a minimap dot goes to the top of the route.** The whole-route thumbnail
+  match put a den start at 1880 s (the recording ends in that den, 0.996), and with the tail
+  excluded the den still matched a fungi frame at 0.604, over `start_min_sim`. The 64x36
+  thumbnails cannot tell rooms from the cave; the dot can: 99% of the recorded adventure frames
+  have one (longest gap 4 frames), a den or a room has none. Start waits `start_look_s` (1 s)
+  for a dot to cover the gap.
+- **A mid-route start is dot-gated and honest about its odds.** With a dot it matches only
+  inside the adventure (first banner to completion banner), at frames whose dot is within
+  `drift_dot_px`. Leave-out on the real run: within 4 s of the truth 20% (dot within 2.5 px) to
+  31% (5 px), even restricted to the live objective's segment, because the route crosses the
+  same spots many times over 31 minutes. The position is right, the moment is not; the banner
+  check (`objective_ahead` / `behind`) is what fixes the moment, so this stays.
+- **The user turn ends on OS quiet, not on `user_active()` dropping.** `user_active()` is
+  "last OS input is newer than our last injection"; with nothing injected while waiting for
+  him it is true forever, which is why the 23:24 run sat in USER for 14 minutes. A takeover is
+  now his input within `resume_idle_s`; the turn ends after `resume_idle_s` of no input at all
+  (nothing of ours is sent during a turn, so all input is his).
+- **The opening is not aligned.** Before the first banner the recording shows the room he
+  started in (Coral Canyons) and the menus; a start from the den would have held the scene
+  gate for 45 s and then asked for help. The HUD clicks are screen-fixed, so scene hold,
+  course and stuck checks begin at the first banner, and a user turn there resumes at the same
+  route time instead of localising against menus.
+- **`adventure.supervised` is NOTICE.** It announces a setting he chose; HIGH (three sounds, a
+  long toast) is for things that need him now.
+

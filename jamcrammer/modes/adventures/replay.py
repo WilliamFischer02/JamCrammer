@@ -250,12 +250,52 @@ class RouteRunner:
             self._release_all()
 
     def _start(self) -> None:
-        frame = self._grab()
-        t, score = self.localize(frame, None, None)
-        if score >= self.cfg.start_min_sim and t > 0:
-            self._jump(t, "start", score)
-        else:
-            self._jump(0.0, "start_from_the_top", score)
+        """From the top unless we are inside the adventure already. Inside means the minimap
+        dot shows (99% of the recorded adventure frames have it; a den or a room has none, and
+        the recording ends in the den it was started from, which matched a den start at 1.0).
+        Then the route is searched at that dot only, between the first banner and the
+        completion banner. Measured leave-out: the moment found this way is within 4 s of the
+        truth about a quarter of the time (the route passes the same spots again and again),
+        so the banner check has to finish the job; the position itself is right."""
+        c = self.cfg
+        deadline = self._clock() + c.start_look_s
+        while True:
+            frame = self._grab()
+            dot = sight.minimap_dot(frame, self.prof)
+            if dot is not None or self._clock() >= deadline or self._stop():
+                break
+            self._sleep(c.tick_s)
+        score = -1.0
+        if dot is not None:
+            idx = np.array(
+                [
+                    j
+                    for j, f in enumerate(self.route.frames)
+                    if self.route.inside(f.t)
+                    and f.dot is not None
+                    and float(np.hypot(dot[0] - f.dot[0], dot[1] - f.dot[1])) <= c.drift_dot_px
+                ],
+                dtype=np.intp,
+            )
+            th = sight.thumb(frame, self.prof, c.thumb_w, c.thumb_h)
+            t, score = locate(self.route, th, dot, idx, c.dot_weight)
+            if idx.size and score >= c.start_min_sim:
+                self._jump(t, "start", score)
+                self.state = "PLAY"
+                return
+        self._emit(
+            "adventure.start_from_the_top",
+            Level.NOTICE,
+            dot=dot is not None,
+            score=round(score, 3),
+            message="Starting the route from the top: "
+            + (
+                "no minimap dot, so this is a room, not the adventure"
+                if dot is None
+                else "inside the adventure but no recorded spot matches; stop me if that is wrong"
+            ),
+        )
+        self._jump(0.0, "start_from_the_top", score)
         self.state = "PLAY"
 
     def _loop(self, status: Callable[[str], None] | None) -> None:
@@ -263,7 +303,7 @@ class RouteRunner:
         last = self._last_obj = self._last_align = self._clock()
         while not self._stop() and not self.paused_reason and self.state != "DONE":
             now = self._clock()
-            if self._presence is not None and self._presence.user_active():
+            if self._user_now():
                 self._user_turn()
                 last = self._last_obj = self._last_align = self._clock()
                 continue
@@ -293,6 +333,10 @@ class RouteRunner:
             self._last_obj = now
             if self._objective(frame):
                 return True
+        if self.rt < self.route.opening_end:
+            # menus in whatever room we started from: no scene to hold for, no dot to follow,
+            # nothing to be stuck on; the banner (above) says when the adventure has begun
+            return False
         if now - self._last_align >= c.align_every_s:
             self._last_align = now
             if self._scene_gate(frame, now) or self._course(frame):
@@ -866,7 +910,14 @@ class RouteRunner:
         )
 
     def _user_now(self) -> bool:
-        return self._presence is not None and self._presence.user_active()
+        """William's hands are on: the OS saw input that is not ours, and recently. (The OS
+        side alone never resets: with nothing injected since, his last touch would count
+        forever.)"""
+        return (
+            self._presence is not None
+            and self._presence.user_active()
+            and self._presence.seconds_since_user_input() < self.cfg.resume_idle_s
+        )
 
     def _user_turn(self) -> None:
         """William steers: release everything, record what he does, resume where he left it."""
@@ -878,15 +929,20 @@ class RouteRunner:
         if self._tape is not None:
             self._tape.begin()
         assert self._presence is not None
+        # nothing is injected while he steers, so "quiet" is simply no input at all
         while not self._stop() and (
-            self._presence.user_active()
-            or self._presence.seconds_since_user_input() < self.cfg.resume_idle_s
+            self._presence.seconds_since_user_input() < self.cfg.resume_idle_s
         ):
             self._sleep(self.cfg.tick_s * 4)
         inputs = self._tape.take() if self._tape is not None else []
         if self._stop():
             return
-        t, ok, score = self._resume_point(self._grab(), before)
+        opening = before < self.route.opening_end
+        if opening:
+            # menus, not the adventure: nothing to localise against, carry on where it was
+            t, ok, score = before, True, 1.0
+        else:
+            t, ok, score = self._resume_point(self._grab(), before)
         self.fixes.add(
             {
                 "route": self.route.session.name,
@@ -894,6 +950,7 @@ class RouteRunner:
                 "rt_after": round(t, 2),
                 "reason": "user",
                 "was": prev,
+                "opening": opening,
                 "score": round(score, 3),
                 "ok": ok,
                 "inputs": inputs,
