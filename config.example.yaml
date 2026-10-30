@@ -197,3 +197,12 @@ derby:
   highlight_row_fill: 0.5                    # rows of the frame's long yellow lines
   highlight_min_rows: 6
   highlight_max_height_px: 90
+
+# --- Pilot: Claude at the controls (docs/PILOT.md) ---
+pilot:
+  enabled: false                             # William's switch: pilot input allowed (look always works)
+  forbidden_rois: [[760, 990, 600, 90], [1840, 985, 80, 95]]   # the chat field and the log-out button: never clicked
+  max_hold_s: 3.0                            # a movement key held at most this long per command
+  yield_s: 2.0                               # William's own input this recent: his controls, the pilot refuses
+  max_goto_s: 60                             # one goto walks at most this long
+  area: moths                                # the level area whose floor goto plans on

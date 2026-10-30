@@ -459,6 +459,18 @@ class GemBallConfig(StrictModel):
     settle_s: float = Field(4.0, ge=0)
 
 
+class PilotConfig(StrictModel):
+    """Claude at the controls (jamcrammer/pilot.py, docs/PILOT.md): input only when William
+    has switched it on; clicks never on the chat field or the log-out button."""
+
+    enabled: bool = False  # William's switch: pilot input allowed
+    forbidden_rois: list[list[int]] = [[760, 990, 600, 90], [1840, 985, 80, 95]]  # chat, log out
+    max_hold_s: float = Field(3.0, gt=0)  # a movement key held at most this long per command
+    yield_s: float = Field(2.0, ge=0)  # William's own input this recent: his controls, refuse
+    max_goto_s: float = Field(60.0, gt=0)  # one goto walks at most this long
+    area: str = "moths"  # the level area whose floor goto plans on
+
+
 class SwoopyConfig(StrictModel):
     fps: float = Field(60.0, gt=0, le=120)
     flap_key: str = "space"
@@ -585,6 +597,7 @@ class AppConfig(StrictModel):
     derby: DerbyConfig = DerbyConfig()
     gem_ball: GemBallConfig = GemBallConfig()
     swoopy: SwoopyConfig = SwoopyConfig()
+    pilot: PilotConfig = PilotConfig()
     arcade_game: ArcadeGame = "double_up"
 
     @classmethod

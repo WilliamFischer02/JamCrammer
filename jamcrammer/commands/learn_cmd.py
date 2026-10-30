@@ -175,10 +175,15 @@ def run_learn(args: argparse.Namespace) -> int:
     print("  F6 = mark   F7 = correct   F8 = wrong   F12 or Ctrl+C = stop")
     recorder.start()
 
+    stop_file = Path(args.stop_file) if getattr(args, "stop_file", None) else None
+
     def tick(stats: RecorderStats) -> None:
         elapsed = time.time() - stats.started_ts
         if args.duration is not None and elapsed >= args.duration:
             recorder.stop()
+            return
+        if stop_file is not None and stop_file.exists():
+            recorder.stop()  # the pilot said stop
             return
         sys.stdout.write(
             f"\r  {elapsed:6.0f}s  frames={stats.frames:5d}  keyframes={stats.keyframes:4d}  "

@@ -12,6 +12,7 @@ import logging
 import sys
 from collections.abc import Callable, Sequence
 from pathlib import Path
+from typing import Any
 
 from jamcrammer import __version__
 from jamcrammer.core.config import load_config
@@ -62,6 +63,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--target", choices=LEARN_TARGETS, required=True)
     p.add_argument("--name", default=None, help="optional session name suffix")
     p.add_argument("--video", action="store_true", help="also record continuous low-fps video")
+    p.add_argument("--stop-file", default=None, help="stop when this file appears (pilot)")
     p.add_argument(
         "--duration", type=float, default=None, help="stop automatically after this many seconds"
     )
@@ -111,10 +113,40 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--backend", choices=("auto", "wgc", "mss"), default=None)
     p.add_argument("--dry-run", action="store_true", help="capture only, send nothing")
     sub.add_parser("window", help="print the discovered AJC window geometry")
+    _pilot_parser(sub)
     p = sub.add_parser("_bench", help=argparse.SUPPRESS)  # one backend, JSON out; used by snap
     p.add_argument("--backend", choices=("wgc", "mss"), required=True)
     p.add_argument("--frames", type=int, required=True)
     return parser
+
+
+def _pilot_parser(sub: Any) -> None:
+    """``pilot``: Claude at the controls, one command per call (docs/PILOT.md)."""
+    p = sub.add_parser("pilot", help="Claude at the controls, one command per call")
+    ps = p.add_subparsers(dest="pilot_command", required=True)
+    s = ps.add_parser("start", help="start recording a pilot session")
+    s.add_argument("--target", default="mystery_below")
+    ps.add_parser("stop", help="end the pilot session's recording")
+    ps.add_parser("look", help="one frame: detections, OCR, a half-size PNG to read")
+    k = ps.add_parser("key", help="hold a movement key")
+    k.add_argument("key")
+    k.add_argument("seconds", type=float)
+    c = ps.add_parser("click", help="click a stage point inside the client")
+    c.add_argument("x", type=int)
+    c.add_argument("y", type=int)
+    d = ps.add_parser("drag", help="drag between two stage points")
+    for n in ("x0", "y0", "x1", "y1"):
+        d.add_argument(n, type=int)
+    g = ps.add_parser("goto", help="walk to a minimap point by the level floor")
+    g.add_argument("mx", type=float)
+    g.add_argument("my", type=float)
+    g.add_argument("--timeout", type=float, default=30.0)
+    n = ps.add_parser("note", help="write a note into the session log")
+    n.add_argument("text", nargs="+")
+    cr = ps.add_parser("crop", help="save a template crop of the live frame")
+    for name in ("x", "y", "w", "h"):
+        cr.add_argument(name, type=int)
+    cr.add_argument("name")
 
 
 def _not_yet(milestone: str) -> Command:
@@ -157,6 +189,7 @@ COMMANDS: dict[str, Command] = {
     "input-test": _lazy("jamcrammer.commands.platform_cmds", "run_input_test"),
     "window": _lazy("jamcrammer.commands.platform_cmds", "run_window"),
     "_bench": _lazy("jamcrammer.commands.platform_cmds", "run_bench_one"),
+    "pilot": _lazy("jamcrammer.commands.pilot_cmd", "run_pilot"),
 }
 
 
