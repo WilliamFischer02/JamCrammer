@@ -17,8 +17,10 @@ from __future__ import annotations
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
+import cv2
 import numpy as np
 import numpy.typing as npt
 
@@ -78,8 +80,11 @@ class LevelRunner:
         clock: Callable[[], float] = time.monotonic,
         sleep: Callable[[float], None] = time.sleep,
         tick_s: float = 0.05,
+        shots: Path | None = None,
     ) -> None:
+        """``shots``: a folder for a screenshot of every failed act (what it saw)."""
         self.lvl, self.prof, self.cfg = lvl, prof, cfg
+        self._shots = shots
         self._in, self._grab = inp, grab
         self._banner_ocr, self._x = banner_ocr, dialog_x
         self._presence, self._bus = presence, bus
@@ -161,6 +166,17 @@ class LevelRunner:
         finally:
             self.nav.release()
 
+    def _shot(self, tag: str, frame: BgrImage | None = None) -> None:
+        if self._shots is None:
+            return
+        try:
+            self._shots.mkdir(parents=True, exist_ok=True)
+            name = f"{time.strftime('%Y%m%d_%H%M%S')}_{self.k:02d}_{tag}.jpg"
+            img = self._grab() if frame is None else frame
+            cv2.imwrite(str(self._shots / name), img, [cv2.IMWRITE_JPEG_QUALITY, 80])
+        except OSError:
+            pass
+
     def _status_text(self) -> str:
         c = self.inv.counts
         items = f"blossoms {c.blossoms} seeds {c.boomseeds}"
@@ -232,18 +248,14 @@ class LevelRunner:
             self._emit(
                 "adventure.walk_failed", spot=spot.id, reason=res.reason, dist=round(res.dist, 1)
             )
+            self._shot(f"walk_{res.reason}")
             return f"walk_{res.reason}"
-        kind = BLOB_KIND[action]
         slot = SLOT_OF[action]
         for attempt in range(c.act_retries + 1):
-            blob = self._find(spot, kind)
+            blob = self._target(spot, action)
             if blob is None:
+                self._shot("not_seen")
                 return "not_seen"
-            if action == "pick":
-                # the pin with the paw shows over a fungus in reach; that is what takes
-                pin = self._pin(blob)
-                if pin is not None:
-                    blob = pin
             before = self.inv.update(self._grab(), self._clock()).get(slot)
             if action == "light":
                 sx, sy = self.prof.point("item_slot_1")
@@ -264,15 +276,33 @@ class LevelRunner:
                 self.stats.picked += 1
                 return "picked"
         self.stats.skipped += 1
+        self._shot("not_taken")
         return "not_taken"
+
+    def _target(self, spot: Spot, action: str) -> objects.Blob | None:
+        """What to click for the act: the crystal, or for a pick the paw pin over the
+        fungus (the fungus itself may be hidden under the animal by then)."""
+        blob = self._find(spot, BLOB_KIND[action])
+        if action != "pick":
+            return blob
+        pin = self._pin(blob) if blob is not None else None
+        if pin is None:
+            avatar = (float(self.lvl.avatar[0]), float(self.lvl.avatar[1]))
+            pin = objects.find_marker(self._grab(), self.prof, avatar)
+            if pin is not None and pin.dist(avatar) > self.cfg.pin_search_px:
+                pin = None
+        return pin if pin is not None else blob
 
     def _find(self, spot: Spot, kind: str) -> objects.Blob | None:
         """The nearest blob of ``kind`` to where the spot should be on screen, walked up to
         when out of reach. None when nothing of the kind shows after the looks."""
         c = self.cfg
         avatar = (float(self.lvl.avatar[0]), float(self.lvl.avatar[1]))
+        last: objects.Blob | None = None
         for _look in range(c.look_retries + 1):
             frame = self._grab()
+            if self._close_dialog(frame):
+                continue
             dot = sight.minimap_dot(frame, self.prof)
             pred = self.lvl.to_screen(dot, (spot.x, spot.y)) if dot else avatar
             blobs = (
@@ -282,6 +312,8 @@ class LevelRunner:
             )
             blob = objects.nearest(blobs, pred, kind)
             if blob is None:
+                if last is not None:
+                    return last  # seen a moment ago; now under the animal or its tag
                 self._emit(
                     "adventure.not_seen",
                     spot=spot.id,
@@ -289,6 +321,7 @@ class LevelRunner:
                     pred=[round(pred[0]), round(pred[1])],
                 )
                 return None
+            last = blob
             if blob.dist(avatar) <= c.reach_px:
                 return blob
             # walk at it a little and look again
@@ -301,27 +334,32 @@ class LevelRunner:
         return blob
 
     def _pin(self, fungus: objects.Blob) -> objects.Blob | None:
-        """Walk up to the fungus until its paw pin shows (``pin_near_px``), then the pin."""
+        """Walk right up to the fungus (``pin_stop_px``) until its paw pin shows, closing
+        Cosmo's dialogs on the way (they pop up next to it), then the pin. The 13:04 run
+        stood 120 px off and waited: the pin needs the animal at the fungus."""
         c = self.cfg
         avatar = (float(self.lvl.avatar[0]), float(self.lvl.avatar[1]))
-        for _look in range(c.look_retries + 1):
+        for _look in range(c.pin_looks):
             frame = self._grab()
-            pin = objects.find_marker(frame, self.prof, (fungus.x, fungus.y))
-            if pin is not None and pin.dist((fungus.x, fungus.y)) <= c.pin_near_px:
+            if self._close_dialog(frame):
+                continue
+            pin = objects.find_marker(frame, self.prof, avatar)
+            if pin is not None and pin.dist(avatar) <= c.pin_search_px:
                 return pin
             near = objects.nearest(objects.fungi(frame, self.prof), (fungus.x, fungus.y))
             if near is not None:
                 fungus = near
-            if fungus.dist(avatar) <= c.pin_near_px * 0.5:
-                self._sleep(0.3)  # close already: the pin may just be appearing
+            if fungus.dist(avatar) <= c.pin_stop_px:
+                self._sleep(0.4)  # at it: the pin may just be appearing
                 continue
             keys = keys_toward(fungus.x - avatar[0], fungus.y - avatar[1])
             for k in sorted(keys):
                 self._in.key_down(k)
-            self._sleep(c.walk_toward_s * 0.5)
+            self._sleep(c.walk_toward_s * 0.35)
             for k in sorted(keys):
                 self._in.key_up(k)
         self._emit("adventure.no_pin", fungus=[fungus.x, fungus.y])
+        self._shot("no_pin")
         return None
 
     def _counter_moved(self, slot: int, before: int | None, want: str) -> bool:

@@ -108,6 +108,20 @@ _Last updated: 2026-10-30 (The Mystery Below: level model, menus by state, moth 
   `data/derby_learned.json` with the PC's copies, which are backed up. Re-add the per-class
   leads after an import.
 
+## The Mystery Below: third live run (2026-10-30 13:04, fixed)
+- **Menus worked** (room → ... → lobby → in_adventure in 20 s, one stray room read).
+- **Start room:** `no_pin` twice, then the fungus `not_seen`. The runner approached the fungus
+  only to 150 px and waited there; the pin needs the animal at the fungus (the recording:
+  the animal touching it). Fixed: approach to `pin_stop_px` (50) in short bursts, up to
+  `pin_looks` (8) looks, Cosmo's dialogs closed between looks (they pop up right there), a
+  pin anywhere within `pin_search_px` (450) of the animal is taken even when the fungus is
+  hidden under the animal, and a sighting from a moment ago is kept when the next look loses
+  it. Every failed act (no_pin, not_seen, not_taken, walk_*) now saves a screenshot under
+  `captures/adventure_shots/`, so the next failure can be seen, not guessed.
+- Keys are not logged by the input controller (only dry-run and taps are), which is why the
+  cave part of the log shows clicks only; the animal did walk.
+- 186 tests, ruff, mypy clean. Litmus unchanged: pick, light, moth, dialog, out of the room.
+
 ## The Mystery Below: second live run (2026-10-30 12:37, fixed)
 - **Menus:** it clicked a wrong list entry (the old rule matched a word fragment to
   "mystery"), reached that adventure's difficulty dialog, and William took over before PLAY.

@@ -145,8 +145,9 @@ and switched William's animal. A room must read as one for 1.5 s before the glob
    learned 3 cells wide, path replanned; more than 8 of those or no path = the walk failed);
    find the nearest unlit crystal / fungus to where the spot should be on screen, walking at
    it for 1.2 s when it is out of reach (420 px). A **pick** is the paw pin (white teardrop,
-   yellow paw) that floats over a fungus once the animal is within about 300 px: walk up
-   until it shows, click it. The pin is found by colour (a white blob of 800-9,000 px with
+   yellow paw) that floats over a fungus once the animal is **at** it: walk up to 50 px in short
+   bursts, closing Cosmo's dialogs on the way, until it shows, then click it (a pin anywhere
+   within 450 px of the animal counts, the fungus may be under the animal by then). The pin is found by colour (a white blob of 800-9,000 px with
    500+ px of yellow-to-beige paw inside), not by template: William's screenshot of the pin
    scored 0.62 against the recorded template (a paler paw, a slightly different size) while
    the colour test finds both. A **light** drags the blossom slot (200,100)

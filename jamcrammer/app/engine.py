@@ -985,6 +985,7 @@ class Engine:
             dialog_x=x_tmpl,
             presence=self.presence,
             bus=self.bus,
+            shots=self.paths.captures / "adventure_shots",
         )
         self._mode_obj = runner
         out = runner.run(guarded_stop, self._status)
