@@ -156,3 +156,28 @@ fields:
     value: [200, 240]
     status: proposed
     note: the boomseed slot icon
+  paw_marker_template:
+    type: template
+    value: templates/adventures/paw_marker.png
+    status: calibrated
+    note: the white pin with the yellow paw over a fungus you can pick (cut from run B at 60.9 s)
+  paw_marker_min:
+    type: number
+    value: 0.85
+    status: calibrated
+    note: template score; real pins 0.87-1.00, the cave tops out at 0.79 with the HUD masked
+  marker_yellow_hsv:
+    type: color
+    value: [[18, 120, 180], [38, 255, 255]]
+    status: calibrated
+    note: the paw inside the pin; at least marker_yellow_px of it within 30 px of the match
+  marker_yellow_px:
+    type: number
+    value: 300
+    status: calibrated
+    note: real pins had 900+ yellow px in the window
+  menu_list_down:
+    type: point
+    value: [450, 970]
+    status: calibrated
+    note: the adventure list scroll-down arrow (one click scrolls a little; the up arrow is at 450,258)

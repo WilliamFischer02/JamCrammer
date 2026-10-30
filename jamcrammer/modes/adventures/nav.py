@@ -233,17 +233,22 @@ class Navigator:
         return True
 
     def _stuck(self, dot: Point, now: float) -> bool:
-        """Keys held and the dot still for ``nav_stuck_s``: learn the wall, drop the path."""
+        """Keys held and the dot within ``nav_stuck_px`` of where it was when the still
+        period began, for ``nav_stuck_s``: learn the wall, drop the path. (The dot moves a
+        quarter pixel per tick, so it is measured against the anchor, never the last tick.)"""
         self._no_dot_since = None
-        moved = self._last_dot is None or (
+        if not self.held:
+            self._still_since = self._last_dot = None
+            return False
+        if self._last_dot is None or self._still_since is None:
+            self._still_since, self._last_dot = now, dot
+            return False
+        if (
             float(np.hypot(dot[0] - self._last_dot[0], dot[1] - self._last_dot[1]))
             >= self.cfg.nav_stuck_px
-        )
-        self._last_dot = dot
-        if not self.held or moved:
-            self._still_since = None
+        ):
+            self._still_since, self._last_dot = now, dot  # moving: a new anchor
             return False
-        self._still_since = self._still_since or now
         if now - self._still_since < self.cfg.nav_stuck_s:
             return False
         self._learn_block(dot)

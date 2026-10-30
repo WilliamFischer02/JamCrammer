@@ -108,7 +108,29 @@ _Last updated: 2026-10-30 (The Mystery Below: level model, menus by state, moth 
   `data/derby_learned.json` with the PC's copies, which are backed up. Re-add the per-class
   leads after an import.
 
-## The Mystery Below: level model (2026-10-30, laptop branch, not run live yet)
+## The Mystery Below: first live run of the level model (2026-10-30 12:11, fixed)
+- **Menus:** it looped on the adventure list three times (the scrollbar drag from the recorded
+  thumb position did nothing or landed elsewhere; one landing switched William's animal to a
+  water animal via a lobby animal slot), and "room" misreads clicked the globe. Fixed: the
+  list scrolls by its down arrow (450,970), three clicks per look; a room must hold 1.5 s
+  before the globe is clicked; every state change is saved to `captures/adventure_menus/`.
+- **Cave:** every walk ended `blocked` within 12 s. Bug: the stuck check compared the dot to
+  the previous 50 ms tick (it moves 0.3 px per tick), so walking always looked still. Fixed:
+  the dot is measured against where the still period began.
+- **Start room:** the fungus is picked by its **paw pin** (white teardrop, yellow paw) that
+  shows when the animal is within ~300 px; clicking the fungus does nothing. New template
+  `assets/templates/adventures/paw_marker.png` (pins 0.87-1.00, cave <= 0.79 with the HUD
+  masked, plus a yellow check); the runner walks up until the pin shows and clicks it. The
+  builder now counts the first pickup (the counter only appears with it), so the plan starts
+  pick → light. The recording shows no "!" click is needed: Cosmo's dialog closes, the door
+  opens by itself.
+- **Also seen:** the game's "Are you still there?" popup during his long takeovers, then
+  `engine.mode_crashed` with a SetCursorPos error (0) when the anti-AFK tried to answer it
+  while the runner was in HELP. Not fixed; it is an input/anti-AFK matter outside the farmer.
+- 185 tests, ruff, mypy clean. The litmus for the next run: pick, light, out of the start
+  room, on its own.
+
+## The Mystery Below: level model (2026-10-30, laptop branch, first live run 12:11)
 Full write-up: `docs/MYSTERY_BELOW.md`. In short:
 - **Why:** the two supervised runs of 2026-10-30 09:53 / 09:54 died in the menus. The dialog
   closer saw the Join/Host dialog's blue X (same template as Cosmo's) at (1441,426) and closed

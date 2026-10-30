@@ -271,6 +271,10 @@ class LevelConfig(StrictModel):
     act_retries: int = Field(2, ge=0)
     approach_px: float = Field(3.0, gt=0)  # go this close (minimap px) to a spot, then look
     walk_toward_s: float = Field(1.2, gt=0)  # a blob out of reach: walk at it this long
+    pin_near_px: int = Field(300, ge=0)  # the paw pin shows once the fungus is this close
+    room_hold_s: float = Field(1.5, gt=0)  # a room must read as one this long before the
+    # globe is clicked (a panel sliding away reads as a room for a moment)
+    list_clicks: int = Field(3, ge=1)  # scroll-arrow clicks per look at the adventure list
     look_retries: int = Field(3, ge=0)  # looks (walk, look again) for the crystal at a spot
     inventory_every_s: float = Field(1.0, gt=0)
     banner_every_s: float = Field(2.0, gt=0)

@@ -113,8 +113,8 @@ so blobs under 1,500 px are ignored and the edges of the screen (tabs, bar) are 
 checked by the next panel showing within 4 s (both recordings classify cleanly; a panel
 sliding in reads as "room" for one frame, so a state must hold a quarter second first):
 
-room → globe (1729,992) → **world_map** → Adventures (159,809) → **adventures** → drag the
-list's scrollbar (697,340 → 693,899) until "Mystery" is listed → click the entry →
+room → globe (1729,992) → **world_map** → Adventures (159,809) → **adventures** → click the
+list's scroll-down arrow (450,970), three per look, until "Mystery" is listed → click the entry →
 **adventure_dialog** → Join (826,592; `level.join: false` hosts) → **difficulty** → Hard
 (1100,630; **always Hard**: the second half of the level needs it, William 2026-10-30) → **lobby** (headed by the adventure's name; "PLAY" OCRs as "nay") → PLAY (955,1010)
 → splash + black loading (never clicked: the splash reads as a room) → **in_adventure**
@@ -122,7 +122,11 @@ list's scrollbar (697,340 → 693,899) until "Mystery" is listed → click the e
 
 Why: the first supervised run (2026-10-30 09:53) replayed the clicks blind, and its dialog
 closer saw the Join/Host dialog's blue X (same template as Cosmo's) at (1441,426) and closed
-it, so Join, Hard and PLAY clicked into nothing.
+it, so Join, Hard and PLAY clicked into nothing. The 12:11 run dragged the scrollbar thumb
+from where the recording had it; released elsewhere, the drag landed on a lobby animal slot
+and switched William's animal. A room must read as one for 1.5 s before the globe is clicked
+(a panel sliding away reads as a room), and every state change is saved as a screenshot under
+`captures/adventure_menus/`.
 
 ## 7. The level runner (moth chamber)
 
@@ -134,11 +138,16 @@ it, so Join, Hard and PLAY clicked into nothing.
    which would otherwise look like a wall).
 3. For each act: `light` needs a blossom (else restock from the nearest fungus spots, up to
    three); walk to the spot by A* on the floor mask with the live dot (`nav.py`: a held key
-   and a still dot for 1 s = an unmapped wall, learned 3 cells wide, path replanned; more than
-   8 of those or no path = the walk failed); find the nearest unlit crystal / fungus to where
-   the spot should be on screen, walking at it for 1.2 s when it is out of reach (420 px);
-   drag the blossom slot (200,100) onto it, or click the slot then it; the counter must move
-   within 2.5 s, two retries, else the act is skipped.
+   and the dot within 1 px of where the still period began, for 1 s = an unmapped wall,
+   learned 3 cells wide, path replanned; more than 8 of those or no path = the walk failed);
+   find the nearest unlit crystal / fungus to where the spot should be on screen, walking at
+   it for 1.2 s when it is out of reach (420 px). A **pick** is the paw pin (white teardrop,
+   yellow paw, `paw_marker.png`) that floats over a fungus once the animal is within about
+   300 px: walk up until it shows, click it. A **light** drags the blossom slot (200,100)
+   onto the crystal, or clicks the slot then the crystal; the counter must move within
+   2.5 s, two retries, else the act is skipped. The first act of the plan is the start
+   room's pickup (the counter only appears with it); no "!" click is needed there, Cosmo's
+   dialog closes and the door opens by itself.
 4. William's input pauses it (keys released); 2.5 s of quiet and it goes on with the next act.
 5. Three failed acts in a row raise `adventure.help` (HIGH) and wait for him.
 

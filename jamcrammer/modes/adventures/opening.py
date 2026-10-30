@@ -10,9 +10,12 @@ while a panel slides in."""
 
 from __future__ import annotations
 
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 
+import cv2
 import numpy as np
 import numpy.typing as npt
 from rapidfuzz import fuzz
@@ -110,22 +113,37 @@ class Opening:
         cfg: LevelConfig,
         *,
         click: Callable[[int, int], bool],
-        drag: Callable[[int, int, int, int], bool],
         grab: Callable[[], BgrImage],
         ocr: Callable[[BgrImage], OcrResult],
         bus: EventBus | None = None,
         clock: Callable[[], float],
         sleep: Callable[[float], None],
         poll_s: float = 0.4,
+        shots: Path | None = None,
     ) -> None:
+        """``shots``: a folder for a screenshot of every state change (what the menus looked
+        like when it went wrong)."""
         self.lvl, self.prof, self.cfg = lvl, prof, cfg
-        self._click, self._drag, self._grab, self._ocr = click, drag, grab, ocr
+        self._click, self._grab, self._ocr = click, grab, ocr
         self._bus, self._clock, self._sleep, self._poll = bus, clock, sleep, poll_s
+        self._shots = shots
         self.steps: list[str] = []
+        self._frame: BgrImage | None = None
 
     def see(self) -> Seen:
-        frame = self._grab()
+        self._frame = frame = self._grab()
         return classify(frame, self._ocr(frame), self.lvl, self.prof)
+
+    def _shot(self, state: str) -> None:
+        if self._shots is None or self._frame is None:
+            return
+        try:
+            self._shots.mkdir(parents=True, exist_ok=True)
+            stamp = time.strftime("%Y%m%d_%H%M%S")
+            name = f"{stamp}_{len(self.steps):02d}_{state}.jpg"
+            cv2.imwrite(str(self._shots / name), self._frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+        except OSError:
+            pass
 
     def run(self, stop: Callable[[], bool]) -> bool:
         c = self.cfg
@@ -137,6 +155,7 @@ class Opening:
             seen = self.see()
             if seen.state != last:
                 self.steps.append(seen.state)
+                self._shot(seen.state)
                 self._emit("adventure.menu", state=seen.state)
                 last = seen.state
             if seen.state == "in_adventure":
@@ -145,9 +164,12 @@ class Opening:
             if seen.state == "loading" or (loading and seen.state != "lobby"):
                 self._sleep(self._poll)  # the splash after PLAY reads as a room: never click it
                 continue
-            self._sleep(TRANSIENT_S)
+            # a panel sliding in or away reads as a room for a moment: a room must hold
+            # longer than other states before the globe is clicked (a stray globe click
+            # closes the panel that was there)
+            self._sleep(c.room_hold_s if seen.state == "room" else TRANSIENT_S)
             if self.see().state != seen.state:
-                continue  # a panel sliding in
+                continue
             n = tries.get(seen.state, 0)
             if n > c.menu_retries:
                 self._emit(
@@ -170,9 +192,11 @@ class Opening:
         if seen.state == "adventures":
             if seen.entry is not None:
                 self._click(*seen.entry)
-            else:
-                x0, y0, x1, y1 = (int(v) for v in p.items("menu_list_drag"))
-                self._drag(x0, y0, x1, y1)
+            else:  # scroll by the arrow, a few clicks per look: the thumb's place varies and
+                # a drag released elsewhere lands on whatever is there (a lobby animal slot)
+                for _ in range(c.list_clicks):
+                    self._click(*p.point("menu_list_down"))
+                    self._sleep(TRANSIENT_S)
             return
         points = {
             "room": "menu_globe",

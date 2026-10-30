@@ -296,8 +296,10 @@ def item_events(
             if c is None:
                 continue
             p = prev[slot]
-            if p is not None and c[0] != p[0] and c[1] == p[1]:
-                ev = ItemEvent(t, slot, "use" if c[0] < p[0] else "pickup", p[0], c[0])
+            first = p is None and c[0] > 0  # the slot only appears with the first pickup
+            if first or (p is not None and c[0] != p[0] and c[1] == p[1]):
+                before = 0 if p is None else p[0]
+                ev = ItemEvent(t, slot, "use" if c[0] < before else "pickup", before, c[0])
                 near = [s for s in clicks if -0.3 <= t - s.t <= cfg.use_click_window_s]
                 if near:
                     s = near[-1]

@@ -104,6 +104,16 @@ def test_it_walks_to_a_minimap_point_and_learns_an_unmapped_wall() -> None:
 # --- what is on screen -----------------------------------------------------------------
 
 
+def test_the_paw_pin_shows_in_reach_and_is_found() -> None:
+    world = synth.World(PROF)
+    synth.layout(world)
+    world.px, world.py = 1700.0 - 120, 1100.0  # next to fungus 1: its pin shows
+    pin = objects.find_marker(world.image(), synth.paw_template(), PROF, (1080.0, 540.0))
+    assert pin is not None and abs(pin.x - 1080) < 6 and abs(pin.y - (540 - synth.PIN_UP)) < 6
+    world.px = 1700.0 - 600  # too far: no pin
+    assert objects.find_marker(world.image(), synth.paw_template(), PROF) is None
+
+
 def test_crystals_and_fungi_are_found_by_colour() -> None:
     world = synth.World(PROF)
     synth.layout(world)
@@ -211,6 +221,7 @@ class FakeMenus:
         self.state = "room"
         self.t = 0.0
         self.scrolled = False
+        self.scrolls = 0
         self.clicks: list[tuple[int, int]] = []
         self.loading_until = 0.0
 
@@ -232,16 +243,16 @@ class FakeMenus:
     def click(self, x: int, y: int) -> bool:
         self.clicks.append((x, y))
         key, nxt = self.FLOW.get(self.state, ("", ""))
+        down = PROF.point("menu_list_down")
+        if self.state == "adventures" and abs(x - down[0]) < 30 and abs(y - down[1]) < 30:
+            self.scrolls += 1
+            self.scrolled = self.scrolls >= 4  # entry 18 needs a few clicks
+            return True
         want = (369, 820) if key == "entry" else PROF.point(key) if key else None
         if want is not None and abs(x - want[0]) < 30 and abs(y - want[1]) < 30:
             self.state = nxt
             if nxt == "loading":
                 self.loading_until = self.t + 3.0
-        return True
-
-    def drag(self, x0: int, y0: int, x1: int, y1: int) -> bool:
-        if self.state == "adventures" and y1 > y0 + 300:
-            self.scrolled = True
         return True
 
 
@@ -255,7 +266,6 @@ def test_the_opening_walks_the_menus_into_the_adventure() -> None:
         PROF,
         CFG,
         click=menus.click,
-        drag=menus.drag,
         grab=menus.grab,
         ocr=menus.ocr,
         bus=bus,
@@ -273,7 +283,7 @@ def test_the_opening_walks_the_menus_into_the_adventure() -> None:
         "loading",
         "in_adventure",
     ], op.steps
-    assert menus.scrolled and len(menus.clicks) == 6, menus.clicks
+    assert menus.scrolled and len(menus.clicks) == 6 + menus.scrolls, menus.clicks
     assert "adventure.menu_stuck" not in [e.type for e in events]
 
 
@@ -288,7 +298,6 @@ def test_the_opening_asks_for_help_when_a_menu_does_not_move() -> None:
         PROF,
         CFG,
         click=menus.click,
-        drag=menus.drag,
         grab=menus.grab,
         ocr=menus.ocr,
         bus=bus,
@@ -339,6 +348,7 @@ def _runner(
         banner_ocr=lambda _img: banner(),
         counter_ocr=lambda _crop: f"{world.items}/3",
         dialog_x=_x_template(),
+        paw_marker=synth.paw_template(),
         bus=bus,
         clock=lambda: world.t,
         sleep=world.tick,
@@ -426,6 +436,6 @@ def test_the_real_level_has_the_moth_chamber_mapped() -> None:
     assert (
         len(lvl.spots_of("moths", "crystal")) >= 30 and len(lvl.spots_of("moths", "fungus")) >= 10
     )
-    assert lvl.plan["moths"][0].action == "light" and 15000 < lvl.floors["moths"].sum() < 30000
+    assert lvl.plan["moths"][0].action == "pick" and 15000 < lvl.floors["moths"].sum() < 30000
     img = np.asarray(cv2.imread(str(sorted((REAL / "frames").iterdir())[0])), np.uint8)
     assert img.size and sight.minimap_dot(img, PROF) is None  # the den: no dot

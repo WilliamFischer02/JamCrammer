@@ -25,6 +25,18 @@ WORLD_W, WORLD_H = 4200, 2600
 SPEED = 260.0  # px/s
 DOT_BGR = (235, 200, 120)  # HSV ~ (100, 125, 235): inside dot_hsv
 DIALOG_X = (1409, 454)
+PIN_UP = 110  # the paw pin floats this far above a fungus in reach ...
+PIN_REACH = 300  # ... when the animal is this close
+_PAW: BgrImage | None = None
+
+
+def paw_template() -> BgrImage:
+    """The real paw pin, drawn over a fungus the animal is next to."""
+    global _PAW  # noqa: PLW0603 - a cached asset
+    if _PAW is None:
+        img = cv2.imread(str(Paths().assets / "templates" / "adventures" / "paw_marker.png"))
+        _PAW = np.asarray(img if img is not None else np.zeros((100, 80, 3)), np.uint8)
+    return _PAW
 
 
 def profile() -> Profile:
@@ -120,8 +132,15 @@ class World:
             return
         wx, wy = self.to_world(x, y)
         for th in self.things:
-            if th.done or abs(wx - th.x) > 40 or abs(wy - th.y) > 40:
+            if th.done:
                 continue
+            on_pin = (
+                self._pin_shows(th) and abs(wx - th.x) <= 40 and abs(wy - (th.y - PIN_UP)) <= 50
+            )
+            if not on_pin and (abs(wx - th.x) > 40 or abs(wy - th.y) > 40):
+                continue
+            if th.kind == "fungus" and not on_pin:
+                continue  # the fungus itself gives nothing: its pin does
             if th.kind == "fungus":
                 th.done = True
                 self.items += 1
@@ -135,6 +154,10 @@ class World:
             self.held_item = False
             return
         self.held_item = False
+
+    def _pin_shows(self, th: Thing) -> bool:
+        near = float(np.hypot(th.x - self.px, th.y - self.py)) <= PIN_REACH
+        return th.kind == "fungus" and not th.done and near
 
     def drag(self, x0: int, y0: int, x1: int, y1: int) -> None:
         ix, iy, iw, ih = self.prof.roi("items_roi")
@@ -162,6 +185,14 @@ class World:
             cx, cy = int(th.x - x0), int(th.y - y0)
             cv2.rectangle(img, (cx - 30, cy - 30), (cx + 30, cy + 30), c, -1)
             cv2.putText(img, th.kind[0].upper(), (cx - 12, cy + 12), 0, 1.2, (255, 255, 255), 3)
+        for th in self.things:
+            if self._pin_shows(th):
+                paw = paw_template()
+                ph, pw = paw.shape[:2]
+                cx, cy = int(th.x - x0), int(th.y - y0 - PIN_UP)
+                py, px = cy - ph // 2, cx - pw // 2
+                if py >= 0 and py + ph <= H and px >= 0 and px + pw <= W:
+                    img[py : py + ph, px : px + pw] = paw
         for wx, wy, ww, wh in self.walls:
             cv2.rectangle(img, (wx - x0, wy - y0), (wx - x0 + ww, wy - y0 + wh), (20, 20, 20), -1)
         cv2.circle(img, (W // 2, H // 2), 40, (0, 220, 255), -1)  # the animal
@@ -296,7 +327,8 @@ def record(session: Path, world: World, fps: float = 5.0) -> None:
     frame()
     wait(1.0)
     hold("right", 1.6)  # fungus 1 in reach
-    click(*screen(world.things[0]))
+    fx, fy = screen(world.things[0])
+    click(fx, fy - PIN_UP)  # its paw pin
     wait(1.0)
     click(*DIALOG_X)
     hold("right", 1.8)
@@ -304,7 +336,8 @@ def record(session: Path, world: World, fps: float = 5.0) -> None:
     sx, sy = screen(world.things[1])
     drag(slot[0], slot[1], sx, sy)
     hold("down", 1.5)
-    click(*screen(world.things[2]))
+    fx, fy = screen(world.things[2])
+    click(fx, fy - PIN_UP)
     hold("left", 1.5)
     hold("down", 0.4)
     click(*slot)

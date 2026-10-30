@@ -73,6 +73,7 @@ class LevelRunner:
         counter_ocr: Ocr,
         counter_retry: Ocr | None = None,
         dialog_x: BgrImage,
+        paw_marker: BgrImage,
         presence: Presence | None = None,
         bus: EventBus | None = None,
         clock: Callable[[], float] = time.monotonic,
@@ -81,7 +82,7 @@ class LevelRunner:
     ) -> None:
         self.lvl, self.prof, self.cfg = lvl, prof, cfg
         self._in, self._grab = inp, grab
-        self._banner_ocr, self._x = banner_ocr, dialog_x
+        self._banner_ocr, self._x, self._paw = banner_ocr, dialog_x, paw_marker
         self._presence, self._bus = presence, bus
         self._clock, self._sleep, self._tick = clock, sleep, tick_s
         self.inv = Inventory(prof, counter_ocr, counter_retry)
@@ -239,6 +240,11 @@ class LevelRunner:
             blob = self._find(spot, kind)
             if blob is None:
                 return "not_seen"
+            if action == "pick":
+                # the pin with the paw shows over a fungus in reach; that is what takes
+                pin = self._pin(blob)
+                if pin is not None:
+                    blob = pin
             before = self.inv.update(self._grab(), self._clock()).get(slot)
             if action == "light":
                 sx, sy = self.prof.point("item_slot_1")
@@ -294,6 +300,30 @@ class LevelRunner:
             for k in sorted(keys):
                 self._in.key_up(k)
         return blob
+
+    def _pin(self, fungus: objects.Blob) -> objects.Blob | None:
+        """Walk up to the fungus until its paw pin shows (``pin_near_px``), then the pin."""
+        c = self.cfg
+        avatar = (float(self.lvl.avatar[0]), float(self.lvl.avatar[1]))
+        for _look in range(c.look_retries + 1):
+            frame = self._grab()
+            pin = objects.find_marker(frame, self._paw, self.prof, (fungus.x, fungus.y))
+            if pin is not None and pin.dist((fungus.x, fungus.y)) <= c.pin_near_px:
+                return pin
+            near = objects.nearest(objects.fungi(frame, self.prof), (fungus.x, fungus.y))
+            if near is not None:
+                fungus = near
+            if fungus.dist(avatar) <= c.pin_near_px * 0.5:
+                self._sleep(0.3)  # close already: the pin may just be appearing
+                continue
+            keys = keys_toward(fungus.x - avatar[0], fungus.y - avatar[1])
+            for k in sorted(keys):
+                self._in.key_down(k)
+            self._sleep(c.walk_toward_s * 0.5)
+            for k in sorted(keys):
+                self._in.key_up(k)
+        self._emit("adventure.no_pin", fungus=[fungus.x, fungus.y])
+        return None
 
     def _counter_moved(self, slot: int, before: int | None, want: str) -> bool:
         end = self._clock() + self.cfg.act_verify_s

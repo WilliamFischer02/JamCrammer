@@ -395,6 +395,14 @@ Non-obvious choices and why. Newest at the bottom.
 - **Torches and the city stay on replay for now** (`mode: replay` per phase). The model has
   their spots (mirrors, rocks, piles) but no beam detector or switch timing yet; each phase
   moves to the plan as it is built, and the handover is at the phase's banner.
+- **Stuck means still against an anchor, never against the last tick.** The dot moves a
+  quarter pixel per 50 ms tick, so any per-tick comparison with a 1 px threshold reads a walk
+  as a wall (the 12:11 run: every walk "blocked"). The anchor moves when the dot has gone 1 px.
+- **A fungus is picked by its pin, not by itself.** The paw pin appears over a fungus in
+  reach; the recordings' pickup clicks are all on it. So the pick act walks up until the pin
+  shows (template + yellow check) and clicks the pin.
+- **The adventure list scrolls by its arrow.** A scrollbar drag depends on where the thumb
+  is; released over something else it acts on that thing (it switched William's animal).
 - **Join, not Host**, because both recordings did that and it ran solo (`adventures.level.join`).
   **Hard always**: William (2026-10-30) says the second half of the level needs Hard mode, so
   `adventures.level.hard` stays true; Normal is only for a deliberate experiment.
