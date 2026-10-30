@@ -401,6 +401,15 @@ Non-obvious choices and why. Newest at the bottom.
 - **A fungus is picked by its pin, not by itself.** The paw pin appears over a fungus in
   reach; the recordings' pickup clicks are all on it. So the pick act walks up until the pin
   shows (template + yellow check) and clicks the pin.
+- **Markers are one detector with three inner marks.** The paw pin, the torch pin and the "!"
+  bubble are the same white shape with a yellow, orange or black mark inside; the recordings'
+  single clicks under a phase's banner say which marker a spot carries.
+- **An act's area opens with its first banner.** The torch hall is a new minimap; an act there
+  waits for "light the 3 torches" even if its own click came 3 s earlier, and the navigator
+  switches floors only then.
+- **The pilot is a tool, not a bot.** One command per process, William's switch, a yield to his
+  input, forbidden areas; its sessions are Learn recordings so nothing new has to be built to
+  learn from them.
 - **Counters by digit template, OCR second; the stock is never a remembered value.** The
   empty slot's dimmed "0/3" is invisible to OCR; correlation against averaged digits ignores
   contrast and read every frame tried. A stale count let the 15:43 run drop with nothing.

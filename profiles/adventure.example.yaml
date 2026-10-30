@@ -211,3 +211,13 @@ fields:
     value: 0.7
     status: calibrated
     note: best correlation that counts (real digits 0.99-1.0, no slot <= 0.2)
+  marker_orange_hsv:
+    type: color
+    value: [[5, 120, 150], [25, 255, 255]]
+    status: proposed
+    note: the flame inside the torch pin (take the torch, light a basin); measured loosely from run B 557-583 s
+  marker_dark_max_v:
+    type: number
+    value: 70
+    status: proposed
+    note: the black exclamation mark inside the speech bubble over a door or a pedestal (at least marker_yellow_px pixels darker than this)

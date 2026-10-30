@@ -344,7 +344,8 @@ def test_the_level_round_trips_and_knows_its_banners(tmp_path: Path) -> None:
     assert back.floors["moths"].shape == (MH, MW) and back.floors["moths"].all()
     assert back.phase_of("Find 2 GLOW MOTHS and LEAD THEM to the door.") is not None
     assert back.phase_of("find the last glow moth and lead it to the door").key == "moths"  # type: ignore[union-attr]
-    assert back.phase_of("li ht the last torch to illuminate the area").mode == "replay"  # type: ignore[union-attr]
+    assert back.phase_of("li ht the last torch to illuminate the area").mode == "plan"  # type: ignore[union-attr]
+    assert back.phase_of("travel to the lost city").mode == "replay"  # type: ignore[union-attr]
     assert back.phase_of("Bingusthewizard's Den") is None and back.phase_of("") is None
     dot = (1600.0, 800.0)
     mm = back.to_minimap(dot, (synth.W / 2 + 142, synth.H / 2 - 71))
@@ -389,7 +390,7 @@ def test_the_runner_lights_the_crystals_from_the_plan_and_restocks() -> None:
 
     def stop() -> bool:
         if all(th.done for th in world.things if th.kind == "crystal"):
-            banner["text"] = "Open the door to travel deeper underground."
+            banner["text"] = "Travel to the LOST CITY."  # the first replayed phase
         return world.t > 240
 
     out = runner.run(stop)

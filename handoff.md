@@ -108,6 +108,24 @@ _Last updated: 2026-10-30 (The Mystery Below: level model, menus by state, moth 
   `data/derby_learned.json` with the PC's copies, which are backed up. Re-add the per-class
   leads after an import.
 
+## Autonomous afternoon (2026-10-30 16:00-): pilot, torch hall, economy, bot review
+William away for a few hours; his brief: debug and intelligence passes on all bots, a
+workflow for Claude to take the controls, learn the economy, plan more bots. Done so far:
+- **Input crash fixed** (`platform/input.py`): a raising SetCursorPos is a failed move, not a
+  crashed mode; 3 px cursor tolerance for mixed-DPI monitors; a failed move logs where the
+  cursor landed (the day's logs had 90 `input.move_failed` at a 1 px tolerance).
+- **Pilot** (`jamcrammer/pilot.py`, `commands/pilot_cmd.py`, `docs/PILOT.md`): `jamcrammer
+  pilot start|look|key|click|drag|goto|note|crop|stop`, one process per command, guardrails
+  (William's `pilot.enabled` switch, forbidden ROIs, a key list, a 2 s yield to his input).
+  `pilot look` ran against the live window (read-only) and worked; the frame showed the AJC
+  window was not in front (a Snipping Tool over another game), so nothing else was tried.
+- **Torch hall from the plan**: bang acts (the door's "!", the torch pin, three basin pins) from
+  the recordings; the plan now spans the moth chamber and the torch hall and hands over to
+  replay at "travel to the lost city". Not run live.
+- **Economy** (`jamcrammer/economy.py`, `docs/ECONOMY.md`): the CP ladder, yields per run,
+  rates; the Adventures page prints CP/h for the target. Wiki facts on the moth routes (red
+  decoys bottom right, rocks top, mushroom bridges left) are in the docs.
+
 ## The Mystery Below: tenth live run (2026-10-30 15:43): dropping with an empty slot
 - Four crystals lit. Then the stock read **1** while the slot said 0/3: an empty slot dims
   its "0/3" to grey on grey and the OCR engine reads nothing from it at any scale or

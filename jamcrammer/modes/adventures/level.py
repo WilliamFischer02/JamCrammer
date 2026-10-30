@@ -50,9 +50,9 @@ MYSTERY_BELOW_PHASES: list[tuple[str, str, str, str]] = [
     ("drag a light blossom to drop it on the crystal", "first_crystal", "moths", "plan"),
     ("make a path for the glow moth by illuminating crystals", "first_moth", "moths", "plan"),
     ("find 4 glow moths and lead them to the door", "moths", "moths", "plan"),
-    ("open the door to travel deeper underground", "door", "moths", "replay"),
-    ("light the 3 torches to illuminate the room", "torches", "torches", "replay"),
-    ("light the last torch to illuminate the area", "last_torch", "torches", "replay"),
+    ("open the door to travel deeper underground", "door", "moths", "plan"),
+    ("light the 3 torches to illuminate the room", "torches", "torches", "plan"),
+    ("light the last torch to illuminate the area", "last_torch", "torches", "plan"),
     ("travel to the lost city", "travel", "torches", "replay"),
     ("solve the puzzles throughout the ancient city", "puzzles", "city", "replay"),
     ("use the boomseeds to find a way deeper into the city", "boomseeds", "city", "replay"),
@@ -76,7 +76,10 @@ SPOT_KINDS = {
 ACTIONS = {"crystal": "light", "fungus": "pick", "boom_target": "boom", "boom_pile": "pick"}
 SMASH_AREAS = ("moths",)  # repeated clicks here are rocks and purple crystals (the city's
 # repeats are mirrors, which turn, not break)
+BANG_PHASES = {"door": "bang", "torches": "flame", "last_torch": "flame"}  # a single world
+# click in these phases is on a marker: the "!" over the moth-chamber door, the torch pins
 SPOT_COLOURS = {
+    "marker": (0, 220, 255),
     "crystal": (0, 0, 255),
     "fungus": (0, 220, 0),
     "door": (0, 220, 255),
@@ -444,13 +447,29 @@ def build_level(
                     lvl.phase_at(route, ev.click_t - cfg.act_lead_s),
                 )
             )
-        # the door: where the "open the door" banner came
-        door = next(
-            (o for o in route.objectives if (p := lvl.phase_of(o.text)) and p.key == "door"), None
-        )
-        if door is not None and (dot := route.dot_at(door.t)) is not None:
-            spot = _merge(lvl, "door", "moths", dot, run=session.name, r=DOOR_MERGE_PX)
-            acts.setdefault("moths", []).append(Act(spot.id, "door", door.t, "door", "door"))
+        # single world clicks under the door and torch banners are on markers: the "!"
+        # over the moth-chamber door, the pin to take the torch, the pins over the basins
+        for st in route.steps:
+            if st.kind != "click" or st.zone != "world" or st.group >= 0:
+                continue
+            phase = lvl.phase_at(route, st.t)
+            if phase not in BANG_PHASES:
+                continue
+            area = area_at(spans, st.t)
+            dot = route.dot_at(st.t)
+            if area is None or dot is None:
+                continue
+            mm = lvl.to_minimap(dot, (st.ax, st.ay))
+            spot = _merge(lvl, "marker", area, mm, run=session.name, r=cfg.spot_merge_px * 2)
+            acts.setdefault(area, []).append(
+                Act(
+                    spot.id,
+                    "bang",
+                    st.t,
+                    BANG_PHASES[phase],
+                    lvl.phase_at(route, st.t - cfg.act_lead_s),
+                )
+            )
         _repeats(lvl, route, run=session.name, spans=spans, acts=acts, cfg=cfg)
         if session is sessions[-1]:
             lvl.plan = {a: sorted(v, key=lambda x: x.t) for a, v in acts.items()}

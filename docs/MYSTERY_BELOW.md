@@ -54,8 +54,9 @@ Identical in both runs (banner text → phase; moth counts "4 / 3 / 2 / the last
 | 15 | SPEAK with the ALPHAS at the OBELISK. | alphas | city | 1850 | 1287 |
 | 16 | You did it! Adventure COMPLETE! | done | city | 1868 | 1303 |
 
-The table is `MYSTERY_BELOW_PHASES` in `modes/adventures/level.py`; phases 1-5 run from the
-level model (`mode: plan`), 6-15 by route replay for now (`mode: replay`).
+The table is `MYSTERY_BELOW_PHASES` in `modes/adventures/level.py`; phases 1-8 run from the
+level model (`mode: plan`: the moth chamber, the door, the torch hall), 9-15 by route replay
+for now (`mode: replay`, from "travel to the lost city").
 
 ## 3. Items are the exact signal
 
@@ -168,11 +169,21 @@ and switched William's animal. A room must read as one for 1.5 s before the glob
    would stay muddy. The first act of the plan is the start
    room's pickup (the counter only appears with it); no "!" click is needed there, Cosmo's
    dialog closes and the door opens by itself.
-4. **Smash** acts (the reference run's groups of 4+ clicks in the chamber: cracked rocks,
+4. **Bang** acts: single clicks under the door and torch banners in the recordings are on
+   markers: the "!" bubble over the moth-chamber door (phase `door`), the pin with the flame
+   to take the torch and the pins over the three basins (`torches`, `last_torch`; 4 clicks in
+   each run, basins at minimap (1565,796), (1607,774), (1648,752), both runs within 3-8 px).
+   The marker is a white pin / bubble with the inner mark (`find_marker(..., inner="flame" |
+   "bang")`), found near the prediction; a bang counts when the Courage text pops (basins
+   pay "+5"), the banner moves on, or a glow appears. The torch hall is its own minimap:
+   the navigator switches floors when the next act's area changes, and an act never runs
+   before the banner that opens its area. After the last basin the plan ends and the
+   replay takes "travel to the lost city" (the stairs, the city's pedestal "!").
+5. **Smash** acts (the reference run's groups of 4+ clicks in the chamber: cracked rocks,
    purple crystals): walk there, click up to 18 times every 0.25 s, stop 3 clicks after the
    last Courage pop, or after 6 with none. Never a failure.
-5. William's input pauses it (keys released); 2.5 s of quiet and it goes on with the next act.
-6. A failed light asks for help once and is skipped if it still fails after his turn; three
+6. William's input pauses it (keys released); 2.5 s of quiet and it goes on with the next act.
+7. A failed light or bang asks for help once and is skipped if it still fails after his turn; three
    other failures in a row raise `adventure.help` (HIGH) and wait for him.
 
 Events: `adventure.menu`, `adventure.phase`, `adventure.act` (action, spot, outcome, counts),

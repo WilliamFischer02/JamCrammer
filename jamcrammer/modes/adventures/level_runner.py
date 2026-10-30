@@ -36,11 +36,12 @@ from jamcrammer.modes.adventures.replay import Input, Presence
 
 BgrImage = npt.NDArray[np.uint8]
 AREA = "moths"
+PLAN_AREAS = ("moths", "torches")  # the plan's areas in order; the city is replayed
 DIALOG_GONE_S = 0.6
 HELP_AFTER_FAILS = 3
 BLOB_KIND = {"light": "unlit", "pick": "fungus", "smash": "decoy"}
 SLOT_OF = {"light": 0, "pick": 0, "boom": 1}
-DONE = ("lit", "picked", "arrived", "already", "smashed", "nothing")
+DONE = ("lit", "picked", "arrived", "already", "smashed", "nothing", "banged")
 
 
 @dataclass
@@ -94,6 +95,8 @@ class LevelRunner:
         self._clock, self._sleep, self._tick = clock, sleep, tick_s
         self.inv = Inventory(prof, counter_ocr, counter_retry, digits)
         mx, my, _mw, _mh = lvl.minimap_roi
+        self.area = AREA
+        self.acts: list[Act] = [a for area in PLAN_AREAS for a in lvl.plan.get(area, [])]
         self.nav = Navigator(
             Floor(lvl.floors[AREA], (mx, my)),
             prof,
@@ -129,7 +132,7 @@ class LevelRunner:
         banner still there), stopped or help (William never came)."""
         self._stop = should_stop
         self.state = "PLAN"
-        acts = self.lvl.plan.get(AREA, [])
+        acts = self.acts
         try:
             while not should_stop():
                 if self._user_now():
@@ -153,6 +156,7 @@ class LevelRunner:
                 if not self._phase_reached(act):
                     self._help(f"the banner never reached {act.phase} for act {self.k}")
                     continue
+                self._enter_area(self.lvl.spot(act.spot).area)
                 outcome = self._do(act)
                 self.stats.acts += 1
                 self._emit(
@@ -189,10 +193,10 @@ class LevelRunner:
         if outcome in DONE:
             self._fails = 0
             self.k += 1
-        elif act.action == "light" and self._helped_k != self.k:
+        elif act.action in ("light", "bang") and self._helped_k != self.k:
             self._helped_k = self.k
-            self._help(f"crystal {act.spot}: {outcome}")
-        elif act.action == "light":
+            self._help(f"{act.action} at spot {act.spot}: {outcome}")
+        elif act.action in ("light", "bang"):
             # helped once and it still fails: William could not fix it either (a spot that
             # is not a crystal, one he lit by hand that reads as nothing); on to the next
             self._emit("adventure.skipped", Level.NOTICE, k=self.k, spot=act.spot, outcome=outcome)
@@ -226,12 +230,24 @@ class LevelRunner:
             self._emit("adventure.phase", phase=p.key, area=p.area, mode=p.mode)
         return p.mode != "plan"
 
+    def _enter_area(self, area: str) -> None:
+        """The next act is in another area (another minimap): plan on its floor."""
+        if area == self.area or area not in self.lvl.floors:
+            return
+        mx, my, _mw, _mh = self.lvl.minimap_roi
+        self.nav.floor = Floor(self.lvl.floors[area], (mx, my))
+        self.area = area
+        self._emit("adventure.area", area=area)
+
     def _phase_reached(self, act: Act) -> bool:
         """An act never runs before the banner it happened under in the recording (the door
         after the first moth, the next room): wait, closing dialogs, up to ``phase_wait_s``.
         The 14:13 run went for the corridor's crystal while still in the start room and
         dropped two blossoms on Cosmo."""
         want = self.lvl.phase_index(act.phase)
+        area = self.lvl.spot(act.spot).area
+        first = next((i for i, p in enumerate(self.lvl.phases) if p.area == area), -1)
+        want = max(want, first)  # never before the banner that opens the act's own area
         if want < 0:
             return True
         end = self._clock() + self.cfg.phase_wait_s
@@ -286,17 +302,23 @@ class LevelRunner:
             return "arrived" if res.ok else f"walk_{res.reason}"
         if act.action == "smash":
             return self._smash(spot)
+        if act.action == "bang":
+            return self._bang(spot, act.kind)
         if act.action == "light":
-            out = ""
-            for _attempt in range(self.cfg.light_attempts):
-                stock = self._stock(0)
-                if not stock and not self._restock():
-                    return "no_blossoms"
-                out = self._act_at(spot, "light")
-                if out in ("lit", "already") or out.startswith("walk_"):
-                    return out
-            return out
+            return self._light(spot)
         return self._act_at(spot, act.action)
+
+    def _light(self, spot: Spot) -> str:
+        """A crystal: a readable stock first (else restock), then up to light_attempts."""
+        out = ""
+        for _attempt in range(self.cfg.light_attempts):
+            stock = self._stock(0)
+            if not stock and not self._restock():
+                return "no_blossoms"
+            out = self._act_at(spot, "light")
+            if out in ("lit", "already") or out.startswith("walk_"):
+                return out
+        return out
 
     def _stock(self, slot: int) -> int | None:
         """The counter as a number, read for up to ``stock_read_s``; None when it never
@@ -488,6 +510,61 @@ class LevelRunner:
         self._emit("adventure.smash", spot=spot.id, at=list(at), hits=hits, clicks=clicks)
         return "smashed" if hits else "nothing"
 
+    def _bang(self, spot: Spot, inner: str) -> str:
+        """A marker to click: the "!" over the moth-chamber door, the pin to take the torch,
+        the pins over the basins. Walk there, find the white pin / bubble with its inner
+        mark near the prediction, click it, and count it done when the Courage text pops,
+        the banner moves on, or a flame appears where it was clicked."""
+        c = self.cfg
+        avatar = (float(self.lvl.avatar[0]), float(self.lvl.avatar[1]))
+        phase_before = self.lvl.phase_index(self.phase)
+        for _attempt in range(c.light_attempts):
+            res = self.nav.go_to((spot.x, spot.y), stop=self._stop, tol=c.approach_px)
+            self.stats.blocks += res.blocks
+            frame = self._grab()
+            self._close_dialog(frame)
+            dot = sight.minimap_dot(frame, self.prof)
+            pred = self.lvl.to_screen(dot, (spot.x, spot.y)) if dot else avatar
+            marker = None
+            for _look in range(c.look_retries + 1):
+                frame = self._grab()
+                marker = objects.find_marker(frame, self.prof, pred, inner)
+                if marker is not None and marker.dist(pred) <= c.pred_tol_px:
+                    break
+                marker = None
+                self._sleep(0.5)
+            if marker is None:
+                self._emit(
+                    "adventure.not_seen",
+                    spot=spot.id,
+                    kind=inner,
+                    pred=[round(pred[0]), round(pred[1])],
+                )
+                self._shot("no_marker")
+                continue
+            before = self._grab()
+            self._in.click(marker.x, marker.y)
+            end = self._clock() + c.lit_verify_s
+            while self._clock() < end and not self._stop():
+                frame = self._grab()
+                self._last_banner = -1e9
+                self._banner(frame)
+                if self.lvl.phase_index(self.phase) > phase_before:
+                    return "banged"
+                if self._courage is not None and (
+                    self._courage.near(frame, (marker.x, marker.y), c.courage_radius_px)
+                    >= self._courage.min
+                ):
+                    return "banged"
+                if (
+                    objects.new_glow(before, frame, (marker.x, marker.y), c.glow_radius_px)
+                    >= c.glow_new_px
+                ):
+                    return "banged"
+                self._sleep(0.1)
+            self._shot("bang_nothing")
+        return "not_taken"
+
     def _click_until_quiet(self, at: tuple[int, int]) -> tuple[int, int]:
         """Click ``at`` until the Courage pops stop; (hits, clicks)."""
         c = self.cfg
@@ -644,7 +721,7 @@ class LevelRunner:
         dot = sight.minimap_dot(self._grab(), self.prof)
         here = dot if dot is not None else (self.lvl.avatar[0], self.lvl.avatar[1])
         fungi = sorted(
-            self.lvl.spots_of(AREA, "fungus"),
+            self.lvl.spots_of(self.area, "fungus"),
             key=lambda s: float(np.hypot(s.x - here[0], s.y - here[1])),
         )
         for spot in fungi[:3]:

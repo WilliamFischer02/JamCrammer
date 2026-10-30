@@ -79,20 +79,30 @@ def nearest(blobs: list[Blob], pt: tuple[float, float], kind: str | None = None)
 MARKER_HUD = (420, 300)  # the item slots (white squares) are pins to a colour test: masked
 
 
+MARKER_INNER = {"paw": "marker_yellow_hsv", "flame": "marker_orange_hsv"}
+
+
 def find_marker(
-    frame: BgrImage, prof: Profile, near: tuple[float, float] | None = None
+    frame: BgrImage,
+    prof: Profile,
+    near: tuple[float, float] | None = None,
+    inner: str = "paw",
 ) -> Blob | None:
-    """The paw pin that floats over a fungus in reach: a white blob of the pin's size
-    (``marker_area``) with at least ``marker_yellow_px`` of paw inside its box. The paw is
-    bright yellow when the game is ready and paler just before, so the yellow test is
-    loose; a template did not survive William's screenshot (0.62) while this did."""
+    """A white pin or bubble of the marker's size (``marker_area``) with enough of its
+    inner mark inside its box: ``paw`` (yellow: a fungus in reach), ``flame`` (orange: a
+    torch to take or a basin to light), ``bang`` (black: the "!" over a door or pedestal).
+    The paw is bright yellow when the game is ready and paler just before, so the colour
+    tests are loose; a template did not survive William's screenshot (0.62) while this did."""
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     lo, hi = prof.color("marker_white_hsv")
     white = cv2.inRange(hsv, np.array(lo), np.array(hi))
     white[: MARKER_HUD[1], : MARKER_HUD[0]] = 0
     white[frame.shape[0] - BOTTOM_PX :, :] = 0
-    ylo, yhi = prof.color("marker_yellow_hsv")
-    yellow = cv2.inRange(hsv, np.array(ylo), np.array(yhi))
+    if inner == "bang":
+        yellow = cv2.inRange(hsv[:, :, 2], 0, int(prof.number("marker_dark_max_v")))
+    else:
+        ylo, yhi = prof.color(MARKER_INNER[inner])
+        yellow = cv2.inRange(hsv, np.array(ylo), np.array(yhi))
     a_min, a_max = (int(v) for v in prof.items("marker_area"))
     need = int(prof.number("marker_yellow_px"))
     n, _lab, st, cen = cv2.connectedComponentsWithStats(white)
@@ -103,7 +113,7 @@ def find_marker(
             continue
         paw = int(np.count_nonzero(yellow[y : y + h, x : x + w]))
         if paw >= need:
-            cands.append(Blob("marker", int(cen[i][0]), int(cen[i][1]), a))
+            cands.append(Blob(inner, int(cen[i][0]), int(cen[i][1]), a))
     if not cands:
         return None
     return min(cands, key=lambda b: b.dist(near)) if near is not None else cands[0]

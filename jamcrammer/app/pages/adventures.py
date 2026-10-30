@@ -246,7 +246,18 @@ class AdventuresPage(ModePage):
         if lvl is None:
             return "no level model yet (Rebuild route builds it)"
         acts = sum(len(v) for v in lvl.plan.values())
-        return f"level model from {len(lvl.sessions)} runs: {len(lvl.spots)} spots, {acts} acts"
+        return f"level model from {len(lvl.sessions)} runs: {len(lvl.spots)} spots, {acts} acts; {self._economy_note()}"
+
+    def _economy_note(self) -> str:
+        """What a run is worth (jamcrammer/economy.py): CP per hour at the recorded pace."""
+        from jamcrammer.economy import YIELDS, rate_from_runs
+
+        key = f"{self.engine.cfg.adventures.route.target}_hard"
+        if key not in YIELDS:
+            return ""
+        y = YIELDS[key]
+        r = rate_from_runs(key, runs=1, minutes_total=y.minutes)
+        return f"a run ≈ {y.cp_typical:,} CP in {y.minutes:.0f} min ≈ {r.cp_per_hour:,.0f} CP/h"
 
     # --- actions -------------------------------------------------------------------------
 
