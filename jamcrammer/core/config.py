@@ -296,6 +296,10 @@ class DerbyConfig(StrictModel):
     unknown_pause_s: float = Field(30.0, gt=0)
     ocr_upscale: float = Field(2.0, ge=1.0)
     column_px: int = Field(320, ge=1)  # one obstacle "column"; bands are 1, 2 or 3 columns
+    # a band ending this close to the strip's right edge may run past it (live 2026-10-29:
+    # 3-column hedges ended at x 1750-1807 at the press, 680-770 of their 815 px visible) ...
+    clip_margin_px: int = Field(80, ge=0)
+    clip_tolerance_px: int = Field(40, ge=0)  # ... and is the narrowest class this close
     boost_speed_ratio: float = Field(1.15, gt=0)  # scroll faster than this x nominal = boosted
     boost_effect_s: float = Field(3.0, ge=0)  # ... or a carrot was clicked this recently
     press_match_s: float = Field(

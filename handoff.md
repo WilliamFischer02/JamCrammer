@@ -81,6 +81,29 @@ _Last updated: 2026-10-29 (laptop bring-up; adventure research + design; Forgott
     now saves that frame to `captures/derby/unknown/`.
   - The race place was not read; the leaderboard reader works on all 5 of William's frames
     (four 1st / 150 gems, one 3rd).
+- **Long live run (16:24 onward, still farming at 17:56):** 71 races. Places: 36 first,
+  21 second, 8 third, 4 fourth, 2 not read. 8,575 gems, 2.8 stumbles per race, no unknown
+  screen and no pause.
+  - **Stumbles by class:**
+    - Hedge 3-column: 37%.
+    - Hedge 1-column: 28%.
+    - Mud 3-column: 27%.
+    - Mud 1-column: 23%.
+    - Water 3-column: 18%.
+    - Hay 3-column: 0%.
+    - Every 2-column class: 4-8%.
+  - **Two learner bugs found from it, fixed on the laptop branch.** These take effect at the
+    next GUI start. The running farmer still has the old code.
+    - **Clipped 3-column bands:** they were classed 2-column at the press.
+    - **Misattributed stumbles:** a stumble on a tight pair's second band was charged to the
+      first band. Single-column leads drifted 90-150 px late, and hedge 3-column was pinned at
+      -160.
+    - See decisions.md.
+  - **Learned leads:** on first load the new learner archives the polluted ones to
+    `data/derby_learned_v1_<stamp>.json` and starts from William's profile leads again. It
+    keeps airtime, colour ranges and history.
+  - **Next check:** 10+ races with the fixes, comparing per-class stumble rates with the table
+    above. Then watch for `landing-bound: lead tight:...` notes in the log.
 - **Import caution:** `sync_state.py import` would replace `profiles/jamaa_derby.yaml` and
   `data/derby_learned.json` with the PC's copies, which are backed up. Re-add the per-class
   leads after an import.

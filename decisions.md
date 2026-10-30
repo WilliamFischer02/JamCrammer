@@ -243,6 +243,43 @@ Non-obvious choices and why. Newest at the bottom.
     bug and were cleared.
   - **Measured airtime:** 16 live samples, 0.56-1.45 s, smoothed to 0.91 s. That is longer
     than the PC video's 0.75 s.
+- **16:24-17:56 live run (71 races): the learner was being fed the wrong band.**
+  - **Clipped widths.** The strip ends at x 1816, and 3-column bands still run past it at the
+    press: hedges show 680-770 of their 815 px, right ends at 1750-1807. They were classed
+    2-column and pressed with the 263 px hedge 2-column lead, ~0.33 s before the edge
+    (hay 3-column is pressed 0.13 s before and never stumbled). They landed in the band, 37%
+    of them, and the lesson went to the hedge:3col key, which those presses never used. It
+    ratcheted to the -160 clamp.
+  - **Fix for clipped widths:** a band ending within `clip_margin_px` (80) of the strip edge
+    takes the narrowest class whose full width covers what is visible. The full width is the
+    median seen at the hooves, where every band is whole, taken from the learned history, with
+    `column_px` per column until there are records.
+  - **Misattribution.** A record stayed open for `hit_window_s` (1.3 s) after its band reached
+    the hooves, so a stall on the next band was charged to the earlier one, after its
+    touchdown, as "early". Event sequences showed the horse had already jumped the second band
+    by tapping through the landing.
+    - It moved single-column leads later every time: mud/hedge 1-column reached -150. That is
+      the opposite of William's advice and makes the landing-bound failure more likely.
+  - **Fix for misattribution:**
+    - Stalls are watched on the record's own band, the leftmost passing band not behind it.
+    - When a different band reaches the hooves, the record closes as cleared and the newcomer
+      gets its own record.
+    - A record takes a press only if it was the press for that band. The last 3 presses are
+      kept as `Press` tuples, matched by kind and expected edge.
+  - **Landing-bound stumbles now teach.** A stumble on a band jumped by tapping through a
+    landing means the band before it was jumped too late to land in time. That band's lead
+    moves +15 px. If that band was a tight press, the move goes to its own
+    `tight:<kind>:<wclass>` lead, added on top of `tight_extra_px` only when the next band is
+    close. Verdicts on a tight press also go to the tight lead, so single tight jumps don't
+    shift every jump of the class.
+  - **Clean airtime samples.** Only a plain press's landing is an airtime sample. A train's
+    takeoff is a prediction, and a retry's is unknown. Those gave the 0.4-0.9 s and 1.2-1.6 s
+    tails (1,035 samples: median 1.01 s, EMA drifted to 1.12 s).
+  - **Learner version 2.** On load, v1 leads are archived next to the file and dropped. Ranges,
+    airtime and history are kept.
+  - **Tried and reverted:** timing the next band's press while the first still passes the
+    hooves. In the real game the horse is always still in the air then, and the tap train
+    covers it, so it changed nothing but the bookkeeping.
 
 ## 2026-10-29 — The Mystery Below route farmer (laptop branch)
 

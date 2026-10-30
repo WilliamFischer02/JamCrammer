@@ -381,3 +381,115 @@ def test_race_clock_starts_at_go_and_stumbles_are_judged_by_touchdown(tmp_path: 
     assert farmer._verdict(rec, 11.0) == "early"  # stalled after touchdown: landed in the band
     rec.kind = "water"  # no per-class lead: the offset rule decides
     assert farmer._verdict(rec, 11.0) is None
+
+
+def _class_lead(prof: Profile, **leads: float) -> None:
+    for key, value in {**leads, "jump_lead_ref_px_s": 830}.items():
+        name = key if key.startswith("jump_") else f"jump_lead_px_{key}"
+        prof.fields[name] = ProfileField(type="number", value=value, status="calibrated")
+
+
+def test_a_band_running_off_the_strip_gets_its_full_width_class(tmp_path: Path) -> None:
+    """Live 2026-10-29: 3-column hedges (815 px) showed 680-770 px at the press, still running
+    past the strip's right edge, and got the 2-column lead: 37% of them landed in the band."""
+    from jamcrammer.modes.arcade.derby_learn import BandRecord
+
+    farmer = _farmer(synth.DerbyWorld(seed=1), _profile(), tmp_path, [])
+    sx, _sy, sw, _sh = synth.STRIP_ROI
+    edge = sx + sw - 10  # visible right end, near the strip's edge
+    hedge = Band("hedge", edge - 730, edge)
+    assert farmer._wclass(Band("hedge", 900, 1630)) == "2col"  # whole: as measured
+    assert farmer._wclass(hedge) == "3col"  # no records yet: 640 px per two columns
+    hay = Band("hay", edge - 356, edge)  # a 372 px single column with its end cut off
+    assert farmer._wclass(hay) == "1col"
+    for kind, wclass, width in (("hedge", "2col", 505), ("hedge", "3col", 815)):
+        for _ in range(3):
+            rec = BandRecord(0.0, kind, width, wclass, None, None, 830.0, False, outcome="cleared")
+            farmer.learned.history.append(rec.as_dict())
+    assert farmer._wclass(Band("hedge", edge - 560, edge)) == "3col"  # 505 px cannot cover it
+    assert farmer._wclass(Band("hedge", edge - 520, edge)) == "2col"
+
+
+def test_a_stumble_on_the_next_band_is_not_blamed_on_the_one_before(tmp_path: Path) -> None:
+    """Live 2026-10-29: the first band of a pair was still on record when the horse stumbled
+    on the second, so the stall was charged to the first as "landed in it" and its lead moved
+    later every time (single-column leads drifted 150 px late)."""
+    world = synth.DerbyWorld(seed=1, race_len_px=9000)
+    world.bands = [synth.Band("hay", 3000.0, 350), synth.Band("mud", 3000.0 + 350 + 400, 316)]
+    prof = _profile()
+    _class_lead(prof, hay_1col=60, mud_1col=-400)  # the mud band is never pressed for
+    events: list[Any] = []
+    farmer = _farmer(world, prof, tmp_path, events)
+    farmer.cfg.boosts_per_race = 0
+    farmer.run(lambda: farmer.stats.races >= 1)
+    hits = [e.payload for e in events if e.type == "derby.hit"]
+    assert world.hits == 1 and [h["kind"] for h in hits] == ["mud"], hits
+    assert hits[0]["press_edge"] is None
+    assert farmer.learned.lead_for("hay", "1col") == 0.0
+    judged = [(r["kind"], r["outcome"]) for r in farmer.learned.history]
+    assert judged == [("hay", "cleared"), ("mud", "hit")], judged
+
+
+def test_a_landing_bound_stumble_moves_the_band_before_it_earlier(tmp_path: Path) -> None:
+    """William: in a tight pair, jump the single column early so the horse lands in time for
+    the next. A stumble on a band jumped by tapping through a landing moves the tight lead of
+    the band whose landing that was."""
+    from jamcrammer.modes.arcade.derby_learn import BandRecord, LearnedDerby
+
+    cfg = DerbyConfig()
+    learned = LearnedDerby(path=tmp_path / "l.json")
+    first = BandRecord(10.0, "mud", 328, "1col", 1150, 9.6, 845.0, False, outcome="cleared")
+    first.tight = True
+    second = BandRecord(10.9, "hedge", 225, "1col", 900, 10.6, 845.0, False, outcome="hit")
+    second.rejump = True
+    note = learned.note(second, cfg, 785, ((0, 0, 0), (1, 1, 1)), prev=first)
+    assert note.startswith("landing-bound: lead tight:mud:1col +15px")
+    assert learned.tight_lead_for("mud", "1col") == cfg.learn_lead_step_px
+    assert learned.lead_for("mud", "1col") == 0.0 and learned.lead_for("hedge", "1col") == 0.0
+    # the tight lead is added only when the next band is close
+    prof = _profile()
+    _class_lead(prof, mud_1col=300)
+    farmer = _farmer(synth.DerbyWorld(seed=1), prof, tmp_path, [])
+    farmer.learned = learned
+    farmer._speed = 830.0
+    band = Band("mud", 1100, 1428)
+    close = Band("hedge", band.right + 200, band.right + 425)
+    alone = farmer._lead_for(band, 0.0)[0]
+    assert alone == 300.0
+    tight = farmer._lead_for(band, 0.0, close)[0]
+    assert tight == 300.0 + farmer.cfg.tight_extra_px + cfg.learn_lead_step_px
+
+
+def test_leads_from_the_old_learner_are_archived_and_dropped(tmp_path: Path) -> None:
+    import json
+
+    from jamcrammer.modes.arcade.derby_learn import LearnedDerby
+
+    path = tmp_path / "derby_learned.json"
+    doc = {
+        "lead_px": {"hedge:3col": -160.0, "mud:1col": -150.0},
+        "ranges": {"hedge": [[40, 90, 85], [66, 255, 172]]},
+        "airtime_s": 1.02,
+        "history": [{"kind": "hedge", "width": 815, "wclass": "3col"}],
+    }
+    path.write_text(json.dumps(doc), encoding="utf-8")
+    learned = LearnedDerby.load(path)
+    assert learned.lead_px == {} and "hedge:3col -160" in learned.reset_note
+    assert learned.ranges == doc["ranges"] and learned.airtime_s == 1.02
+    assert len(learned.history) == 1
+    archived = list(tmp_path.glob("derby_learned_v1_*.json"))
+    assert len(archived) == 1 and json.loads(archived[0].read_text())["lead_px"] == doc["lead_px"]
+    again = LearnedDerby.load(path)  # saved as the new version: nothing to drop twice
+    assert again.reset_note == "" and len(list(tmp_path.glob("derby_learned_v1_*.json"))) == 1
+
+
+def test_only_a_plain_press_times_the_air(tmp_path: Path) -> None:
+    farmer = _farmer(synth.DerbyWorld(seed=1), _profile(), tmp_path, [])
+    farmer.airtime_s = 1.0
+    farmer._last_jump = 10.0
+    farmer._air_sample = False  # a train's predicted takeoff, or a retry
+    farmer._on_landed(10.5)
+    assert farmer.airtime_s == 1.0
+    farmer._air_sample = True
+    farmer._on_landed(11.2)
+    assert farmer.airtime_s > 1.0 and not farmer._air_sample
