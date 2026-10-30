@@ -124,7 +124,17 @@ workflow for Claude to take the controls, learn the economy, plan more bots. Don
   replay at "travel to the lost city". Not run live.
 - **Economy** (`jamcrammer/economy.py`, `docs/ECONOMY.md`): the CP ladder, yields per run,
   rates; the Adventures page prints CP/h for the target. Wiki facts on the moth routes (red
-  decoys bottom right, rocks top, mushroom bridges left) are in the docs.
+  decoys bottom right, rocks top, mushroom bridges left) are in the docs. Measured today from
+  the logs: Jamaa Derby Pro on the laptop build, 107 races, 72 wins, **6,270 gems/h**.
+- **Keepalive** (`Engine._keepalive`): the game logged the idle account out five times today
+  while a mode waited or nothing ran. During the adventure's waits, when neither the bot nor
+  William has touched the controls for `heartbeat_s` (180 s), the anti-AFK movement pair is
+  sent (`engine.keepalive`). Not while he is active, not while the bot drives, not when no
+  mode runs (his call whether the game should be moved then).
+- **Review and roadmap:** `docs/REVIEW_2026-10-30.md` (every bot from today's logs; Derby and
+  Best Guess as notes, PC canonical) and `docs/ROADMAP.md` (ranked next bots: finish the
+  Mystery Below, keep logged in, Meet Cosmo Hard gems ~10k a run, Derby's last 33%, Double Up
+  measured, the Forgotten Desert, a Daily Spin claimer).
 
 ## The Mystery Below: tenth live run (2026-10-30 15:43): dropping with an empty slot
 - Four crystals lit. Then the stock read **1** while the slot said 0/3: an empty slot dims

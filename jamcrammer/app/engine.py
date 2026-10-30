@@ -21,7 +21,14 @@ from jamcrammer.core.events import Event, EventBus
 from jamcrammer.core.logging import attach_bus, get_logger
 from jamcrammer.core.paths import Paths
 from jamcrammer.core.profiles import Profile, load_profile
-from jamcrammer.core.safety import Hotkeys, InputLease, KillSwitch, PauseFlag, PresenceDetector
+from jamcrammer.core.safety import (
+    Hotkeys,
+    InputLease,
+    KillSwitch,
+    PauseFlag,
+    PresenceDetector,
+    last_user_input_time,
+)
 from jamcrammer.core.store import Store
 from jamcrammer.learn.recorder import Recorder
 from jamcrammer.platform.capture import CaptureBackend, Frame, open_stage_backend
@@ -132,6 +139,7 @@ class Engine:
         self.antiafk = AntiAfk(
             cfg.antiafk, self.input, self.guard, bus=self.bus, ensure_focus=self.focus_game
         )
+        self._last_keepalive = 0.0
         self.watchdog = Watchdog(
             cfg.watchdog,
             PopupDetector(self.profile("shared"), paths=self.paths),
@@ -922,6 +930,7 @@ class Engine:
             if frame is not None:
                 # the runner closes in-game dialogs itself; logout and the like still stop it
                 self.watchdog.tick(frame, known_screen=True)
+            self._keepalive()
             return self._should_stop() or self.pause.paused or self._watchdog_blocks()
 
         try:
@@ -929,6 +938,25 @@ class Engine:
         finally:
             tape.stop()
         self.state.stats["adventure"] = runner.stats.as_dict()
+
+    def _keepalive(self) -> None:
+        """The game logs an idle account out ("gone for too long", five times on 2026-10-30).
+        While a mode waits (for William, for a banner) and neither the bot nor he has touched
+        the controls for ``heartbeat_s``, send the anti-AFK movement pair. Never while he is
+        active, never while the bot is driving."""
+        now = time.time()
+        if now - self.input.stats.last_injected_ts < self.cfg.heartbeat_s:
+            return
+        if now - last_user_input_time() < self.cfg.heartbeat_s:
+            return
+        if now - self._last_keepalive < self.cfg.heartbeat_s:
+            return
+        self._last_keepalive = now
+        try:
+            res = self.antiafk.cycle(lambda: self.grab().image)
+            self.emit("engine.keepalive", sent=res.sent, drift=round(res.drift.score, 2))
+        except Exception as exc:  # a keepalive must never take the mode down
+            self.emit("engine.keepalive_failed", Level.NOTICE, error=str(exc))
 
     def _run_level(self, route: Any, prof: Profile, x_tmpl: Any) -> float | None:
         """The menus by state and the moth chamber from the level model
@@ -956,6 +984,7 @@ class Engine:
             frame = self.snapshot()
             if frame is not None:
                 self.watchdog.tick(frame, known_screen=True)
+            self._keepalive()
             return self._should_stop() or self.pause.paused or self._watchdog_blocks()
 
         from jamcrammer.modes.adventures.inventory import DigitBank

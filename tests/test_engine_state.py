@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from jamcrammer.app.engine import EngineState
 from jamcrammer.app.theme import PALETTE, build_qss
@@ -56,3 +57,46 @@ def test_engine_starts_on_a_fresh_clone(tmp_path: Path) -> None:
         assert n > 200
     finally:
         engine.store.close()
+
+
+def test_the_keepalive_fires_only_when_everyone_is_idle(tmp_path: Path, monkeypatch: Any) -> None:
+    """Neither the bot nor William touched the controls for heartbeat_s: one movement pair,
+    then nothing until another heartbeat_s has passed; William active: nothing."""
+    import shutil
+    import time as _time
+
+    from jamcrammer.app import engine as engine_mod
+    from jamcrammer.app.engine import Engine
+    from jamcrammer.core.config import AppConfig
+    from jamcrammer.core.paths import Paths
+    from jamcrammer.services.antiafk import CycleResult, DriftResult
+
+    repo = Paths()
+    shutil.copytree(repo.profiles, tmp_path / "profiles")
+    (tmp_path / "assets" / "bestguess").mkdir(parents=True)
+    shutil.copy2(repo.assets / "bestguess" / "facts_wiki.txt", tmp_path / "assets" / "bestguess")
+    cfg = AppConfig(heartbeat_s=100.0)
+    cfg.notify.toast = cfg.notify.sound = False
+    engine = Engine(cfg, Paths(tmp_path))
+    calls: list[float] = []
+
+    def fake_cycle(grab: Any) -> CycleResult:
+        calls.append(_time.time())
+        return CycleResult(("left", "right"), DriftResult(0.0, False, False), sent=True)
+
+    engine.antiafk.cycle = fake_cycle  # type: ignore[method-assign]
+    now = _time.time()
+    engine.input.stats.last_injected_ts = now - 500
+    monkeypatch.setattr(engine_mod, "last_user_input_time", lambda: now - 500)
+    engine._keepalive()
+    engine._keepalive()
+    assert len(calls) == 1  # once per heartbeat
+    engine.input.stats.last_injected_ts = now  # the bot just drove: nothing
+    engine._last_keepalive = 0.0
+    engine._keepalive()
+    assert len(calls) == 1
+    engine.input.stats.last_injected_ts = now - 500
+    monkeypatch.setattr(engine_mod, "last_user_input_time", lambda: now - 5)  # William active
+    engine._keepalive()
+    assert len(calls) == 1
+    engine.store.close()
