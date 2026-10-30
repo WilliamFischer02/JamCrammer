@@ -114,11 +114,14 @@ checked by the next panel showing within 4 s (both recordings classify cleanly; 
 sliding in reads as "room" for one frame, so a state must hold a quarter second first):
 
 room → globe (1729,992) → **world_map** → Adventures (159,809) → **adventures** → click the
-list's scroll-down arrow (450,970), three per look, until "Mystery" is listed → click the entry →
+list's scroll-down arrow (450,970), three per look, until a list line's nearest adventure
+name (of the 20, by `fuzz.ratio`) is "the mystery below" at 50+ → click that line →
 **adventure_dialog** → Join (826,592; `level.join: false` hosts) → **difficulty** → Hard
 (1100,630; **always Hard**: the second half of the level needs it, William 2026-10-30) → **lobby** (headed by the adventure's name; "PLAY" OCRs as "nay") → PLAY (955,1010)
 → splash + black loading (never clicked: the splash reads as a room) → **in_adventure**
-(the first banner).
+(the first banner). The lobby is PLAYed only when its header's nearest name is the target;
+another adventure's lobby (`lobby_other`) is closed by its blue X near the top right. Every
+menu click is followed by `menu_settle_s` (0.8 s) before the next look.
 
 Why: the first supervised run (2026-10-30 09:53) replayed the clicks blind, and its dialog
 closer saw the Join/Host dialog's blue X (same template as Cosmo's) at (1441,426) and closed
@@ -142,8 +145,11 @@ and switched William's animal. A room must read as one for 1.5 s before the glob
    learned 3 cells wide, path replanned; more than 8 of those or no path = the walk failed);
    find the nearest unlit crystal / fungus to where the spot should be on screen, walking at
    it for 1.2 s when it is out of reach (420 px). A **pick** is the paw pin (white teardrop,
-   yellow paw, `paw_marker.png`) that floats over a fungus once the animal is within about
-   300 px: walk up until it shows, click it. A **light** drags the blossom slot (200,100)
+   yellow paw) that floats over a fungus once the animal is within about 300 px: walk up
+   until it shows, click it. The pin is found by colour (a white blob of 800-9,000 px with
+   500+ px of yellow-to-beige paw inside), not by template: William's screenshot of the pin
+   scored 0.62 against the recorded template (a paler paw, a slightly different size) while
+   the colour test finds both. A **light** drags the blossom slot (200,100)
    onto the crystal, or clicks the slot then the crystal; the counter must move within
    2.5 s, two retries, else the act is skipped. The first act of the plan is the start
    room's pickup (the counter only appears with it); no "!" click is needed there, Cosmo's

@@ -257,13 +257,17 @@ class Navigator:
         return True
 
     def _plan(self, dot: Point, res: NavResult) -> bool:
+        """A* on the floor; with no path (the mask has gaps at doors, the dot is off the
+        floor) a straight line to the goal, so the walls get learned instead of giving up."""
+        if self._goal is None:
+            return False
         start = self.floor.snap(self.floor.cell(dot), self.cfg.nav_snap_px)
-        if start is None or self._goal is None:
-            return False
-        self._path = plan_path(self.floor, start, self._goal)
-        if self._path is None:
-            return False
-        res.path_len = len(self._path)
+        path = plan_path(self.floor, start, self._goal) if start is not None else None
+        if path is None:
+            res.log.append("straight")
+            path = [self.floor.cell(dot), self._goal]
+        self._path = path
+        res.path_len = len(path)
         return True
 
     def _aim(self, dot: Point) -> Point:

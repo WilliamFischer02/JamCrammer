@@ -401,6 +401,13 @@ Non-obvious choices and why. Newest at the bottom.
 - **A fungus is picked by its pin, not by itself.** The paw pin appears over a fungus in
   reach; the recordings' pickup clicks are all on it. So the pick act walks up until the pin
   shows (template + yellow check) and clicks the pin.
+- **A list entry is matched by its nearest adventure name, never by a fragment.** The old
+  rule ("mystery" in any word at 75) clicked another adventure on the 12:37 run; the nearest
+  of the 20 names, by ratio, is unambiguous on the recorded list (the mystery below at 61,
+  the others 40-84 against their own names). The lobby header gets the same test before PLAY.
+- **The paw pin is found by colour, not by template.** William's screenshot of it scored
+  0.62 against the template cut from his recording (a paler paw, another size); a white
+  blob with enough yellow-to-beige inside finds both and nothing else in the cave.
 - **The adventure list scrolls by its arrow.** A scrollbar drag depends on where the thumb
   is; released over something else it acts on that thing (it switched William's animal).
 - **Join, not Host**, because both recordings did that and it ran solo (`adventures.level.join`).

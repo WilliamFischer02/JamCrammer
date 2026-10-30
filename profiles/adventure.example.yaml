@@ -156,26 +156,26 @@ fields:
     value: [200, 240]
     status: proposed
     note: the boomseed slot icon
-  paw_marker_template:
-    type: template
-    value: templates/adventures/paw_marker.png
+  marker_white_hsv:
+    type: color
+    value: [[0, 0, 220], [180, 60, 255]]
     status: calibrated
-    note: the white pin with the yellow paw over a fungus you can pick (cut from run B at 60.9 s)
-  paw_marker_min:
-    type: number
-    value: 0.85
+    note: the white body of the paw pin over a fungus in reach
+  marker_area:
+    type: list
+    value: [800, 9000]
     status: calibrated
-    note: template score; real pins 0.87-1.00, the cave tops out at 0.79 with the HUD masked
+    note: pixel area of the pin body (2200-2500 in the recordings and William's screenshot)
   marker_yellow_hsv:
     type: color
-    value: [[18, 120, 180], [38, 255, 255]]
+    value: [[12, 50, 150], [40, 255, 255]]
     status: calibrated
-    note: the paw inside the pin; at least marker_yellow_px of it within 30 px of the match
+    note: the paw inside the pin; pale beige just before the game is ready, bright yellow after
   marker_yellow_px:
     type: number
-    value: 300
+    value: 500
     status: calibrated
-    note: real pins had 900+ yellow px in the window
+    note: paw px inside the pin box (recordings 1079-1422, William's screenshot 908; text <= 450)
   menu_list_down:
     type: point
     value: [450, 970]

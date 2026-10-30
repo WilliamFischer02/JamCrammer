@@ -108,6 +108,24 @@ _Last updated: 2026-10-30 (The Mystery Below: level model, menus by state, moth 
   `data/derby_learned.json` with the PC's copies, which are backed up. Re-add the per-class
   leads after an import.
 
+## The Mystery Below: second live run (2026-10-30 12:37, fixed)
+- **Menus:** it clicked a wrong list entry (the old rule matched a word fragment to
+  "mystery"), reached that adventure's difficulty dialog, and William took over before PLAY.
+  Fixed: a list entry is the line whose nearest of the 20 adventure names (`ADVENTURES` in
+  `opening.py`, `fuzz.ratio`) is the target at 50+; the lobby is PLAYed only when its header
+  names the target, another adventure's lobby is closed by its X (`lobby_other`); 0.8 s
+  settle after every menu click (`menu_settle_s`), as William asked.
+- **Start room:** `adventure.no_pin` then `not_seen`: the template did not find the pin
+  (his screenshot of it, `inbox/light blossom fungi with grab icon above it.png`, scores 0.62:
+  a paler, beige paw and a slightly different size). The pin is now found by colour: a white
+  blob of 800-9,000 px with 500+ px of yellow-to-beige inside (recordings 1,079-1,422, his
+  screenshot 908, cave text under 450). Profile: `marker_white_hsv`, `marker_area`,
+  `marker_yellow_hsv`, `marker_yellow_px`; the template asset stays for the synthetic world.
+- **Walk `no_path` from the start room:** the dot sat more than 4 px off the mapped floor.
+  Snap is 8 px now and, with no path at all, the navigator walks a straight line at the goal
+  and lets the walls be learned instead of giving up.
+- 186 tests, ruff, mypy clean. Still the same litmus: pick, light, out of the start room.
+
 ## The Mystery Below: first live run of the level model (2026-10-30 12:11, fixed)
 - **Menus:** it looped on the adventure list three times (the scrollbar drag from the recorded
   thumb position did nothing or landed elsewhere; one landing switched William's animal to a

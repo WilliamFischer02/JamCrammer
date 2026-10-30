@@ -264,7 +264,8 @@ class LevelConfig(StrictModel):
     nav_timeout_s: float = Field(60.0, gt=0)
     nav_max_blocks: int = Field(8, ge=0)  # blocked cells learned in one go_to before giving up
     nav_dot_wait_s: float = Field(4.0, gt=0)  # no dot (a dialog, loading) this long: fail
-    nav_snap_px: int = Field(4, ge=0)  # a target off the floor snaps to floor this close
+    nav_snap_px: int = Field(8, ge=0)  # a target off the floor snaps to floor this close
+    # (no path at all: walk straight at the target and let the walls be learned)
     # acting on what is on screen
     reach_px: int = Field(420, ge=0)  # a blob this close to the animal can be clicked
     act_verify_s: float = Field(2.5, gt=0)  # the item counter must change within this
@@ -275,6 +276,7 @@ class LevelConfig(StrictModel):
     room_hold_s: float = Field(1.5, gt=0)  # a room must read as one this long before the
     # globe is clicked (a panel sliding away reads as a room for a moment)
     list_clicks: int = Field(3, ge=1)  # scroll-arrow clicks per look at the adventure list
+    menu_settle_s: float = Field(0.8, ge=0)  # after a menu click, before looking again
     look_retries: int = Field(3, ge=0)  # looks (walk, look again) for the crystal at a spot
     inventory_every_s: float = Field(1.0, gt=0)
     banner_every_s: float = Field(2.0, gt=0)

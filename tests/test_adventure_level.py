@@ -108,10 +108,11 @@ def test_the_paw_pin_shows_in_reach_and_is_found() -> None:
     world = synth.World(PROF)
     synth.layout(world)
     world.px, world.py = 1700.0 - 120, 1100.0  # next to fungus 1: its pin shows
-    pin = objects.find_marker(world.image(), synth.paw_template(), PROF, (1080.0, 540.0))
-    assert pin is not None and abs(pin.x - 1080) < 6 and abs(pin.y - (540 - synth.PIN_UP)) < 6
+    pin = objects.find_marker(world.image(), PROF, (1080.0, 540.0))
+    # the white body's centre, not the asset's: anywhere on the pin takes
+    assert pin is not None and abs(pin.x - 1080) < 25 and abs(pin.y - (540 - synth.PIN_UP)) < 25
     world.px = 1700.0 - 600  # too far: no pin
-    assert objects.find_marker(world.image(), synth.paw_template(), PROF) is None
+    assert objects.find_marker(world.image(), PROF) is None
 
 
 def test_crystals_and_fungi_are_found_by_colour() -> None:
@@ -145,10 +146,12 @@ def test_the_item_counters_read_both_slots() -> None:
 
 
 def _ocr(words: list[tuple[str, int, int]]) -> OcrResult:
-    ws = tuple(OcrWord(t, (x - 20, y - 10, 40, 20)) for t, x, y in words)
-    return OcrResult(
-        text=" ".join(w.text for w in ws), lines=(OcrLine(" ".join(w.text for w in ws), ws),)
-    )
+    """Words on one y are one line, as winocr reports them."""
+    rows: dict[int, list[OcrWord]] = {}
+    for t, x, y in words:
+        rows.setdefault(y, []).append(OcrWord(t, (x - 20, y - 10, 40, 20)))
+    lines = tuple(OcrLine(" ".join(w.text for w in ws), tuple(ws)) for ws in rows.values())
+    return OcrResult(text=" ".join(t for t, _x, _y in words), lines=lines)
 
 
 def test_menu_states_are_read_from_the_words() -> None:
@@ -159,13 +162,11 @@ def test_menu_states_are_read_from_the_words() -> None:
         classify(frame, _ocr([("WORLD", 900, 70), ("MAP", 1030, 70)]), lvl, PROF).state
         == "world_map"
     )
-    seen = classify(
-        frame,
-        _ocr([("Adventures", 460, 125), ("IWJSterY", 369, 820), ("guow", 470, 820)]),
-        lvl,
-        PROF,
-    )
-    assert seen.state == "adventures" and seen.entry == (369, 820)
+    listed = [("Adventures", 460, 125), ("rue", 332, 630), ("Hive", 400, 630)]
+    assert classify(frame, _ocr(listed), lvl, PROF).entry is None  # the hive is not it
+    listed += [("TN", 280, 820), ("IWJSterY", 369, 820), ("guow", 470, 820)]
+    seen = classify(frame, _ocr(listed), lvl, PROF)
+    assert seen.state == "adventures" and seen.entry == (375, 820)
     assert classify(frame, _ocr([("Adventures", 460, 125)]), lvl, PROF).entry is None
     assert (
         classify(frame, _ocr([("ADVerqtUre", 955, 403), ("NOSt", 1100, 537)]), lvl, PROF).state
@@ -181,6 +182,8 @@ def test_menu_states_are_read_from_the_words() -> None:
         ).state
         == "lobby"
     )
+    other = _ocr([("rue", 900, 79), ("Hive", 960, 79), ("nay", 973, 1007)])
+    assert classify(frame, other, lvl, PROF).state == "lobby_other"
     assert (
         classify(
             frame,
@@ -213,7 +216,7 @@ class FakeMenus:
         "adventures": [("Adventures", 460, 125)],
         "adventure_dialog": [("ADVerqtUre", 955, 403), ("NOSt", 1100, 537)],
         "difficulty": [("Normal", 840, 630), ("Hard", 1100, 630)],
-        "lobby": [("MYSterY", 936, 79)],
+        "lobby": [("rye", 820, 79), ("MYSterY", 936, 79), ("guow", 1050, 79)],
         "in_adventure": [("Explore", 900, 18), ("the", 960, 18), ("darkness.", 1020, 18)],
     }
 
@@ -237,7 +240,7 @@ class FakeMenus:
     def ocr(self, _frame: np.ndarray) -> OcrResult:
         words = list(self.WORDS.get(self.state, []))
         if self.state == "adventures" and self.scrolled:
-            words += [("IWJSterY", 369, 820), ("guow", 470, 820)]
+            words += [("TN", 280, 820), ("IWJSterY", 369, 820), ("guow", 470, 820)]
         return _ocr(words)
 
     def click(self, x: int, y: int) -> bool:
@@ -348,7 +351,6 @@ def _runner(
         banner_ocr=lambda _img: banner(),
         counter_ocr=lambda _crop: f"{world.items}/3",
         dialog_x=_x_template(),
-        paw_marker=synth.paw_template(),
         bus=bus,
         clock=lambda: world.t,
         sleep=world.tick,

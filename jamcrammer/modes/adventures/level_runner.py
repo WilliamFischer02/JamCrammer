@@ -73,7 +73,6 @@ class LevelRunner:
         counter_ocr: Ocr,
         counter_retry: Ocr | None = None,
         dialog_x: BgrImage,
-        paw_marker: BgrImage,
         presence: Presence | None = None,
         bus: EventBus | None = None,
         clock: Callable[[], float] = time.monotonic,
@@ -82,7 +81,7 @@ class LevelRunner:
     ) -> None:
         self.lvl, self.prof, self.cfg = lvl, prof, cfg
         self._in, self._grab = inp, grab
-        self._banner_ocr, self._x, self._paw = banner_ocr, dialog_x, paw_marker
+        self._banner_ocr, self._x = banner_ocr, dialog_x
         self._presence, self._bus = presence, bus
         self._clock, self._sleep, self._tick = clock, sleep, tick_s
         self.inv = Inventory(prof, counter_ocr, counter_retry)
@@ -307,7 +306,7 @@ class LevelRunner:
         avatar = (float(self.lvl.avatar[0]), float(self.lvl.avatar[1]))
         for _look in range(c.look_retries + 1):
             frame = self._grab()
-            pin = objects.find_marker(frame, self._paw, self.prof, (fungus.x, fungus.y))
+            pin = objects.find_marker(frame, self.prof, (fungus.x, fungus.y))
             if pin is not None and pin.dist((fungus.x, fungus.y)) <= c.pin_near_px:
                 return pin
             near = objects.nearest(objects.fungi(frame, self.prof), (fungus.x, fungus.y))

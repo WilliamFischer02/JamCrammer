@@ -76,35 +76,34 @@ def nearest(blobs: list[Blob], pt: tuple[float, float], kind: str | None = None)
     return min(cands, key=lambda b: b.dist(pt)) if cands else None
 
 
-MARKER_HUD = (420, 300)  # the item slots (white squares) score 0.79 against the pin: masked
-MARKER_WIN = 30
+MARKER_HUD = (420, 300)  # the item slots (white squares) are pins to a colour test: masked
 
 
 def find_marker(
-    frame: BgrImage, tmpl: BgrImage, prof: Profile, near: tuple[float, float] | None = None
+    frame: BgrImage, prof: Profile, near: tuple[float, float] | None = None
 ) -> Blob | None:
-    """The paw pin (white teardrop, yellow paw) that floats over a fungus in reach: the best
-    template match with enough yellow inside, nearest ``near`` when several would do."""
-    img = frame.copy()
-    img[: MARKER_HUD[1], : MARKER_HUD[0]] = 0
-    img[frame.shape[0] - BOTTOM_PX :, :] = 0
-    res = cv2.matchTemplate(img, tmpl, cv2.TM_CCOEFF_NORMED)
-    th, tw = tmpl.shape[:2]
-    lo, hi = prof.color("marker_yellow_hsv")
+    """The paw pin that floats over a fungus in reach: a white blob of the pin's size
+    (``marker_area``) with at least ``marker_yellow_px`` of paw inside its box. The paw is
+    bright yellow when the game is ready and paler just before, so the yellow test is
+    loose; a template did not survive William's screenshot (0.62) while this did."""
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    lo, hi = prof.color("marker_white_hsv")
+    white = cv2.inRange(hsv, np.array(lo), np.array(hi))
+    white[: MARKER_HUD[1], : MARKER_HUD[0]] = 0
+    white[frame.shape[0] - BOTTOM_PX :, :] = 0
+    ylo, yhi = prof.color("marker_yellow_hsv")
+    yellow = cv2.inRange(hsv, np.array(ylo), np.array(yhi))
+    a_min, a_max = (int(v) for v in prof.items("marker_area"))
     need = int(prof.number("marker_yellow_px"))
+    n, _lab, st, cen = cv2.connectedComponentsWithStats(white)
     cands: list[Blob] = []
-    for _ in range(4):
-        _mn, score, _mnl, loc = cv2.minMaxLoc(res)
-        if score < prof.number("paw_marker_min"):
-            break
-        x, y = loc[0] + tw // 2, loc[1] + th // 2
-        res[max(0, loc[1] - th) : loc[1] + th, max(0, loc[0] - tw) : loc[0] + tw] = -1
-        win = frame[
-            max(0, y - MARKER_WIN) : y + MARKER_WIN, max(0, x - MARKER_WIN) : x + MARKER_WIN
-        ]
-        yellow = cv2.inRange(cv2.cvtColor(win, cv2.COLOR_BGR2HSV), np.array(lo), np.array(hi))
-        if int(np.count_nonzero(yellow)) >= need:
-            cands.append(Blob("marker", x, y, int(score * 1000)))
+    for i in range(1, n):
+        x, y, w, h, a = (int(v) for v in st[i])
+        if not (a_min <= a <= a_max) or w < 30 or w > 120 or h < 40 or h > 160:
+            continue
+        paw = int(np.count_nonzero(yellow[y : y + h, x : x + w]))
+        if paw >= need:
+            cands.append(Blob("marker", int(cen[i][0]), int(cen[i][1]), a))
     if not cands:
         return None
     return min(cands, key=lambda b: b.dist(near)) if near is not None else cands[0]
