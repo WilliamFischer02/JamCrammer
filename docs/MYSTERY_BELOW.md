@@ -116,7 +116,7 @@ sliding in reads as "room" for one frame, so a state must hold a quarter second 
 room → globe (1729,992) → **world_map** → Adventures (159,809) → **adventures** → drag the
 list's scrollbar (697,340 → 693,899) until "Mystery" is listed → click the entry →
 **adventure_dialog** → Join (826,592; `level.join: false` hosts) → **difficulty** → Hard
-(1100,630) → **lobby** (headed by the adventure's name; "PLAY" OCRs as "nay") → PLAY (955,1010)
+(1100,630; **always Hard**: the second half of the level needs it, William 2026-10-30) → **lobby** (headed by the adventure's name; "PLAY" OCRs as "nay") → PLAY (955,1010)
 → splash + black loading (never clicked: the splash reads as a room) → **in_adventure**
 (the first banner).
 

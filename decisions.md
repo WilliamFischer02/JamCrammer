@@ -395,6 +395,7 @@ Non-obvious choices and why. Newest at the bottom.
 - **Torches and the city stay on replay for now** (`mode: replay` per phase). The model has
   their spots (mirrors, rocks, piles) but no beam detector or switch timing yet; each phase
   moves to the plan as it is built, and the handover is at the phase's banner.
-- **Join, not Host, and Hard**, because both recordings did that and it ran solo; both are
-  config switches (`adventures.level.join`, `.hard`).
+- **Join, not Host**, because both recordings did that and it ran solo (`adventures.level.join`).
+  **Hard always**: William (2026-10-30) says the second half of the level needs Hard mode, so
+  `adventures.level.hard` stays true; Normal is only for a deliberate experiment.
 

@@ -280,7 +280,8 @@ class LevelConfig(StrictModel):
     menu_retries: int = Field(2, ge=0)
     load_max_s: float = Field(60.0, gt=0)  # PLAY to the first banner
     join: bool = True  # Join an Adventure (as William recorded); False: Host
-    hard: bool = True
+    hard: bool = True  # Hard is required: the second half of the level needs it (William,
+    # 2026-10-30); Normal is only here for a deliberate experiment
 
 
 class AdventureConfig(StrictModel):
