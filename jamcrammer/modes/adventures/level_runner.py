@@ -28,7 +28,7 @@ from jamcrammer.core.config import Level, LevelConfig
 from jamcrammer.core.events import Event, EventBus
 from jamcrammer.core.profiles import Profile
 from jamcrammer.modes.adventures import objects, sight
-from jamcrammer.modes.adventures.inventory import Inventory, Ocr
+from jamcrammer.modes.adventures.inventory import DigitBank, Inventory, Ocr
 from jamcrammer.modes.adventures.level import Act, Spot
 from jamcrammer.modes.adventures.level import Level as LevelModel
 from jamcrammer.modes.adventures.nav import Floor, Navigator, keys_toward
@@ -75,6 +75,7 @@ class LevelRunner:
         banner_ocr: Callable[[BgrImage], str],
         counter_ocr: Ocr,
         counter_retry: Ocr | None = None,
+        digits: DigitBank | None = None,
         dialog_x: BgrImage,
         courage: objects.CourageText | None = None,
         presence: Presence | None = None,
@@ -91,7 +92,7 @@ class LevelRunner:
         self._banner_ocr, self._x, self._courage = banner_ocr, dialog_x, courage
         self._presence, self._bus = presence, bus
         self._clock, self._sleep, self._tick = clock, sleep, tick_s
-        self.inv = Inventory(prof, counter_ocr, counter_retry)
+        self.inv = Inventory(prof, counter_ocr, counter_retry, digits)
         mx, my, _mw, _mh = lvl.minimap_roi
         self.nav = Navigator(
             Floor(lvl.floors[AREA], (mx, my)),
@@ -302,7 +303,8 @@ class LevelRunner:
         reads (the slot is not there yet: nothing was picked)."""
         end = self._clock() + self.cfg.stock_read_s
         while True:
-            n = self.inv.update(self._grab(), self._clock()).get(slot)
+            self.inv.update(self._grab(), self._clock())
+            n = self.inv.fresh.get(slot)  # this reading, never a remembered one
             if n is not None or self._clock() >= end or self._stop():
                 return n
             self._sleep(self._tick)
@@ -338,7 +340,8 @@ class LevelRunner:
             if action == "light":
                 blob = self._approach(blob, "unlit", c.drop_reach_px, bursts=10) or blob
             before_frame = self._grab()
-            before = self.inv.update(before_frame, self._clock()).get(slot)
+            self.inv.update(before_frame, self._clock())
+            before = self.inv.fresh.get(slot)
             if action == "light":
                 sx, sy = self.prof.point("item_slot_1")
                 if attempt % 2 == 0:
@@ -625,7 +628,8 @@ class LevelRunner:
             return False
         end = self._clock() + self.cfg.act_verify_s
         while self._clock() < end and not self._stop():
-            now = self.inv.update(self._grab(), self._clock()).get(slot)
+            self.inv.update(self._grab(), self._clock())
+            now = self.inv.fresh.get(slot)
             if now is not None:
                 if before is None:
                     if now >= 1:

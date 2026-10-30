@@ -196,3 +196,18 @@ fields:
     value: 0.9
     status: calibrated
     note: masked correlation that counts as the Courage text
+  count_digits_template:
+    type: template
+    value: templates/adventures/count_digits.png
+    status: calibrated
+    note: the counter's first digit, 0-3 top to bottom (26 px each), averaged from 400 labelled frames of run B
+  count_digit_rois:
+    type: list
+    value: [[196, 46, 22, 26], [196, 186, 22, 26]]
+    status: calibrated
+    note: the first digit of each slot's "N/3"; matched by normalised correlation (300/300 on run A, the dimmed "0/3" too)
+  count_digit_min:
+    type: number
+    value: 0.7
+    status: calibrated
+    note: best correlation that counts (real digits 0.99-1.0, no slot <= 0.2)

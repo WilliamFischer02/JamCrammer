@@ -71,10 +71,11 @@ within 2.5 s before it is what did it. From that:
 | boomseed uses | 21 | 13 |
 | boomseed pickups | 9 | 6 |
 
-Live, the counters are read by OCR of the upscaled crop: **92% of frames at upscale 4, 88% at 2,
-0 wrong**, 6 ms each; a miss keeps the last value and the second look at the other scale
-catches most of them. The runner verifies every act by the counter, not by what the crystal
-looks like.
+Live, the counter's first digit is read by normalised correlation against digits averaged
+from 400 labelled frames (`count_digits.png`): 300 of 300 on the other run and every live
+screenshot, including the dimmed "0/3" of an empty slot that OCR cannot read at all; OCR of
+the upscaled crop (92% at 4x) is the fallback. The stock before a light is always a fresh
+reading. The runner verifies every act by the counter and, for a light, by the crystal too.
 
 ## 4. Spots (what the plan is made of)
 

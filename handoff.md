@@ -108,6 +108,19 @@ _Last updated: 2026-10-30 (The Mystery Below: level model, menus by state, moth 
   `data/derby_learned.json` with the PC's copies, which are backed up. Re-add the per-class
   leads after an import.
 
+## The Mystery Below: tenth live run (2026-10-30 15:43): dropping with an empty slot
+- Four crystals lit. Then the stock read **1** while the slot said 0/3: an empty slot dims
+  its "0/3" to grey on grey and the OCR engine reads nothing from it at any scale or
+  threshold, and the inventory kept the last good value. So it kept dropping on the next
+  crystal with nothing to drop.
+- **Fixed:** the counter's first digit is read by normalised correlation against digits
+  averaged from 400 labelled frames of run B (`assets/templates/adventures/count_digits.png`,
+  `count_digit_rois`, `count_digit_min` 0.7): 300 of 300 on run A, every live screenshot
+  right including the dimmed 0/3 at score 1.0, a den frame 0.2. OCR is the fallback only.
+  The stock before a light and the counter checks use this reading, never a remembered one
+  (`Inventory.fresh`). With a fresh 0 it restocks from the nearest fungus spot and comes back.
+- 189 tests, ruff, mypy clean.
+
 ## The Mystery Below: ninth live run (2026-10-30 15:15): three crystals, then a help loop
 - Opening, pick, first crystal, the door wait, the corridor's first crystal: all right. Then
   act 3 (the corridor's second crystal) found nothing unlit where the map put it, the lit

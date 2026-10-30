@@ -958,7 +958,15 @@ class Engine:
                 self.watchdog.tick(frame, known_screen=True)
             return self._should_stop() or self.pause.paused or self._watchdog_blocks()
 
+        from jamcrammer.modes.adventures.inventory import DigitBank
         from jamcrammer.modes.adventures.objects import CourageText
+
+        digits_raw = cv2.imread(str(prof.template_path("count_digits_template", self.paths)))
+        digits = (
+            DigitBank(np.asarray(digits_raw, dtype=np.uint8), prof)
+            if digits_raw is not None
+            else None
+        )
 
         courage_raw = cv2.imread(str(prof.template_path("courage_template", self.paths)))
         courage = (
@@ -994,6 +1002,7 @@ class Engine:
             banner_ocr=lambda img: ocr_image(img, upscale=BANNER_UPSCALE).text,
             counter_ocr=lambda img: ocr_image(img, upscale=4.0).text,
             counter_retry=lambda img: ocr_image(img, upscale=2.0).text,
+            digits=digits,
             dialog_x=x_tmpl,
             courage=courage,
             presence=self.presence,

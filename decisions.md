@@ -401,6 +401,9 @@ Non-obvious choices and why. Newest at the bottom.
 - **A fungus is picked by its pin, not by itself.** The paw pin appears over a fungus in
   reach; the recordings' pickup clicks are all on it. So the pick act walks up until the pin
   shows (template + yellow check) and clicks the pin.
+- **Counters by digit template, OCR second; the stock is never a remembered value.** The
+  empty slot's dimmed "0/3" is invisible to OCR; correlation against averaged digits ignores
+  contrast and read every frame tried. A stale count let the 15:43 run drop with nothing.
 - **One help per act, then skip.** Help that changes nothing twice is a loop; after William's
   turn a light that still fails is skipped with a notice (he lit it by hand, or the spot is no
   crystal), and a lit crystal within the map's error of the spot counts as done.

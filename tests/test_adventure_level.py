@@ -142,6 +142,25 @@ def test_the_item_counters_read_both_slots() -> None:
     assert len(seen) == 2
 
 
+def test_the_digit_templates_read_the_counter_and_nothing_else() -> None:
+    from jamcrammer.modes.adventures.inventory import DigitBank
+
+    sheet = cv2.imread(str(Paths().assets / "templates" / "adventures" / "count_digits.png"))
+    assert sheet is not None
+    bank = DigitBank(np.asarray(sheet, np.uint8), PROF)
+    x, y, w, h = bank.rois[0]
+    for n in range(4):  # each averaged digit pasted where the slot is reads as itself
+        frame = np.full((1080, 1920, 3), 60, np.uint8)
+        tile = cv2.cvtColor(bank.digits[n].astype(np.uint8), cv2.COLOR_GRAY2BGR)
+        frame[y : y + h, x : x + w] = tile
+        assert bank.read(frame, 0) == n
+    assert bank.read(np.full((1080, 1920, 3), 60, np.uint8), 0) is None  # nothing there
+    frame = np.full((1080, 1920, 3), 60, np.uint8)
+    frame[y : y + h, x : x + w] = cv2.cvtColor(bank.digits[2].astype(np.uint8), cv2.COLOR_GRAY2BGR)
+    counts = read_counts(frame, PROF, lambda _c: "", digits=bank)
+    assert counts.blossoms == 2 and counts.boomseeds is None
+
+
 # --- the menus --------------------------------------------------------------------------
 
 
