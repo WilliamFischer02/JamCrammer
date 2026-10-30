@@ -289,6 +289,12 @@ class LevelConfig(StrictModel):
     courage_radius_px: int = Field(350, ge=0)  # the Courage text pops this close
     unlit_wait_s: float = Field(8.0, ge=0)  # the next crystal turns unlit as the moth comes
     light_attempts: int = Field(3, ge=1)  # drops at one crystal before asking for help
+    pred_tol_px: int = Field(600, ge=0)  # a target must be this close to where the map
+    # says the spot is (spots are good to 3-5 minimap px, 210-350 scene px)
+    phase_wait_s: float = Field(90.0, gt=0)  # an act waits this long for its banner phase
+    # (the door after the first moth, the next room) before asking for help
+    bad_drop_px: int = Field(120, ge=0)  # a drop that left the crystal dark: no target
+    # this close to it again in this act (it was Cosmo, a decoy, the floor)
     room_hold_s: float = Field(1.5, gt=0)  # a room must read as one this long before the
     # globe is clicked (a panel sliding away reads as a room for a moment)
     list_clicks: int = Field(3, ge=1)  # scroll-arrow clicks per look at the adventure list

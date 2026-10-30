@@ -111,6 +111,7 @@ class LevelRunner:
         self._stop: Callable[[], bool] = lambda: False
         self._fails = 0
         self._last_banner = -1e9
+        self._bad_drops: list[tuple[float, float]] = []  # this act's drops that lit nothing
 
     @property
     def screen_known(self) -> bool:
@@ -146,6 +147,9 @@ class LevelRunner:
                 act = acts[self.k]
                 if status is not None:
                     status(self._status_text())
+                if not self._phase_reached(act):
+                    self._help(f"the banner never reached {act.phase} for act {self.k}")
+                    continue
                 outcome = self._do(act)
                 self.stats.acts += 1
                 self._emit(
@@ -156,17 +160,7 @@ class LevelRunner:
                     outcome=outcome,
                     counts=[self.inv.counts.blossoms, self.inv.counts.boomseeds],
                 )
-                if outcome in ("lit", "picked", "arrived", "already"):
-                    self._fails = 0
-                    self.k += 1
-                elif act.action == "light":
-                    # a crystal left dark breaks its moth's path: never move past it
-                    self._help(f"crystal {act.spot}: {outcome}")
-                else:
-                    self._fails += 1
-                    self.k += 1
-                    if self._fails >= HELP_AFTER_FAILS:
-                        self._help(outcome)
+                self._after(act, outcome)
             return "stopped"
         finally:
             self.nav.release()
@@ -185,6 +179,20 @@ class LevelRunner:
                 )
         except OSError:
             pass
+
+    def _after(self, act: Act, outcome: str) -> None:
+        """Move on, or not: a crystal left dark breaks its moth's path, so a failed light
+        asks for help and is tried again; other failures move on, three in a row ask."""
+        if outcome in ("lit", "picked", "arrived", "already"):
+            self._fails = 0
+            self.k += 1
+        elif act.action == "light":
+            self._help(f"crystal {act.spot}: {outcome}")
+        else:
+            self._fails += 1
+            self.k += 1
+            if self._fails >= HELP_AFTER_FAILS:
+                self._help(outcome)
 
     def _status_text(self) -> str:
         c = self.inv.counts
@@ -207,6 +215,31 @@ class LevelRunner:
             self.phase = p.key
             self._emit("adventure.phase", phase=p.key, area=p.area, mode=p.mode)
         return p.mode != "plan"
+
+    def _phase_reached(self, act: Act) -> bool:
+        """An act never runs before the banner it happened under in the recording (the door
+        after the first moth, the next room): wait, closing dialogs, up to ``phase_wait_s``.
+        The 14:13 run went for the corridor's crystal while still in the start room and
+        dropped two blossoms on Cosmo."""
+        want = self.lvl.phase_index(act.phase)
+        if want < 0:
+            return True
+        end = self._clock() + self.cfg.phase_wait_s
+        waited = False
+        while not self._stop():
+            frame = self._grab()
+            self._last_banner = -1e9  # read it now, not at the usual pace
+            self._banner(frame)
+            if self.lvl.phase_index(self.phase) >= want:
+                return True
+            if not waited:
+                self._emit("adventure.phase_wait", k=self.k, phase=act.phase, now=self.phase)
+                waited = True
+            if self._clock() >= end:
+                return False
+            self._close_dialog(frame)
+            self._sleep(1.0)
+        return False
 
     def _close_dialog(self, frame: BgrImage) -> bool:
         pt = sight.find_dialog_x(
@@ -268,6 +301,7 @@ class LevelRunner:
         screen (the next crystal of a path, a fungus by it) is walked at by screen; the
         minimap plan is for the hops where nothing of the kind is in view."""
         c = self.cfg
+        self._bad_drops = []
         if self._visible(spot, BLOB_KIND[action]) is None:
             res = self.nav.go_to((spot.x, spot.y), stop=self._stop, tol=c.approach_px)
             self.stats.blocks += res.blocks
@@ -309,6 +343,7 @@ class LevelRunner:
                     return "lit"
                 self._emit("adventure.dropped_dark", spot=spot.id, at=[blob.x, blob.y])
                 self._shot("dropped_dark")
+                self._bad_drops.append((float(blob.x), float(blob.y)))
                 continue  # a blossom went, the crystal stayed dark: again, closer
             self._in.click(blob.x, blob.y)
             if self._counter_moved(slot, before, "up"):
@@ -332,10 +367,23 @@ class LevelRunner:
             if kind != "fungus"
             else objects.fungi(frame, self.prof)
         )
-        blob = objects.nearest(blobs, pred, kind)
+        blob = objects.nearest(self._plausible(blobs, pred), pred, kind)
         if blob is None or blob.dist(avatar) > self.cfg.screen_walk_px:
             return None
         return blob
+
+    def _plausible(
+        self, blobs: list[objects.Blob], pred: tuple[float, float]
+    ) -> list[objects.Blob]:
+        """Blobs near where the map says the spot is, and not at a drop point that left a
+        crystal dark in this act (Cosmo's blue coat, a decoy, the floor)."""
+        c = self.cfg
+        return [
+            b
+            for b in blobs
+            if b.dist(pred) <= c.pred_tol_px
+            and all(b.dist(bad) > c.bad_drop_px for bad in self._bad_drops)
+        ]
 
     def _approach(
         self, blob: objects.Blob, kind: str, reach: int, bursts: int = 4
@@ -378,7 +426,8 @@ class LevelRunner:
             self._close_dialog(frame)
             dot = sight.minimap_dot(frame, self.prof)
             pred = self.lvl.to_screen(dot, (spot.x, spot.y)) if dot else avatar
-            blob = objects.nearest(objects.crystals(frame, self.prof), pred, "unlit")
+            blobs = self._plausible(objects.crystals(frame, self.prof), pred)
+            blob = objects.nearest(blobs, pred, "unlit")
             if blob is not None:
                 return blob
             self._sleep(0.5)
@@ -399,16 +448,24 @@ class LevelRunner:
         where it was dark, within ``lit_verify_s`` (the camera still)."""
         c = self.cfg
         end = self._clock() + c.lit_verify_s
+        seen = False
         while self._clock() < end and not self._stop():
             frame = self._grab()
-            if objects.new_glow(before, frame, at, c.glow_radius_px) >= c.glow_new_px:
-                return True
-            if (
+            glow = objects.new_glow(before, frame, at, c.glow_radius_px) >= c.glow_new_px
+            text = (
                 self._courage is not None
                 and self._courage.near(frame, at, c.courage_radius_px) >= self._courage.min
-            ):
-                return True
+            )
+            if glow or text:
+                seen = True
+                # ... and the dark crystal must be gone from the drop point (a glow next to
+                # Cosmo's blue coat is the first crystal still shining, not him lighting up)
+                still = objects.nearest(objects.crystals(frame, self.prof), at, "unlit")
+                if still is None or still.dist(at) > c.bad_drop_px:
+                    return True
             self._sleep(0.1)
+        if seen:
+            self._emit("adventure.lit_but_dark", at=list(at))
         return False
 
     def _target(self, spot: Spot, action: str) -> objects.Blob | None:
@@ -442,7 +499,7 @@ class LevelRunner:
                 if kind != "fungus"
                 else objects.fungi(frame, self.prof)
             )
-            blob = objects.nearest(blobs, pred, kind)
+            blob = objects.nearest(self._plausible(blobs, pred), pred, kind)
             if blob is None and kind == "unlit" and self._wait_unlit(spot) is not None:
                 continue  # it turned unlit as the moth arrived: look again
             if blob is None:

@@ -109,6 +109,7 @@ class Act:
     action: str  # light | pick | boom | door | click
     t: float  # route time in the reference run
     kind: str = ""
+    phase: str = ""  # the banner phase it happened in: never run before that banner shows
 
 
 @dataclass
@@ -144,6 +145,17 @@ class Level:
 
     def phase(self, key: str) -> Phase | None:
         return next((p for p in self.phases if p.key == key), None)
+
+    def phase_index(self, key: str) -> int:
+        return next((i for i, p in enumerate(self.phases) if p.key == key), -1)
+
+    def phase_at(self, route: Route, t: float) -> str:
+        """The phase key of the banner showing at route time ``t`` in a recorded run."""
+        k = route.objective_index_at(t)
+        if k < 0:
+            return ""
+        p = self.phase_of(route.objectives[k].text)
+        return p.key if p is not None else ""
 
     def spot(self, sid: int) -> Spot:
         return self.spots[sid]
@@ -421,14 +433,16 @@ def build_level(
             if area is None or ev.mm is None or kind is None:
                 continue
             spot = _merge(lvl, kind, area, ev.mm, run=session.name, r=cfg.spot_merge_px)
-            acts.setdefault(area, []).append(Act(spot.id, ACTIONS[kind], ev.click_t, kind))
+            acts.setdefault(area, []).append(
+                Act(spot.id, ACTIONS[kind], ev.click_t, kind, lvl.phase_at(route, ev.click_t))
+            )
         # the door: where the "open the door" banner came
         door = next(
             (o for o in route.objectives if (p := lvl.phase_of(o.text)) and p.key == "door"), None
         )
         if door is not None and (dot := route.dot_at(door.t)) is not None:
             spot = _merge(lvl, "door", "moths", dot, run=session.name, r=DOOR_MERGE_PX)
-            acts.setdefault("moths", []).append(Act(spot.id, "door", door.t, "door"))
+            acts.setdefault("moths", []).append(Act(spot.id, "door", door.t, "door", "door"))
         # repeated clicks (mirrors, rocks) as spots, for the map
         seen: set[int] = set()
         for st in route.steps:

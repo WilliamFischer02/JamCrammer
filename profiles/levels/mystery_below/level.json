@@ -2396,319 +2396,372 @@
     "spot": 0,
     "action": "pick",
     "t": 18.80691146850586,
-    "kind": "fungus"
+    "kind": "fungus",
+    "phase": "pick"
    },
    {
     "spot": 165,
     "action": "light",
     "t": 23.986874103546143,
-    "kind": "crystal"
+    "kind": "crystal",
+    "phase": "pick"
    },
    {
     "spot": 1,
     "action": "light",
     "t": 40.44540548324585,
-    "kind": "crystal"
+    "kind": "crystal",
+    "phase": "first_moth"
    },
    {
     "spot": 166,
     "action": "light",
     "t": 45.56407833099365,
-    "kind": "crystal"
+    "kind": "crystal",
+    "phase": "first_moth"
    },
    {
     "spot": 4,
     "action": "light",
     "t": 53.141517877578735,
-    "kind": "crystal"
+    "kind": "crystal",
+    "phase": "first_moth"
    },
    {
     "spot": 5,
     "action": "pick",
     "t": 60.86860752105713,
-    "kind": "fungus"
+    "kind": "fungus",
+    "phase": "first_moth"
    },
    {
     "spot": 6,
     "action": "light",
     "t": 75.17385411262512,
-    "kind": "crystal"
+    "kind": "crystal",
+    "phase": "first_moth"
    },
    {
     "spot": 7,
     "action": "pick",
     "t": 77.35274410247803,
-    "kind": "fungus"
+    "kind": "fungus",
+    "phase": "first_moth"
    },
    {
     "spot": 39,
     "action": "pick",
     "t": 155.42007207870483,
-    "kind": "fungus"
+    "kind": "fungus",
+    "phase": "moths"
    },
    {
     "spot": 36,
     "action": "light",
     "t": 203.22106266021729,
-    "kind": "crystal"
+    "kind": "crystal",
+    "phase": "moths"
    },
    {
     "spot": 37,
     "action": "light",
     "t": 210.65848922729492,
-    "kind": "crystal"
+    "kind": "crystal",
+    "phase": "moths"
    },
    {
     "spot": 38,
     "action": "light",
     "t": 215.81331706047058,
-    "kind": "crystal"
+    "kind": "crystal",
+    "phase": "moths"
    },
    {
     "spot": 39,
     "action": "pick",
     "t": 222.08585143089294,
-    "kind": "fungus"
+    "kind": "fungus",
+    "phase": "moths"
    },
    {
     "spot": 40,
     "action": "light",
     "t": 225.29717254638672,
-    "kind": "crystal"
+    "kind": "crystal",
+    "phase": "moths"
    },
    {
     "spot": 41,
     "action": "light",
     "t": 228.64866185188293,
-    "kind": "crystal"
+    "kind": "crystal",
+    "phase": "moths"
    },
    {
     "spot": 167,
     "action": "light",
     "t": 239.59489035606384,
-    "kind": "crystal"
+    "kind": "crystal",
+    "phase": "moths"
    },
    {
     "spot": 35,
     "action": "pick",
     "t": 245.15983819961548,
-    "kind": "fungus"
+    "kind": "fungus",
+    "phase": "moths"
    },
    {
     "spot": 42,
     "action": "light",
     "t": 247.6186740398407,
-    "kind": "crystal"
+    "kind": "crystal",
+    "phase": "moths"
    },
    {
     "spot": 43,
     "action": "light",
     "t": 251.1095676422119,
-    "kind": "crystal"
+    "kind": "crystal",
+    "phase": "moths"
    },
    {
     "spot": 168,
     "action": "light",
     "t": 254.88090634346008,
-    "kind": "crystal"
+    "kind": "crystal",
+    "phase": "moths"
    },
    {
     "spot": 44,
     "action": "pick",
     "t": 264.7772481441498,
-    "kind": "fungus"
+    "kind": "fungus",
+    "phase": "moths"
    },
    {
     "spot": 47,
     "action": "light",
     "t": 266.5972013473511,
-    "kind": "crystal"
+    "kind": "crystal",
+    "phase": "moths"
    },
    {
     "spot": 48,
     "action": "light",
     "t": 271.03333711624146,
-    "kind": "crystal"
+    "kind": "crystal",
+    "phase": "moths"
    },
    {
     "spot": 169,
     "action": "light",
     "t": 278.8998875617981,
-    "kind": "crystal"
+    "kind": "crystal",
+    "phase": "moths"
    },
    {
     "spot": 11,
     "action": "pick",
     "t": 300.30206823349,
-    "kind": "fungus"
+    "kind": "fungus",
+    "phase": "moths"
    },
    {
     "spot": 8,
     "action": "light",
     "t": 328.10076427459717,
-    "kind": "crystal"
+    "kind": "crystal",
+    "phase": "moths"
    },
    {
     "spot": 9,
     "action": "light",
     "t": 332.1961703300476,
-    "kind": "crystal"
+    "kind": "crystal",
+    "phase": "moths"
    },
    {
     "spot": 11,
     "action": "pick",
     "t": 340.621915102005,
-    "kind": "fungus"
+    "kind": "fungus",
+    "phase": "moths"
    },
    {
     "spot": 10,
     "action": "light",
     "t": 343.2121274471283,
-    "kind": "crystal"
+    "kind": "crystal",
+    "phase": "moths"
    },
    {
     "spot": 12,
     "action": "light",
     "t": 348.2343535423279,
-    "kind": "crystal"
+    "kind": "crystal",
+    "phase": "moths"
    },
    {
     "spot": 13,
     "action": "light",
     "t": 351.83066987991333,
-    "kind": "crystal"
+    "kind": "crystal",
+    "phase": "moths"
    },
    {
     "spot": 11,
     "action": "pick",
     "t": 355.98688983917236,
-    "kind": "fungus"
+    "kind": "fungus",
+    "phase": "moths"
    },
    {
     "spot": 170,
     "action": "light",
     "t": 360.38801884651184,
-    "kind": "crystal"
+    "kind": "crystal",
+    "phase": "moths"
    },
    {
     "spot": 171,
     "action": "pick",
     "t": 381.773015499115,
-    "kind": "fungus"
+    "kind": "fungus",
+    "phase": "moths"
    },
    {
     "spot": 172,
     "action": "light",
     "t": 387.05015325546265,
-    "kind": "crystal"
+    "kind": "crystal",
+    "phase": "moths"
    },
    {
     "spot": 173,
     "action": "light",
     "t": 391.8356649875641,
-    "kind": "crystal"
+    "kind": "crystal",
+    "phase": "moths"
    },
    {
     "spot": 174,
     "action": "light",
     "t": 397.0154733657837,
-    "kind": "crystal"
+    "kind": "crystal",
+    "phase": "moths"
    },
    {
     "spot": 22,
     "action": "pick",
     "t": 406.99975633621216,
-    "kind": "fungus"
+    "kind": "fungus",
+    "phase": "moths"
    },
    {
     "spot": 17,
     "action": "light",
     "t": 441.19497752189636,
-    "kind": "crystal"
+    "kind": "crystal",
+    "phase": "moths"
    },
    {
     "spot": 25,
     "action": "pick",
     "t": 447.64333033561707,
-    "kind": "fungus"
+    "kind": "fungus",
+    "phase": "moths"
    },
    {
     "spot": 20,
     "action": "light",
     "t": 454.94912910461426,
-    "kind": "crystal"
+    "kind": "crystal",
+    "phase": "moths"
    },
    {
     "spot": 23,
     "action": "light",
     "t": 460.51411843299866,
-    "kind": "crystal"
+    "kind": "crystal",
+    "phase": "moths"
    },
    {
     "spot": 24,
     "action": "light",
     "t": 465.0639352798462,
-    "kind": "crystal"
+    "kind": "crystal",
+    "phase": "moths"
    },
    {
     "spot": 18,
     "action": "pick",
     "t": 481.12937116622925,
-    "kind": "fungus"
+    "kind": "fungus",
+    "phase": "moths"
    },
    {
     "spot": 175,
     "action": "light",
     "t": 487.74406599998474,
-    "kind": "crystal"
+    "kind": "crystal",
+    "phase": "moths"
    },
    {
     "spot": 26,
     "action": "light",
     "t": 514.0815260410309,
-    "kind": "crystal"
+    "kind": "crystal",
+    "phase": "moths"
    },
    {
     "spot": 27,
     "action": "light",
     "t": 523.863936662674,
-    "kind": "crystal"
+    "kind": "crystal",
+    "phase": "moths"
    },
    {
     "spot": 28,
     "action": "pick",
     "t": 529.4293398857117,
-    "kind": "fungus"
+    "kind": "fungus",
+    "phase": "moths"
    },
    {
     "spot": 29,
     "action": "light",
     "t": 534.6439442634583,
-    "kind": "crystal"
+    "kind": "crystal",
+    "phase": "moths"
    },
    {
     "spot": 30,
     "action": "light",
     "t": 538.9053661823273,
-    "kind": "crystal"
+    "kind": "crystal",
+    "phase": "moths"
    },
    {
     "spot": 176,
     "action": "light",
     "t": 542.5977730751038,
-    "kind": "crystal"
+    "kind": "crystal",
+    "phase": "moths"
    },
    {
     "spot": 7,
     "action": "pick",
     "t": 544.7587530612946,
-    "kind": "fungus"
+    "kind": "fungus",
+    "phase": "moths"
    },
    {
     "spot": 70,
     "action": "door",
     "t": 548.3989701271057,
-    "kind": "door"
+    "kind": "door",
+    "phase": "door"
    }
   ],
   "city": [
@@ -2716,121 +2769,141 @@
     "spot": 55,
     "action": "pick",
     "t": 765.231861114502,
-    "kind": "boom_pile"
+    "kind": "boom_pile",
+    "phase": "boomseeds"
    },
    {
     "spot": 54,
     "action": "boom",
     "t": 766.3101391792297,
-    "kind": "boom_target"
+    "kind": "boom_target",
+    "phase": "boomseeds"
    },
    {
     "spot": 55,
     "action": "pick",
     "t": 768.9330594539642,
-    "kind": "boom_pile"
+    "kind": "boom_pile",
+    "phase": "boomseeds"
    },
    {
     "spot": 177,
     "action": "boom",
     "t": 780.3868689537048,
-    "kind": "boom_target"
+    "kind": "boom_target",
+    "phase": "boomseeds"
    },
    {
     "spot": 178,
     "action": "boom",
     "t": 802.7081615924835,
-    "kind": "boom_target"
+    "kind": "boom_target",
+    "phase": "boomseeds"
    },
    {
     "spot": 60,
     "action": "pick",
     "t": 827.0506293773651,
-    "kind": "boom_pile"
+    "kind": "boom_pile",
+    "phase": "boomseeds"
    },
    {
     "spot": 179,
     "action": "boom",
     "t": 833.175484418869,
-    "kind": "boom_target"
+    "kind": "boom_target",
+    "phase": "boomseeds"
    },
    {
     "spot": 180,
     "action": "boom",
     "t": 833.9717838764191,
-    "kind": "boom_target"
+    "kind": "boom_target",
+    "phase": "boomseeds"
    },
    {
     "spot": 62,
     "action": "boom",
     "t": 837.077995300293,
-    "kind": "boom_target"
+    "kind": "boom_target",
+    "phase": "boomseeds"
    },
    {
     "spot": 60,
     "action": "pick",
     "t": 844.5153253078461,
-    "kind": "boom_pile"
+    "kind": "boom_pile",
+    "phase": "boomseeds"
    },
    {
     "spot": 181,
     "action": "boom",
     "t": 851.7254316806793,
-    "kind": "boom_target"
+    "kind": "boom_target",
+    "phase": "boomseeds"
    },
    {
     "spot": 182,
     "action": "boom",
     "t": 854.3069250583649,
-    "kind": "boom_target"
+    "kind": "boom_target",
+    "phase": "boomseeds"
    },
    {
     "spot": 64,
     "action": "pick",
     "t": 930.9476842880249,
-    "kind": "boom_pile"
+    "kind": "boom_pile",
+    "phase": "light_source"
    },
    {
     "spot": 183,
     "action": "boom",
     "t": 949.8911862373352,
-    "kind": "boom_target"
+    "kind": "boom_target",
+    "phase": "light_source"
    },
    {
     "spot": 184,
     "action": "boom",
     "t": 968.3538956642151,
-    "kind": "boom_target"
+    "kind": "boom_target",
+    "phase": "light_source"
    },
    {
     "spot": 65,
     "action": "boom",
     "t": 981.8462500572205,
-    "kind": "boom_target"
+    "kind": "boom_target",
+    "phase": "light_source"
    },
    {
     "spot": 185,
     "action": "pick",
     "t": 1071.2274951934814,
-    "kind": "boom_pile"
+    "kind": "boom_pile",
+    "phase": "light_source"
    },
    {
     "spot": 68,
     "action": "boom",
     "t": 1110.2874534130096,
-    "kind": "boom_target"
+    "kind": "boom_target",
+    "phase": "light_source"
    },
    {
     "spot": 69,
     "action": "pick",
     "t": 1115.8697354793549,
-    "kind": "boom_pile"
+    "kind": "boom_pile",
+    "phase": "light_source"
    },
    {
     "spot": 186,
     "action": "boom",
     "t": 1122.8700370788574,
-    "kind": "boom_target"
+    "kind": "boom_target",
+    "phase": "light_source"
    }
   ]
  },

@@ -108,6 +108,23 @@ _Last updated: 2026-10-30 (The Mystery Below: level model, menus by state, moth 
   `data/derby_learned.json` with the PC's copies, which are backed up. Re-add the per-class
   leads after an import.
 
+## The Mystery Below: sixth live run (2026-10-30 14:13): Cosmo taken for a crystal
+- Pick and the first crystal fine. Then, still in the start room, the next act (the
+  corridor's crystal) found nothing unlit near its prediction and took the nearest blue
+  thing: Cosmo. Two blossoms went on him; the first crystal's glow next to him passed the
+  lit check. After the door it believed the corridor's crystal done, walked on to the next
+  one, which was still **muddy** (a grey rock shape; it turns dark blue only once the moth
+  reaches the one before), and asked for help.
+- **Fixed:** every act carries the banner phase it happened under in the recording
+  (`Act.phase`, level rebuilt) and never runs before that banner shows (`phase_wait_s` 90 s,
+  dialogs closed meanwhile; `adventure.phase_wait`): the corridor's crystal waits for "make
+  a path", which is the door opening. A target must be within `pred_tol_px` (600) of where
+  the map says the spot is. A drop that left the crystal dark is never dropped on again in
+  that act (`bad_drop_px` 120). A light is verified only when the glow or the Courage text
+  shows **and** the dark crystal at the drop point is gone (`adventure.lit_but_dark`
+  otherwise).
+- 188 tests, ruff, mypy clean.
+
 ## The Mystery Below: fifth live run (2026-10-30 13:58): back and forth after the first door
 - Pick, first crystal (verified lit), the dialog, the door: fine. Then the minimap walk to
   crystal 1 (20 px away, through the corridor) ran back and forth for 30 s until William

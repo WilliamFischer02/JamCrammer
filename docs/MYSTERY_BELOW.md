@@ -139,7 +139,9 @@ and switched William's animal. A room must read as one for 1.5 s before the glob
    continues by route replay from that banner's route time (`RouteRunner.run(start_rt=...)`).
 2. Dialogs are closed by their blue X (also while walking: Cosmo's dialog holds the animal,
    which would otherwise look like a wall).
-3. For each act: `light` needs a blossom (else restock from the nearest fungus spots, up to
+3. For each act, first its banner: an act never runs before the phase it happened under in
+   the recording shows (`Act.phase`; the corridor's crystal waits for "make a path", which
+   is the door opening), dialogs closed while waiting, 90 s then help. Then: `light` needs a blossom (else restock from the nearest fungus spots, up to
    three); if the crystal / fungus is already in view (within 900 px, near where the spot
    should be) walk at it by screen in bursts, else walk to the spot by A* on the floor mask
    with the live dot (`nav.py`: a held key
@@ -156,9 +158,11 @@ and switched William's animal. A room must read as one for 1.5 s before the glob
    drags the blossom slot (200,100) onto it or clicks the slot then it; the counter must
    drop within 2.5 s **and** the crystal must show lit within 4 s (the "Courage" text by a
    masked template at 0.9+, or 3,000 newly bright pixels where it was dark); a drop that
-   left it dark is retried closer, three drops in all. A crystal not seen waits up to 8 s
-   for the moth to turn it unlit (a path's crystals go muddy → unlit one by one), and a lit
-   crystal where the spot is counts as done. A light that still fails asks for help and is
+   left it dark is retried closer, three drops in all. A target must be within 600 px of where the map says the spot is (never Cosmo's blue
+   coat); a drop that left the crystal dark is not dropped on again; lit means the glow or
+   the text **and** the dark crystal gone from the drop point. A crystal not seen waits up to
+   8 s for the moth to turn it unlit (a path's crystals go muddy, a grey rock shape, → dark
+   blue one by one behind the moth), and a lit crystal where the spot is counts as done. A light that still fails asks for help and is
    tried again after William's turn: it is never skipped, because the rest of its path
    would stay muddy. The first act of the plan is the start
    room's pickup (the counter only appears with it); no "!" click is needed there, Cosmo's

@@ -401,6 +401,12 @@ Non-obvious choices and why. Newest at the bottom.
 - **A fungus is picked by its pin, not by itself.** The paw pin appears over a fungus in
   reach; the recordings' pickup clicks are all on it. So the pick act walks up until the pin
   shows (template + yellow check) and clicks the pin.
+- **An act never runs before its banner.** The recording says under which banner each act
+  happened; the game gates rooms and crystals by the same banners (the door opens with "make
+  a path", the next crystal turns unlit as the moth arrives). Running ahead of the banner
+  finds the wrong blue thing (Cosmo, 14:13) or a muddy crystal.
+- **A target must be where the map says.** Spots are good to a few hundred scene px; a blob
+  further than 600 px from the prediction is not the thing, however blue.
 - **By screen when the thing is in view, by minimap only when it is not.** The crystals of a
   path are a screen apart; a minimap plan between them fights objects the mask does not
   know (the lit crystal blocked the diagonal on the 13:58 run and the walk oscillated).

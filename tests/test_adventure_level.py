@@ -429,6 +429,34 @@ def test_an_unseen_crystal_asks_for_help_and_moves_on_once_it_is_lit() -> None:
     assert runner.k == 2 and runner.stats.lit == 1, runner.stats.as_dict()
 
 
+def test_an_act_waits_for_its_banner_phase() -> None:
+    """The corridor's crystal is lit under the "make a path" banner: the act waits for that
+    banner (the door opens with it) instead of dropping on whatever is blue in the start
+    room (Cosmo, on the 14:13 run)."""
+    world = synth.World(PROF)
+    synth.layout(world)
+    world.items = 3
+    lvl = _level(world)
+    lvl.plan["moths"] = [Act(1, "light", 10.0, "crystal", "first_moth")]
+    events: list[Any] = []
+    banner = {"text": "DRAG a LIGHT BLOSSOM to DROP it on the CRYSTAL."}
+    runner = _runner(world, lvl, events, lambda: banner["text"])
+
+    def stop() -> bool:
+        if world.t > 6.0:
+            banner["text"] = "Make a PATH for the GLOW MOTH by illuminating CRYSTALS."
+        return world.t > 120 or runner.k >= 1
+
+    runner.run(stop)
+    types = [e.type for e in events]
+    assert "adventure.phase_wait" in types and runner.stats.lit == 1, (
+        types,
+        runner.stats.as_dict(),
+    )
+    lit_at = next(e for e in events if e.type == "adventure.act").payload
+    assert lit_at["outcome"] == "lit" and world.t > 6.0
+
+
 # --- the real recordings, when they are on this machine --------------------------------
 
 REAL = Paths().sessions / "20261030_100745_mystery_below"
