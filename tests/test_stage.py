@@ -62,3 +62,19 @@ def test_input_controller_maps_stage_to_client() -> None:
     assert ctl.to_screen(0, 0) == (60, 31)
     sx, sy = ctl.to_screen(1919, 1079)
     assert abs(sx - (8 + 52 + 1800)) <= 1 and sy == 31 + 1012
+
+
+def test_narrower_than_16_9_fits_height_and_crops_the_sides() -> None:
+    """Laptop 2026-10-29: 2560x1459 client (16:10 minus the taskbar). The game fits the height
+    and cuts off the stage's sides; HUD pieces of a live PC frame were found here."""
+    m = StageMap(2560, 1459)
+    assert round(m.scale, 3) == 1.351 and m.origin == (-17.0, 0.0)
+    # den hut (stage 1480,920) and party hat (650,15) measured at client (1988,1244), (866,22)
+    for (sx, sy), (cx, cy) in (((1480, 920), (1988, 1244)), ((650, 15), (866, 22))):
+        px, py = m.to_client(sx, sy)
+        assert abs(px - cx) <= 8 and abs(py - cy) <= 4
+    client = np.full((1459, 2560, 3), 200, dtype=np.uint8)
+    out = m.normalize(client)
+    assert out.shape == (1080, 1920, 3)
+    assert out[540, 5, 0] == 0 and out[540, 1915, 0] == 0  # cropped stage columns stay black
+    assert out[540, 20, 0] == 200 and out[540, 960, 0] == 200 and out[540, 1900, 0] == 200

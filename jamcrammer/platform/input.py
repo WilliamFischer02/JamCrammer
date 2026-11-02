@@ -33,7 +33,7 @@ KEYEVENTF_EXTENDEDKEY = 0x0001
 KEYEVENTF_KEYUP = 0x0002
 KEYEVENTF_SCANCODE = 0x0008
 MAPVK_VK_TO_VSC = 0
-CURSOR_TOLERANCE_PX = 1
+CURSOR_TOLERANCE_PX = 3  # mixed-DPI monitors round the cursor by a pixel or two
 
 Button = Literal["left", "right"]
 KeyMethod = Literal["scancode", "vk"]
@@ -217,15 +217,20 @@ class InputController:
         if self.dry_run:
             self._emit("input.move", dry_run=True, cx=cx, cy=cy)
             return True
+        px = py = None
         for attempt in range(self._cfg.postcondition_retries + 1):
-            win32api.SetCursorPos((sx, sy))
-            self._touch("move")
-            time.sleep(self._cfg.cursor_settle_ms / 1000.0)
-            px, py = win32api.GetCursorPos()
+            try:
+                win32api.SetCursorPos((sx, sy))
+                self._touch("move")
+                time.sleep(self._cfg.cursor_settle_ms / 1000.0)
+                px, py = win32api.GetCursorPos()
+            except Exception as exc:  # pywintypes.error 0 while the desktop is busy / locked
+                self._emit("input.move_failed", Level.NOTICE, cx=cx, cy=cy, error=str(exc))
+                return False
             if abs(px - sx) <= CURSOR_TOLERANCE_PX and abs(py - sy) <= CURSOR_TOLERANCE_PX:
                 return True
             self.stats.retries += attempt < self._cfg.postcondition_retries
-        self._emit("input.move_failed", Level.NOTICE, cx=cx, cy=cy)
+        self._emit("input.move_failed", Level.NOTICE, cx=cx, cy=cy, want=[sx, sy], got=[px, py])
         return False
 
     def click(

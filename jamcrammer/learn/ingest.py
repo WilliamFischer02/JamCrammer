@@ -38,6 +38,8 @@ INBOX_TARGETS: dict[str, str] = {
     "arcade/jamaa_derby": "jamaa_derby",
     "arcade/gem_ball": "gem_ball",
     "arcade/other": "custom",
+    "adventures/mystery_below": "mystery_below",
+    "adventures/forgotten_desert": "forgotten_desert",
 }
 
 

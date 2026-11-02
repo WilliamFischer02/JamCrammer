@@ -1,0 +1,3273 @@
+{
+ "version": 1,
+ "target": "mystery_below",
+ "scale": 70.0,
+ "avatar": [
+  1005,
+  500
+ ],
+ "minimap_roi": [
+  1480,
+  737,
+  293,
+  186
+ ],
+ "phases": [
+  {
+   "key": "start",
+   "area": "moths",
+   "mode": "plan",
+   "phrase": "explore the darkness"
+  },
+  {
+   "key": "pick",
+   "area": "moths",
+   "mode": "plan",
+   "phrase": "pick some light blossoms from the fungi"
+  },
+  {
+   "key": "first_crystal",
+   "area": "moths",
+   "mode": "plan",
+   "phrase": "drag a light blossom to drop it on the crystal"
+  },
+  {
+   "key": "first_moth",
+   "area": "moths",
+   "mode": "plan",
+   "phrase": "make a path for the glow moth by illuminating crystals"
+  },
+  {
+   "key": "moths",
+   "area": "moths",
+   "mode": "plan",
+   "phrase": "find 4 glow moths and lead them to the door"
+  },
+  {
+   "key": "door",
+   "area": "moths",
+   "mode": "plan",
+   "phrase": "open the door to travel deeper underground"
+  },
+  {
+   "key": "torches",
+   "area": "torches",
+   "mode": "plan",
+   "phrase": "light the 3 torches to illuminate the room"
+  },
+  {
+   "key": "last_torch",
+   "area": "torches",
+   "mode": "plan",
+   "phrase": "light the last torch to illuminate the area"
+  },
+  {
+   "key": "travel",
+   "area": "torches",
+   "mode": "replay",
+   "phrase": "travel to the lost city"
+  },
+  {
+   "key": "puzzles",
+   "area": "city",
+   "mode": "replay",
+   "phrase": "solve the puzzles throughout the ancient city"
+  },
+  {
+   "key": "boomseeds",
+   "area": "city",
+   "mode": "replay",
+   "phrase": "use the boomseeds to find a way deeper into the city"
+  },
+  {
+   "key": "switches",
+   "area": "city",
+   "mode": "replay",
+   "phrase": "press all 3 switches within 60 seconds"
+  },
+  {
+   "key": "light_source",
+   "area": "city",
+   "mode": "replay",
+   "phrase": "find the light source and reflect it through the room"
+  },
+  {
+   "key": "obelisk",
+   "area": "city",
+   "mode": "replay",
+   "phrase": "redirect the light to the obelisk"
+  },
+  {
+   "key": "alphas",
+   "area": "city",
+   "mode": "replay",
+   "phrase": "speak with the alphas at the obelisk"
+  },
+  {
+   "key": "done",
+   "area": "city",
+   "mode": "done",
+   "phrase": "you did it adventure complete"
+  }
+ ],
+ "spots": [
+  {
+   "id": 0,
+   "kind": "fungus",
+   "area": "moths",
+   "x": 1531.807142857143,
+   "y": 876.8057142857142,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 1,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1548.673406905625,
+   "y": 860.2152516713553,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 2,
+   "kind": "fungus",
+   "area": "moths",
+   "x": 1528.3374495560936,
+   "y": 846.6708635996772,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 3,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1568.1461538461538,
+   "y": 852.8582417582418,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 4,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1582.7369896320765,
+   "y": 841.3206716212496,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 5,
+   "kind": "fungus",
+   "area": "moths",
+   "x": 1575.7230158730158,
+   "y": 823.0277777777778,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 6,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1600.8121310181532,
+   "y": 828.4287371744279,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 7,
+   "kind": "fungus",
+   "area": "moths",
+   "x": 1592.484099616858,
+   "y": 813.953443299995,
+   "seen": 3,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 8,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1636.9162983425413,
+   "y": 778.8245856353591,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 9,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1643.3797172420673,
+   "y": 795.2697975895749,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 10,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1625.34942002442,
+   "y": 794.9762515262516,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 11,
+   "kind": "fungus",
+   "area": "moths",
+   "x": 1609.8313893780378,
+   "y": 792.3580899216181,
+   "seen": 6,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 12,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1632.9269583695548,
+   "y": 807.8978943301458,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 13,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1623.0132991318073,
+   "y": 811.8675217048144,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 14,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1592.7165745856355,
+   "y": 794.0542225730071,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 15,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1568.312928970471,
+   "y": 777.1163607342379,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 16,
+   "kind": "fungus",
+   "area": "moths",
+   "x": 1505.2696223316912,
+   "y": 814.9494252873563,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 17,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1531.1945924132365,
+   "y": 803.3708635996771,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 18,
+   "kind": "fungus",
+   "area": "moths",
+   "x": 1496.6316256465132,
+   "y": 800.8104467629748,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 19,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1534.2258116883118,
+   "y": 774.4701298701299,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 20,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1517.706794790768,
+   "y": 788.2492621177382,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 21,
+   "kind": "fungus",
+   "area": "moths",
+   "x": 1511.7942857142857,
+   "y": 786.5514285714286,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 22,
+   "kind": "fungus",
+   "area": "moths",
+   "x": 1526.8469747571735,
+   "y": 755.5134772202277,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 23,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1533.4603484969407,
+   "y": 792.7998437084332,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 24,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1546.5390766410815,
+   "y": 796.7557643105358,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 25,
+   "kind": "fungus",
+   "area": "moths",
+   "x": 1557.2138645747318,
+   "y": 789.4289182493807,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 26,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1563.3820215221253,
+   "y": 804.8667314103355,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 27,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1579.1614424833951,
+   "y": 794.8614967793143,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 28,
+   "kind": "fungus",
+   "area": "moths",
+   "x": 1593.0827456462832,
+   "y": 778.2098551925301,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 29,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1592.4757540992528,
+   "y": 802.203267612276,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 30,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1609.040145872129,
+   "y": 803.3526425467767,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 31,
+   "kind": "fungus",
+   "area": "moths",
+   "x": 1605.1198876404494,
+   "y": 757.1861155698234,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 32,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1590.4583056478407,
+   "y": 753.5993355481727,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 33,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1583.3076007326008,
+   "y": 752.1575091575091,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 34,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1614.3118226600986,
+   "y": 814.9904761904762,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 35,
+   "kind": "fungus",
+   "area": "moths",
+   "x": 1615.6272752152063,
+   "y": 845.4399114295666,
+   "seen": 3,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 36,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1703.7009337589784,
+   "y": 856.9280606544294,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 37,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1682.633896103896,
+   "y": 855.4960551948052,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 38,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1666.990530925014,
+   "y": 848.274500907441,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 39,
+   "kind": "fungus",
+   "area": "moths",
+   "x": 1641.8290054099043,
+   "y": 857.8623744129363,
+   "seen": 3,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 40,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1659.5101174560732,
+   "y": 841.6479278074867,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 41,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1646.0045276646783,
+   "y": 838.2251448500999,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 42,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1631.9631343203278,
+   "y": 838.1429526439915,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 43,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1632.2650316390727,
+   "y": 824.7358306226076,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 44,
+   "kind": "fungus",
+   "area": "moths",
+   "x": 1693.0726919900908,
+   "y": 818.1229232039636,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 45,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1693.9493806771263,
+   "y": 805.9291494632535,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 46,
+   "kind": "fungus",
+   "area": "moths",
+   "x": 1713.1181818181817,
+   "y": 808.0391233766234,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 47,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1678.094170771757,
+   "y": 817.0441143554319,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 48,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1660.5825262308313,
+   "y": 819.18587499823,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 49,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1642.703896103896,
+   "y": 807.2534090909091,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 50,
+   "kind": "fungus",
+   "area": "moths",
+   "x": 1669.486507936508,
+   "y": 789.4452380952381,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 51,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1630.1017857142858,
+   "y": 817.6136363636364,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 52,
+   "kind": "boom_pile",
+   "area": "city",
+   "x": 1501.7395051875499,
+   "y": 797.556823623304,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 53,
+   "kind": "boom_target",
+   "area": "city",
+   "x": 1517.6508977361436,
+   "y": 795.2281811085089,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 54,
+   "kind": "boom_target",
+   "area": "city",
+   "x": 1509.869783395795,
+   "y": 802.2662357873339,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 55,
+   "kind": "boom_pile",
+   "area": "city",
+   "x": 1515.3145317210829,
+   "y": 801.9210930401113,
+   "seen": 4,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 56,
+   "kind": "boom_target",
+   "area": "city",
+   "x": 1523.9318074191,
+   "y": 816.841910023678,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 57,
+   "kind": "boom_target",
+   "area": "city",
+   "x": 1563.722857142857,
+   "y": 786.8199999999999,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 58,
+   "kind": "boom_target",
+   "area": "city",
+   "x": 1618.2975841203315,
+   "y": 786.3404748296728,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 59,
+   "kind": "boom_target",
+   "area": "city",
+   "x": 1627.2271388892484,
+   "y": 783.7775301797199,
+   "seen": 4,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 60,
+   "kind": "boom_pile",
+   "area": "city",
+   "x": 1604.3793313379506,
+   "y": 767.736271299404,
+   "seen": 5,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 61,
+   "kind": "boom_target",
+   "area": "city",
+   "x": 1612.185714285714,
+   "y": 775.1753968253969,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 62,
+   "kind": "boom_target",
+   "area": "city",
+   "x": 1609.4217664602838,
+   "y": 785.6283241467835,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 63,
+   "kind": "boom_target",
+   "area": "city",
+   "x": 1618.219233838787,
+   "y": 797.4588188347965,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 64,
+   "kind": "boom_pile",
+   "area": "city",
+   "x": 1680.0347176079736,
+   "y": 816.9843853820597,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 65,
+   "kind": "boom_target",
+   "area": "city",
+   "x": 1721.6217947643886,
+   "y": 847.5844247838337,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 66,
+   "kind": "boom_target",
+   "area": "city",
+   "x": 1736.8645320197045,
+   "y": 845.8192118226601,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 67,
+   "kind": "boom_pile",
+   "area": "city",
+   "x": 1710.4192118226601,
+   "y": 805.9474548440065,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 68,
+   "kind": "boom_target",
+   "area": "city",
+   "x": 1716.0276518609667,
+   "y": 864.4999305362601,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 69,
+   "kind": "boom_pile",
+   "area": "city",
+   "x": 1731.958125004494,
+   "y": 871.1143511428427,
+   "seen": 3,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 70,
+   "kind": "marker",
+   "area": "moths",
+   "x": 1617.4581211210375,
+   "y": 814.3645988143942,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 71,
+   "kind": "marker",
+   "area": "torches",
+   "x": 1545.610795785031,
+   "y": 876.6614250093561,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 72,
+   "kind": "marker",
+   "area": "torches",
+   "x": 1565.3221760797342,
+   "y": 796.3102855472448,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 73,
+   "kind": "marker",
+   "area": "torches",
+   "x": 1607.125019952115,
+   "y": 774.1073157754722,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 74,
+   "kind": "marker",
+   "area": "torches",
+   "x": 1648.2320401556167,
+   "y": 751.9383527854104,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 75,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1574.5491789819375,
+   "y": 827.96091954023,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 76,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1586.1412108613745,
+   "y": 830.6616729152361,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 77,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1595.4262014863748,
+   "y": 834.4094137076795,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 78,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1596.5472222222222,
+   "y": 843.1114224326932,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 79,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1605.5295580279053,
+   "y": 794.4910425419812,
+   "seen": 4,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 80,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1612.5567301298643,
+   "y": 790.0446386757822,
+   "seen": 4,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 81,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1616.1615188484423,
+   "y": 796.8440604460856,
+   "seen": 3,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 82,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1611.104814522494,
+   "y": 799.839110321845,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 83,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1625.5737402960167,
+   "y": 793.3983217550606,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 84,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1634.6403540245065,
+   "y": 791.9559761514196,
+   "seen": 4,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 85,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1643.0306818181816,
+   "y": 792.0140151515152,
+   "seen": 3,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 86,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1629.2294117647057,
+   "y": 777.844537815126,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 87,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1622.2644676839427,
+   "y": 780.9908620538455,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 88,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1617.0986432561851,
+   "y": 781.9020750199521,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 89,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1629.48,
+   "y": 784.0,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 90,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1631.0700304540424,
+   "y": 803.2439884727677,
+   "seen": 3,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 91,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1628.8728571428571,
+   "y": 799.0914285714287,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 92,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1565.1714285714286,
+   "y": 798.2067837190741,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 93,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1574.406325279372,
+   "y": 802.7233201449714,
+   "seen": 5,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 94,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1539.65,
+   "y": 803.0287142857143,
+   "seen": 5,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 95,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1492.2311760063142,
+   "y": 793.5597474348855,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 96,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1499.5301783247087,
+   "y": 792.57437719366,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 97,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1500.2627634660423,
+   "y": 778.9431693989071,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 98,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1520.84495542593,
+   "y": 772.2349967349035,
+   "seen": 10,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 99,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1524.5514285714287,
+   "y": 767.7828571428571,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 100,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1538.722255489022,
+   "y": 788.5095844026234,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 101,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1530.5947422521824,
+   "y": 780.3290169541234,
+   "seen": 3,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 102,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1521.7758241758243,
+   "y": 779.6054945054946,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 103,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1542.3143682906689,
+   "y": 832.1962014863749,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 104,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1548.6111380145278,
+   "y": 830.790395480226,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 105,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1535.866174055829,
+   "y": 836.1260644594647,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 106,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1643.5067914643496,
+   "y": 829.8865640173781,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 107,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1621.2581907163874,
+   "y": 873.640755419444,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 108,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1618.1057142857144,
+   "y": 878.8314285714285,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 109,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1626.0830800990916,
+   "y": 885.3804624277457,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 110,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1632.037142857143,
+   "y": 906.7914285714286,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 111,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1624.3943335993615,
+   "y": 905.4542431497739,
+   "seen": 3,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 112,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1630.5323827980806,
+   "y": 894.9677580579355,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 113,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1625.5475897009967,
+   "y": 862.922334642102,
+   "seen": 5,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 114,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1648.7313804173355,
+   "y": 856.249036918138,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 115,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1657.2301717408275,
+   "y": 853.0863387978143,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 116,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1668.1280615411902,
+   "y": 865.3346922940498,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 117,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1706.9041543513958,
+   "y": 881.817290640394,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 118,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1716.0544821200897,
+   "y": 882.7420785016088,
+   "seen": 4,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 119,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1719.5556564822461,
+   "y": 884.566308835673,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 120,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1689.357954383667,
+   "y": 845.8052716003683,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 121,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1547.0107142857141,
+   "y": 857.5063492063492,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 122,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1538.0047619047618,
+   "y": 852.6734126984127,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 123,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1549.6815858887821,
+   "y": 848.1809577916954,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 124,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1556.2336880314256,
+   "y": 852.3402938690269,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 125,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1563.2162698412699,
+   "y": 846.8888888888889,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 126,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1550.9332263242377,
+   "y": 841.7277688603532,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 127,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1559.4620854423208,
+   "y": 838.7046782232399,
+   "seen": 4,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 128,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1553.1649350649352,
+   "y": 835.1949675324674,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 129,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1543.4243243243243,
+   "y": 841.8457528957529,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 130,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1566.550710782792,
+   "y": 843.6242331261141,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 131,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1572.5851370851371,
+   "y": 838.0047246272246,
+   "seen": 3,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 132,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1586.5696004993756,
+   "y": 823.8233056893168,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 133,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1592.5549450549452,
+   "y": 826.1813186813187,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 134,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1595.5301587301587,
+   "y": 822.676984126984,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 135,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1579.1565764938355,
+   "y": 812.3868289221007,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 136,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1584.784065934066,
+   "y": 807.9675824175824,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 137,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1568.7077922077922,
+   "y": 799.6412930468408,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 138,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1535.5234219269103,
+   "y": 817.225830564784,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 139,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1527.1032471725614,
+   "y": 816.1200023369803,
+   "seen": 3,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 140,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1524.7890234059726,
+   "y": 819.5223567393059,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 141,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1513.9120999219358,
+   "y": 809.9045277127244,
+   "seen": 3,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 142,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1607.6637987012987,
+   "y": 784.1998376623377,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 143,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1713.010643022762,
+   "y": 815.1876067777948,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 144,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1719.3512172284645,
+   "y": 810.9676252898164,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 145,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1737.5477111286505,
+   "y": 821.2561957379637,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 146,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1720.442857142857,
+   "y": 831.4055647840531,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 147,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1739.322364593499,
+   "y": 842.8232565122739,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 148,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1755.9362097440132,
+   "y": 835.0810487200661,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 149,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1766.112221304707,
+   "y": 840.9728736581337,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 150,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1739.8761495487752,
+   "y": 855.4299189637179,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 151,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1728.5514285714287,
+   "y": 849.0085714285714,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 152,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1717.8582922824303,
+   "y": 851.8697044334975,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 153,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1712.4803066989507,
+   "y": 848.7994350282486,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 154,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1689.9832584542528,
+   "y": 854.5962449153056,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 155,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1682.5278632560942,
+   "y": 858.7668923590534,
+   "seen": 4,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 156,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1694.0134511707813,
+   "y": 862.5539204798922,
+   "seen": 4,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 157,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1673.5240815052612,
+   "y": 855.7479846620297,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 158,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1682.6753611556983,
+   "y": 850.9882022471911,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 159,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1672.8962295789152,
+   "y": 846.2090437226908,
+   "seen": 4,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 160,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1662.7261746061974,
+   "y": 849.5101685846687,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 161,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1644.1110344827587,
+   "y": 880.1494417077176,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 162,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1638.3057142857144,
+   "y": 875.8742857142856,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 163,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1631.9459615890555,
+   "y": 851.8798550280844,
+   "seen": 3,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 164,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1626.573441199684,
+   "y": 854.5704814522494,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 165,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1638.4524621516123,
+   "y": 861.7316094228805,
+   "seen": 4,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 166,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1633.9577015163607,
+   "y": 855.5662410215482,
+   "seen": 1,
+   "runs": [
+    "20261029_134501_mystery_below"
+   ]
+  },
+  {
+   "id": 167,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1624.45808716707,
+   "y": 863.5405891848264,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 168,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1631.4043380230883,
+   "y": 844.8205385623148,
+   "seen": 2,
+   "runs": [
+    "20261029_134501_mystery_below",
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 169,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1532.4474025974027,
+   "y": 876.7332792207792,
+   "seen": 1,
+   "runs": [
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 170,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1576.022077922078,
+   "y": 852.8949675324675,
+   "seen": 1,
+   "runs": [
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 171,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1645.0718969555035,
+   "y": 825.5238875878221,
+   "seen": 1,
+   "runs": [
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 172,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1623.3999999999999,
+   "y": 822.4342857142857,
+   "seen": 1,
+   "runs": [
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 173,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1647.3890662410215,
+   "y": 810.8744612928971,
+   "seen": 1,
+   "runs": [
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 174,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1587.055737704918,
+   "y": 794.5790007806401,
+   "seen": 1,
+   "runs": [
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 175,
+   "kind": "fungus",
+   "area": "moths",
+   "x": 1548.252849336456,
+   "y": 749.0718969555036,
+   "seen": 1,
+   "runs": [
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 176,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1528.8983388704319,
+   "y": 766.5104651162791,
+   "seen": 1,
+   "runs": [
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 177,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1521.7942857142857,
+   "y": 770.0685714285714,
+   "seen": 1,
+   "runs": [
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 178,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1516.844537815126,
+   "y": 774.0630252100841,
+   "seen": 1,
+   "runs": [
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 179,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1542.4657142857143,
+   "y": 781.0142857142857,
+   "seen": 1,
+   "runs": [
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 180,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 1607.2857142857142,
+   "y": 814.2371428571429,
+   "seen": 1,
+   "runs": [
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 181,
+   "kind": "boom_target",
+   "area": "city",
+   "x": 1496.923163841808,
+   "y": 788.9851493139629,
+   "seen": 1,
+   "runs": [
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 182,
+   "kind": "boom_target",
+   "area": "city",
+   "x": 1563.713492063492,
+   "y": 781.7833333333333,
+   "seen": 1,
+   "runs": [
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 183,
+   "kind": "boom_target",
+   "area": "city",
+   "x": 1613.5160714285714,
+   "y": 780.1198051948052,
+   "seen": 1,
+   "runs": [
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 184,
+   "kind": "boom_target",
+   "area": "city",
+   "x": 1625.164039408867,
+   "y": 791.2369458128079,
+   "seen": 1,
+   "runs": [
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 185,
+   "kind": "boom_target",
+   "area": "city",
+   "x": 1608.5942857142857,
+   "y": 794.4028571428571,
+   "seen": 1,
+   "runs": [
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 186,
+   "kind": "boom_target",
+   "area": "city",
+   "x": 1615.038683788122,
+   "y": 790.5335473515248,
+   "seen": 1,
+   "runs": [
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 187,
+   "kind": "boom_target",
+   "area": "city",
+   "x": 1704.639344262295,
+   "y": 829.4079625292741,
+   "seen": 1,
+   "runs": [
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 188,
+   "kind": "boom_target",
+   "area": "city",
+   "x": 1723.1228571428571,
+   "y": 828.9685714285714,
+   "seen": 1,
+   "runs": [
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 189,
+   "kind": "boom_pile",
+   "area": "city",
+   "x": 1702.5753026634384,
+   "y": 831.3950766747377,
+   "seen": 1,
+   "runs": [
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 190,
+   "kind": "boom_target",
+   "area": "city",
+   "x": 1695.8217798594849,
+   "y": 864.8996096799375,
+   "seen": 1,
+   "runs": [
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 191,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1627.200918964077,
+   "y": 879.5208855472014,
+   "seen": 1,
+   "runs": [
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 192,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1625.068715083799,
+   "y": 892.7299281723863,
+   "seen": 1,
+   "runs": [
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 193,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1729.696103896104,
+   "y": 864.8753246753246,
+   "seen": 1,
+   "runs": [
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 194,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1607.25415282392,
+   "y": 787.9730897009966,
+   "seen": 1,
+   "runs": [
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 195,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1551.537142857143,
+   "y": 754.84,
+   "seen": 1,
+   "runs": [
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 196,
+   "kind": "repeat",
+   "area": "moths",
+   "x": 1544.824012490242,
+   "y": 754.3950195160031,
+   "seen": 2,
+   "runs": [
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 197,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1526.222077922078,
+   "y": 806.2521103896104,
+   "seen": 1,
+   "runs": [
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 198,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1667.2897497982244,
+   "y": 852.2080710250202,
+   "seen": 1,
+   "runs": [
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 199,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1659.2897009966778,
+   "y": 877.2908637873754,
+   "seen": 1,
+   "runs": [
+    "20261030_100745_mystery_below"
+   ]
+  },
+  {
+   "id": 200,
+   "kind": "repeat",
+   "area": "city",
+   "x": 1644.0457463884431,
+   "y": 859.9268057784911,
+   "seen": 1,
+   "runs": [
+    "20261030_100745_mystery_below"
+   ]
+  }
+ ],
+ "plan": {
+  "moths": [
+   {
+    "spot": 0,
+    "action": "pick",
+    "t": 18.80691146850586,
+    "kind": "fungus",
+    "phase": "start"
+   },
+   {
+    "spot": 169,
+    "action": "light",
+    "t": 23.986874103546143,
+    "kind": "crystal",
+    "phase": "pick"
+   },
+   {
+    "spot": 1,
+    "action": "light",
+    "t": 40.44540548324585,
+    "kind": "crystal",
+    "phase": "first_moth"
+   },
+   {
+    "spot": 170,
+    "action": "light",
+    "t": 45.56407833099365,
+    "kind": "crystal",
+    "phase": "first_moth"
+   },
+   {
+    "spot": 4,
+    "action": "light",
+    "t": 53.141517877578735,
+    "kind": "crystal",
+    "phase": "first_moth"
+   },
+   {
+    "spot": 75,
+    "action": "smash",
+    "t": 58.61196279525757,
+    "kind": "repeat",
+    "phase": "first_moth"
+   },
+   {
+    "spot": 5,
+    "action": "pick",
+    "t": 60.86860752105713,
+    "kind": "fungus",
+    "phase": "first_moth"
+   },
+   {
+    "spot": 76,
+    "action": "smash",
+    "t": 64.70019245147705,
+    "kind": "repeat",
+    "phase": "first_moth"
+   },
+   {
+    "spot": 78,
+    "action": "smash",
+    "t": 68.6376531124115,
+    "kind": "repeat",
+    "phase": "first_moth"
+   },
+   {
+    "spot": 77,
+    "action": "smash",
+    "t": 71.5517144203186,
+    "kind": "repeat",
+    "phase": "first_moth"
+   },
+   {
+    "spot": 6,
+    "action": "light",
+    "t": 75.17385411262512,
+    "kind": "crystal",
+    "phase": "first_moth"
+   },
+   {
+    "spot": 7,
+    "action": "pick",
+    "t": 77.35274410247803,
+    "kind": "fungus",
+    "phase": "first_moth"
+   },
+   {
+    "spot": 113,
+    "action": "smash",
+    "t": 93.86416053771973,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 191,
+    "action": "smash",
+    "t": 98.77285170555115,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 109,
+    "action": "smash",
+    "t": 101.74769735336304,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 192,
+    "action": "smash",
+    "t": 104.50396275520325,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 111,
+    "action": "smash",
+    "t": 127.53394412994385,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 112,
+    "action": "smash",
+    "t": 136.7738494873047,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 107,
+    "action": "smash",
+    "t": 147.44037127494812,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 39,
+    "action": "pick",
+    "t": 155.42007207870483,
+    "kind": "fungus",
+    "phase": "moths"
+   },
+   {
+    "spot": 114,
+    "action": "smash",
+    "t": 156.78513526916504,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 115,
+    "action": "smash",
+    "t": 159.1824107170105,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 116,
+    "action": "smash",
+    "t": 164.423672914505,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 117,
+    "action": "smash",
+    "t": 176.84066939353943,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 118,
+    "action": "smash",
+    "t": 179.62256455421448,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 118,
+    "action": "smash",
+    "t": 181.61761379241943,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 193,
+    "action": "smash",
+    "t": 192.3974950313568,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 36,
+    "action": "light",
+    "t": 203.22106266021729,
+    "kind": "crystal",
+    "phase": "moths"
+   },
+   {
+    "spot": 120,
+    "action": "smash",
+    "t": 206.3013813495636,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 37,
+    "action": "light",
+    "t": 210.65848922729492,
+    "kind": "crystal",
+    "phase": "moths"
+   },
+   {
+    "spot": 38,
+    "action": "light",
+    "t": 215.81331706047058,
+    "kind": "crystal",
+    "phase": "moths"
+   },
+   {
+    "spot": 39,
+    "action": "pick",
+    "t": 222.08585143089294,
+    "kind": "fungus",
+    "phase": "moths"
+   },
+   {
+    "spot": 40,
+    "action": "light",
+    "t": 225.29717254638672,
+    "kind": "crystal",
+    "phase": "moths"
+   },
+   {
+    "spot": 41,
+    "action": "light",
+    "t": 228.64866185188293,
+    "kind": "crystal",
+    "phase": "moths"
+   },
+   {
+    "spot": 106,
+    "action": "smash",
+    "t": 237.31996321678162,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 171,
+    "action": "light",
+    "t": 239.59489035606384,
+    "kind": "crystal",
+    "phase": "moths"
+   },
+   {
+    "spot": 35,
+    "action": "pick",
+    "t": 245.15983819961548,
+    "kind": "fungus",
+    "phase": "moths"
+   },
+   {
+    "spot": 42,
+    "action": "light",
+    "t": 247.6186740398407,
+    "kind": "crystal",
+    "phase": "moths"
+   },
+   {
+    "spot": 43,
+    "action": "light",
+    "t": 251.1095676422119,
+    "kind": "crystal",
+    "phase": "moths"
+   },
+   {
+    "spot": 172,
+    "action": "light",
+    "t": 254.88090634346008,
+    "kind": "crystal",
+    "phase": "moths"
+   },
+   {
+    "spot": 44,
+    "action": "pick",
+    "t": 264.7772481441498,
+    "kind": "fungus",
+    "phase": "moths"
+   },
+   {
+    "spot": 47,
+    "action": "light",
+    "t": 266.5972013473511,
+    "kind": "crystal",
+    "phase": "moths"
+   },
+   {
+    "spot": 48,
+    "action": "light",
+    "t": 271.03333711624146,
+    "kind": "crystal",
+    "phase": "moths"
+   },
+   {
+    "spot": 173,
+    "action": "light",
+    "t": 278.8998875617981,
+    "kind": "crystal",
+    "phase": "moths"
+   },
+   {
+    "spot": 90,
+    "action": "smash",
+    "t": 281.6646885871887,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 83,
+    "action": "smash",
+    "t": 293.58226895332336,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 81,
+    "action": "smash",
+    "t": 296.16406631469727,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 194,
+    "action": "smash",
+    "t": 299.8125479221344,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 11,
+    "action": "pick",
+    "t": 300.30206823349,
+    "kind": "fungus",
+    "phase": "moths"
+   },
+   {
+    "spot": 79,
+    "action": "smash",
+    "t": 302.918231010437,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 79,
+    "action": "smash",
+    "t": 304.5206079483032,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 81,
+    "action": "smash",
+    "t": 308.3431611061096,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 85,
+    "action": "smash",
+    "t": 320.7770004272461,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 84,
+    "action": "smash",
+    "t": 323.04338335990906,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 84,
+    "action": "smash",
+    "t": 324.9333071708679,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 8,
+    "action": "light",
+    "t": 328.10076427459717,
+    "kind": "crystal",
+    "phase": "moths"
+   },
+   {
+    "spot": 9,
+    "action": "light",
+    "t": 332.1961703300476,
+    "kind": "crystal",
+    "phase": "moths"
+   },
+   {
+    "spot": 11,
+    "action": "pick",
+    "t": 340.621915102005,
+    "kind": "fungus",
+    "phase": "moths"
+   },
+   {
+    "spot": 10,
+    "action": "light",
+    "t": 343.2121274471283,
+    "kind": "crystal",
+    "phase": "moths"
+   },
+   {
+    "spot": 90,
+    "action": "smash",
+    "t": 345.076203584671,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 12,
+    "action": "light",
+    "t": 348.2343535423279,
+    "kind": "crystal",
+    "phase": "moths"
+   },
+   {
+    "spot": 13,
+    "action": "light",
+    "t": 351.83066987991333,
+    "kind": "crystal",
+    "phase": "moths"
+   },
+   {
+    "spot": 11,
+    "action": "pick",
+    "t": 355.98688983917236,
+    "kind": "fungus",
+    "phase": "moths"
+   },
+   {
+    "spot": 174,
+    "action": "light",
+    "t": 360.38801884651184,
+    "kind": "crystal",
+    "phase": "moths"
+   },
+   {
+    "spot": 195,
+    "action": "smash",
+    "t": 374.76450991630554,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 196,
+    "action": "smash",
+    "t": 379.1219515800476,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 175,
+    "action": "pick",
+    "t": 381.773015499115,
+    "kind": "fungus",
+    "phase": "moths"
+   },
+   {
+    "spot": 176,
+    "action": "light",
+    "t": 387.05015325546265,
+    "kind": "crystal",
+    "phase": "moths"
+   },
+   {
+    "spot": 98,
+    "action": "smash",
+    "t": 391.5295445919037,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 177,
+    "action": "light",
+    "t": 391.8356649875641,
+    "kind": "crystal",
+    "phase": "moths"
+   },
+   {
+    "spot": 98,
+    "action": "smash",
+    "t": 396.7107803821564,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 178,
+    "action": "light",
+    "t": 397.0154733657837,
+    "kind": "crystal",
+    "phase": "moths"
+   },
+   {
+    "spot": 22,
+    "action": "pick",
+    "t": 406.99975633621216,
+    "kind": "fungus",
+    "phase": "moths"
+   },
+   {
+    "spot": 17,
+    "action": "light",
+    "t": 441.19497752189636,
+    "kind": "crystal",
+    "phase": "moths"
+   },
+   {
+    "spot": 94,
+    "action": "smash",
+    "t": 442.28078389167786,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 94,
+    "action": "smash",
+    "t": 443.35529613494873,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 25,
+    "action": "pick",
+    "t": 447.64333033561707,
+    "kind": "fungus",
+    "phase": "moths"
+   },
+   {
+    "spot": 20,
+    "action": "light",
+    "t": 454.94912910461426,
+    "kind": "crystal",
+    "phase": "moths"
+   },
+   {
+    "spot": 23,
+    "action": "light",
+    "t": 460.51411843299866,
+    "kind": "crystal",
+    "phase": "moths"
+   },
+   {
+    "spot": 24,
+    "action": "light",
+    "t": 465.0639352798462,
+    "kind": "crystal",
+    "phase": "moths"
+   },
+   {
+    "spot": 100,
+    "action": "smash",
+    "t": 471.3922383785248,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 18,
+    "action": "pick",
+    "t": 481.12937116622925,
+    "kind": "fungus",
+    "phase": "moths"
+   },
+   {
+    "spot": 179,
+    "action": "light",
+    "t": 487.74406599998474,
+    "kind": "crystal",
+    "phase": "moths"
+   },
+   {
+    "spot": 26,
+    "action": "light",
+    "t": 514.0815260410309,
+    "kind": "crystal",
+    "phase": "moths"
+   },
+   {
+    "spot": 93,
+    "action": "smash",
+    "t": 518.9290132522583,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 93,
+    "action": "smash",
+    "t": 521.8344914913177,
+    "kind": "repeat",
+    "phase": "moths"
+   },
+   {
+    "spot": 27,
+    "action": "light",
+    "t": 523.863936662674,
+    "kind": "crystal",
+    "phase": "moths"
+   },
+   {
+    "spot": 28,
+    "action": "pick",
+    "t": 529.4293398857117,
+    "kind": "fungus",
+    "phase": "moths"
+   },
+   {
+    "spot": 29,
+    "action": "light",
+    "t": 534.6439442634583,
+    "kind": "crystal",
+    "phase": "moths"
+   },
+   {
+    "spot": 30,
+    "action": "light",
+    "t": 538.9053661823273,
+    "kind": "crystal",
+    "phase": "moths"
+   },
+   {
+    "spot": 180,
+    "action": "light",
+    "t": 542.5977730751038,
+    "kind": "crystal",
+    "phase": "moths"
+   },
+   {
+    "spot": 7,
+    "action": "pick",
+    "t": 544.7587530612946,
+    "kind": "fungus",
+    "phase": "moths"
+   },
+   {
+    "spot": 70,
+    "action": "bang",
+    "t": 550.1403245925903,
+    "kind": "bang",
+    "phase": "moths"
+   }
+  ],
+  "city": [
+   {
+    "spot": 55,
+    "action": "pick",
+    "t": 765.231861114502,
+    "kind": "boom_pile",
+    "phase": "boomseeds"
+   },
+   {
+    "spot": 54,
+    "action": "boom",
+    "t": 766.3101391792297,
+    "kind": "boom_target",
+    "phase": "boomseeds"
+   },
+   {
+    "spot": 55,
+    "action": "pick",
+    "t": 768.9330594539642,
+    "kind": "boom_pile",
+    "phase": "boomseeds"
+   },
+   {
+    "spot": 181,
+    "action": "boom",
+    "t": 780.3868689537048,
+    "kind": "boom_target",
+    "phase": "boomseeds"
+   },
+   {
+    "spot": 182,
+    "action": "boom",
+    "t": 802.7081615924835,
+    "kind": "boom_target",
+    "phase": "boomseeds"
+   },
+   {
+    "spot": 60,
+    "action": "pick",
+    "t": 827.0506293773651,
+    "kind": "boom_pile",
+    "phase": "boomseeds"
+   },
+   {
+    "spot": 183,
+    "action": "boom",
+    "t": 833.175484418869,
+    "kind": "boom_target",
+    "phase": "boomseeds"
+   },
+   {
+    "spot": 184,
+    "action": "boom",
+    "t": 833.9717838764191,
+    "kind": "boom_target",
+    "phase": "boomseeds"
+   },
+   {
+    "spot": 62,
+    "action": "boom",
+    "t": 837.077995300293,
+    "kind": "boom_target",
+    "phase": "boomseeds"
+   },
+   {
+    "spot": 60,
+    "action": "pick",
+    "t": 844.5153253078461,
+    "kind": "boom_pile",
+    "phase": "boomseeds"
+   },
+   {
+    "spot": 185,
+    "action": "boom",
+    "t": 851.7254316806793,
+    "kind": "boom_target",
+    "phase": "boomseeds"
+   },
+   {
+    "spot": 186,
+    "action": "boom",
+    "t": 854.3069250583649,
+    "kind": "boom_target",
+    "phase": "boomseeds"
+   },
+   {
+    "spot": 64,
+    "action": "pick",
+    "t": 930.9476842880249,
+    "kind": "boom_pile",
+    "phase": "light_source"
+   },
+   {
+    "spot": 187,
+    "action": "boom",
+    "t": 949.8911862373352,
+    "kind": "boom_target",
+    "phase": "light_source"
+   },
+   {
+    "spot": 188,
+    "action": "boom",
+    "t": 968.3538956642151,
+    "kind": "boom_target",
+    "phase": "light_source"
+   },
+   {
+    "spot": 65,
+    "action": "boom",
+    "t": 981.8462500572205,
+    "kind": "boom_target",
+    "phase": "light_source"
+   },
+   {
+    "spot": 189,
+    "action": "pick",
+    "t": 1071.2274951934814,
+    "kind": "boom_pile",
+    "phase": "light_source"
+   },
+   {
+    "spot": 68,
+    "action": "boom",
+    "t": 1110.2874534130096,
+    "kind": "boom_target",
+    "phase": "light_source"
+   },
+   {
+    "spot": 69,
+    "action": "pick",
+    "t": 1115.8697354793549,
+    "kind": "boom_pile",
+    "phase": "light_source"
+   },
+   {
+    "spot": 190,
+    "action": "boom",
+    "t": 1122.8700370788574,
+    "kind": "boom_target",
+    "phase": "light_source"
+   }
+  ],
+  "torches": [
+   {
+    "spot": 71,
+    "action": "bang",
+    "t": 557.1313881874084,
+    "kind": "flame",
+    "phase": "door"
+   },
+   {
+    "spot": 72,
+    "action": "bang",
+    "t": 565.5487115383148,
+    "kind": "flame",
+    "phase": "torches"
+   },
+   {
+    "spot": 73,
+    "action": "bang",
+    "t": 573.8175227642059,
+    "kind": "flame",
+    "phase": "torches"
+   },
+   {
+    "spot": 74,
+    "action": "bang",
+    "t": 582.095249414444,
+    "kind": "flame",
+    "phase": "last_torch"
+   }
+  ]
+ },
+ "sessions": [
+  "20261029_134501_mystery_below",
+  "20261030_100745_mystery_below"
+ ],
+ "reference": "20261030_100745_mystery_below"
+}

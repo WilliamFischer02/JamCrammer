@@ -11,6 +11,8 @@ Drop files here for JamCrammer to ingest. Contents are gitignored (only these RE
 | `arcade/jamaa_derby/` | Jamaa Derby screenshots and recordings |
 | `arcade/gem_ball/` | Gem Ball screenshots and recordings |
 | `arcade/other/` | any other mini-game |
+| `adventures/mystery_below/` | full solo runs of The Mystery Below (recordings + screenshots) |
+| `adventures/forgotten_desert/` | The Forgotten Desert: Join Me bubbles, the host lobby, shards, chests |
 | `_processed/` | originals are moved here after ingest. Never deleted. |
 
 ## Optional filename tags (pre-label a frame)

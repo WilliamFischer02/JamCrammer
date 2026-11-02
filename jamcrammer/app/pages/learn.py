@@ -25,13 +25,24 @@ from jamcrammer.app.engine import Engine
 from jamcrammer.app.widgets import Card, Page, icon_button, row
 from jamcrammer.core.events import Event
 
-TARGETS = ("bestguess", "double_up", "jamaa_derby", "gem_ball", "parties", "custom")
+TARGETS = (
+    "bestguess",
+    "double_up",
+    "jamaa_derby",
+    "gem_ball",
+    "parties",
+    "mystery_below",
+    "forgotten_desert",
+    "custom",
+)
 INBOX_FOR = {
     "bestguess": "bestguess",
     "double_up": "arcade/double_up",
     "jamaa_derby": "arcade/jamaa_derby",
     "gem_ball": "arcade/gem_ball",
     "parties": "parties",
+    "mystery_below": "adventures/mystery_below",
+    "forgotten_desert": "adventures/forgotten_desert",
     "custom": "arcade/other",
 }
 

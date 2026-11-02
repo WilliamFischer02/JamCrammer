@@ -74,6 +74,7 @@ class DerbyWorld:
     race_len_px: float = 36000.0
     wait_s: float = 3.0
     results_s: float = 5.0
+    stall_s: float = 0.6  # a stumble stops the scroll this long (live: 1-3 s)
     t: float = 0.0
     phase: str = "WAITING"
     phase_t0: float = 0.0
@@ -132,7 +133,7 @@ class DerbyWorld:
                         if self.t >= self.airborne_until:
                             b.hit = True
                             self.hits += 1
-                            self.stall_until = self.t + 0.6  # stumble: the track stops scrolling
+                            self.stall_until = self.t + self.stall_s  # stumble: no scroll
                 if self.dist >= self.race_len_px:
                     self.races += 1
                     self.places.append(1 if self.hits == 0 else min(6, 1 + self.hits))

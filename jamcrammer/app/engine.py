@@ -21,7 +21,14 @@ from jamcrammer.core.events import Event, EventBus
 from jamcrammer.core.logging import attach_bus, get_logger
 from jamcrammer.core.paths import Paths
 from jamcrammer.core.profiles import Profile, load_profile
-from jamcrammer.core.safety import Hotkeys, InputLease, KillSwitch, PauseFlag, PresenceDetector
+from jamcrammer.core.safety import (
+    Hotkeys,
+    InputLease,
+    KillSwitch,
+    PauseFlag,
+    PresenceDetector,
+    last_user_input_time,
+)
 from jamcrammer.core.store import Store
 from jamcrammer.learn.recorder import Recorder
 from jamcrammer.platform.capture import CaptureBackend, Frame, open_stage_backend
@@ -36,14 +43,18 @@ from jamcrammer.services.antiafk import AntiAfk, RoomDriftGuard
 from jamcrammer.services.ledger import GemLedger
 from jamcrammer.services.notify import ChannelResult, Notifier
 from jamcrammer.services.watchdog import Detection, PopupDetector, Watchdog
+from jamcrammer.vision.stage import StageMap
+
+BANNER_UPSCALE = 2.0  # the 36 px objective banner reads as nothing at 1x, perfectly at 2x
 
 log = get_logger("engine")
 
-MODES = ("planner", "hunt", "farm", "opportunist")
+MODES = ("planner", "hunt", "farm", "adventure", "opportunist")
 MODE_LABELS = {
     "planner": "Den Planner",
     "hunt": "Best Guess Hunter",
     "farm": "Arcade Farmer",
+    "adventure": "Adventure Farmer",
     "opportunist": "Opportunist",
 }
 PREVIEW_IDLE_S = 0.5
@@ -100,7 +111,6 @@ class Engine:
         attach_bus(self.bus)
         self.store = Store(self.paths.db)
         self.bus.subscribe("*", self._persist)
-        self._seed_facts()
         self.notifier = Notifier(cfg.notify, icon=self._icon_path())
         self.notifier.attach(self.bus)
         self.lease = InputLease()
@@ -108,6 +118,7 @@ class Engine:
         self.pause = PauseFlag()
         self.tracker = WindowTracker(cfg.window_title_match, cfg.window_process_name)
         self.state = EngineState(dry_run=cfg.dry_run)
+        self._seed_facts()  # after self.state: a failure is reported there
         self._backend: CaptureBackend | None = None
         self._latest: Frame | None = None
         self._latest_lock = threading.Lock()
@@ -128,6 +139,7 @@ class Engine:
         self.antiafk = AntiAfk(
             cfg.antiafk, self.input, self.guard, bus=self.bus, ensure_focus=self.focus_game
         )
+        self._last_keepalive = 0.0
         self.watchdog = Watchdog(
             cfg.watchdog,
             PopupDetector(self.profile("shared"), paths=self.paths),
@@ -189,7 +201,10 @@ class Engine:
 
     def focus_game(self) -> bool:
         info = self.tracker.info or self.tracker.refresh()
-        return bool(info and bring_to_foreground(info.hwnd, self.cfg.input.foreground_timeout_s))
+        ok = bool(info and bring_to_foreground(info.hwnd, self.cfg.input.foreground_timeout_s))
+        # the focus may tap ALT; count it as ours so presence detection doesn't see "user active"
+        self.input._touch("focus")
+        return ok
 
     def _on_fatal(self, det: Detection) -> None:
         self.kill_now(f"watchdog:{det.kind}")
@@ -292,6 +307,11 @@ class Engine:
             return False
         if not self.start_capture():
             return False
+        # On one screen (the laptop) Start leaves the GUI in front of the game: mss would capture
+        # the GUI and Space/arrow keys would land on its buttons. Bring the game forward first.
+        focused = self.focus_game()
+        if not focused:
+            self.emit("engine.focus_failed", Level.NOTICE, mode=name)
         # Start means "I checked the screen": clear a watchdog pause and an F11 pause
         self.watchdog.resume()
         if self.pause.paused:
@@ -307,6 +327,7 @@ class Engine:
             "hunt": self._run_hunt,
             "farm": self._run_farm,
             "opportunist": self._run_opportunist,
+            "adventure": self._run_adventure,
         }.get(name, self._run_placeholder)
         self._mode_thread = threading.Thread(
             target=self._mode_wrapper, args=(name, target), name=f"mode-{name}", daemon=True
@@ -351,7 +372,7 @@ class Engine:
         try:
             if path.exists() and not already_seeded(self.store, "wiki"):
                 n = seed_from_file(self.store, path, "wiki")
-                self.emit("bestguess.seeded", count=n, source="wiki")
+                self.emit("bestguess.seeded", count=n, facts_source="wiki")  # emit owns 'source'
         except Exception as exc:
             self.state.last_error = f"fact seeding failed: {exc}"
 
@@ -836,6 +857,274 @@ class Engine:
         self.lease.acquire("farm")
         stats = pilot.run(lambda: self._should_stop() or self.pause.paused, crashed)
         self.state.stats["farm"] = stats.as_dict()
+
+    def _run_adventure(self) -> None:
+        """Adventure route farmer (modes/adventures/replay.py) behind the gate: replays the
+        recorded run of ``adventures.route.target`` and keeps it on course; William's own
+        input pauses it and it continues where he leaves it."""
+        import cv2
+
+        from jamcrammer.core.gate import gate_status
+        from jamcrammer.modes.adventures.replay import FixLog, RouteRunner, Tape
+        from jamcrammer.modes.adventures.route import latest_session, load_or_build
+        from jamcrammer.vision.ocr import ocr_image
+
+        rc = self.cfg.adventures.route
+        gate = gate_status(rc.target, self.paths, self._profiles)
+        if not gate.unlocked and not rc.supervised:
+            self.emit(
+                "engine.gate_locked",
+                Level.HIGH,
+                mode="adventure",
+                message=f"{rc.target} {gate.summary()}",
+            )
+            self._run_placeholder()
+            return
+        if not gate.unlocked:
+            # William's call (adventures.route.supervised): he watches and steers
+            self.emit(
+                "adventure.supervised",
+                Level.NOTICE,  # his own setting: a toast, not the repeating HIGH alarm
+                message=f"SUPERVISED run, {rc.target} {gate.summary()}: stay at the keyboard",
+            )
+        sessions = self.paths.sessions
+        session = sessions / rc.session if rc.session else latest_session(sessions, rc.target)
+        if session is None or not session.exists():
+            self.state.last_error = f"no recorded {rc.target} run under {sessions}"
+            self.emit("adventure.no_route", Level.HIGH, message=self.state.last_error)
+            return
+        prof = self.profile("adventure")
+        raw = cv2.imread(str(prof.template_path("dialog_x_template", self.paths)))
+        if raw is None:
+            self.state.last_error = "dialog X template missing (assets/templates/adventures)"
+            self.emit("adventure.no_template", Level.HIGH, message=self.state.last_error)
+            return
+        x_tmpl = np.asarray(raw, dtype=np.uint8)
+        self._status(f"LOADING · route from {session.name}")
+        route = load_or_build(session, rc.target, prof, rc, x_tmpl)
+        start_rt: float | None = None
+        if self.cfg.adventures.level.enabled:
+            start_rt = self._run_level(route, prof, x_tmpl)
+            if start_rt is None:
+                return
+        tape = Tape(self._screen_to_stage)
+        tape.start()
+        runner = RouteRunner(
+            route,
+            prof,
+            rc,
+            self.input,
+            lambda: self.grab().image,
+            dialog_x=x_tmpl,
+            presence=self.presence,
+            bus=self.bus,
+            ocr=lambda img: ocr_image(img, upscale=BANNER_UPSCALE).text,
+            fixes=FixLog(self.paths.data / "adventures" / f"{rc.target}_fixes.jsonl"),
+            tape=tape,
+        )
+        self._mode_obj = runner
+        self.lease.acquire("adventure")
+
+        def guarded_stop() -> bool:
+            frame = self.snapshot()
+            if frame is not None:
+                # the runner closes in-game dialogs itself; logout and the like still stop it
+                self.watchdog.tick(frame, known_screen=True)
+            self._keepalive()
+            return self._should_stop() or self.pause.paused or self._watchdog_blocks()
+
+        try:
+            runner.run(guarded_stop, self._status, start_rt=start_rt)
+        finally:
+            tape.stop()
+        self.state.stats["adventure"] = runner.stats.as_dict()
+
+    def _keepalive(self) -> None:
+        """The game logs an idle account out ("gone for too long", five times on 2026-10-30).
+        While a mode waits (for William, for a banner) and neither the bot nor he has touched
+        the controls for ``heartbeat_s``, send the anti-AFK movement pair. Never while he is
+        active, never while the bot is driving."""
+        now = time.time()
+        if now - self.input.stats.last_injected_ts < self.cfg.heartbeat_s:
+            return
+        if now - last_user_input_time() < self.cfg.heartbeat_s:
+            return
+        if now - self._last_keepalive < self.cfg.heartbeat_s:
+            return
+        self._last_keepalive = now
+        try:
+            res = self.antiafk.cycle(lambda: self.grab().image)
+            self.emit("engine.keepalive", sent=res.sent, drift=round(res.drift.score, 2))
+        except Exception as exc:  # a keepalive must never take the mode down
+            self.emit("engine.keepalive_failed", Level.NOTICE, error=str(exc))
+
+    def _run_level(self, route: Any, prof: Profile, x_tmpl: Any) -> float | None:
+        """The menus by state and the moth chamber from the level model
+        (modes/adventures/{opening,level_runner}.py). Returns the route time the replay
+        continues from (the banner the level runner stopped at), or None to stop."""
+        import cv2
+
+        from jamcrammer.modes.adventures.level import Level as LevelModel
+        from jamcrammer.modes.adventures.level import level_dir
+        from jamcrammer.modes.adventures.level_runner import LevelRunner
+        from jamcrammer.modes.adventures.opening import Opening
+        from jamcrammer.vision.ocr import ocr_image
+
+        rc, lc = self.cfg.adventures.route, self.cfg.adventures.level
+        lvl = LevelModel.load(level_dir(self.paths.profiles, rc.target))
+        if lvl is None:
+            self.emit(
+                "adventure.no_level",
+                Level.NOTICE,
+                message=f"no level model for {rc.target} (Adventures tab: Rebuild); route replay only",
+            )
+            return 0.0
+
+        def guarded_stop() -> bool:
+            frame = self.snapshot()
+            if frame is not None:
+                self.watchdog.tick(frame, known_screen=True)
+            self._keepalive()
+            return self._should_stop() or self.pause.paused or self._watchdog_blocks()
+
+        from jamcrammer.modes.adventures.inventory import DigitBank
+        from jamcrammer.modes.adventures.objects import CourageText
+
+        digits_raw = cv2.imread(str(prof.template_path("count_digits_template", self.paths)))
+        digits = (
+            DigitBank(np.asarray(digits_raw, dtype=np.uint8), prof)
+            if digits_raw is not None
+            else None
+        )
+
+        courage_raw = cv2.imread(str(prof.template_path("courage_template", self.paths)))
+        courage = (
+            CourageText(np.asarray(courage_raw, dtype=np.uint8), prof)
+            if courage_raw is not None
+            else None
+        )
+        grab = lambda: self.grab().image  # noqa: E731
+        self.lease.acquire("adventure")  # the menu clicks are ours from here
+        self._status("MENUS · into the adventure")
+        opening = Opening(
+            lvl,
+            prof,
+            lc,
+            click=self.input.click,
+            grab=grab,
+            ocr=ocr_image,
+            dialog_x=x_tmpl,
+            bus=self.bus,
+            clock=time.monotonic,
+            sleep=time.sleep,
+            shots=self.paths.captures / "adventure_menus",
+        )
+        if not opening.run(guarded_stop):
+            self.state.stats["adventure_menus"] = {"steps": opening.steps}
+            return None
+        runner = LevelRunner(
+            lvl,
+            prof,
+            lc,
+            self.input,
+            grab,
+            banner_ocr=lambda img: ocr_image(img, upscale=BANNER_UPSCALE).text,
+            counter_ocr=lambda img: ocr_image(img, upscale=4.0).text,
+            counter_retry=lambda img: ocr_image(img, upscale=2.0).text,
+            digits=digits,
+            dialog_x=x_tmpl,
+            courage=courage,
+            presence=self.presence,
+            bus=self.bus,
+            shots=self.paths.captures / "adventure_shots",
+        )
+        self._mode_obj = runner
+        out = runner.run(guarded_stop, self._status)
+        self.state.stats["adventure_level"] = {"outcome": out, **runner.stats.as_dict()}
+        if out == "stopped":
+            return None
+        # continue by replay at the banner it reached (the door), else from the plan's end
+        key = runner.phase or "door"
+        for o in route.objectives:
+            p = lvl.phase_of(o.text)
+            if p is not None and p.key == key and p.mode != "plan":
+                self.emit("adventure.handover", Level.NOTICE, phase=key, rt=round(o.t, 1))
+                return float(o.t)
+        door = next(
+            (o for o in route.objectives if (p := lvl.phase_of(o.text)) and p.key == "door"), None
+        )
+        return float(door.t) if door is not None else 0.0
+
+    def rebuild_route(self, session: Path) -> str:
+        """Build the adventure route from a recorded run, validate it and write the replay
+        record the gate reads (Adventures page). Minutes for a long run: call off the GUI thread."""
+        import cv2
+
+        from jamcrammer.core.gate import write_replay_record
+        from jamcrammer.modes.adventures.route import build_route, validate_route
+
+        rc = self.cfg.adventures.route
+        prof = self.profile("adventure")
+        raw = cv2.imread(str(prof.template_path("dialog_x_template", self.paths)))
+        if raw is None:
+            return "dialog X template missing (assets/templates/adventures)"
+        x_tmpl = np.asarray(raw, dtype=np.uint8)
+        route = build_route(session, rc.target, prof, rc, x_tmpl)
+        acc, n = validate_route(route, rc)
+        write_replay_record(session, acc, n, "route_localize")
+        clicks = sum(s.kind != "key" for s in route.steps)
+        self.emit(
+            "adventure.route_built", session=session.name, steps=len(route.steps), accuracy=acc
+        )
+        level_note = self._rebuild_level(prof, x_tmpl)
+        return (
+            f"{len(route.steps)} steps ({clicks} clicks), {len(route.objectives)} objectives; "
+            f"localisation check {acc:.0%} over {n} frames; {level_note}"
+        )
+
+    def _rebuild_level(self, prof: Profile, x_tmpl: Any) -> str:
+        """The level model from every finished run of the target (docs/MYSTERY_BELOW.md),
+        saved under profiles/levels/<target>/ for the level runner."""
+        from jamcrammer.modes.adventures.level import (
+            PHASES_BY_TARGET,
+            build_level,
+            finished_sessions,
+            level_dir,
+        )
+
+        rc, lc = self.cfg.adventures.route, self.cfg.adventures.level
+        if rc.target not in PHASES_BY_TARGET:
+            return "no level model for this adventure"
+        sessions = (
+            [self.paths.sessions / name for name in lc.sessions]
+            if lc.sessions
+            else finished_sessions(self.paths.sessions, rc.target)
+        )
+        sessions = [s for s in sessions if s.exists()]
+        if not sessions:
+            return "level: no finished run to build from"
+        try:
+            lvl = build_level(sessions, rc.target, prof, cfg=lc, route_cfg=rc, x_tmpl=x_tmpl)
+            lvl.save(level_dir(self.paths.profiles, rc.target))
+        except Exception as exc:  # a half-recorded run must not take the page down
+            return f"level build failed: {exc}"
+        self.emit(
+            "adventure.level_built",
+            target=rc.target,
+            runs=len(sessions),
+            spots=len(lvl.spots),
+            acts=sum(len(v) for v in lvl.plan.values()),
+        )
+        return f"level from {len(sessions)} runs: {len(lvl.spots)} spots"
+
+    def _screen_to_stage(self, sx: int, sy: int) -> tuple[int, int] | None:
+        """A screen point inside the AJC client as stage pixels (William's corrective clicks)."""
+        info = self.tracker.info
+        if info is None or not info.contains_screen_point(sx, sy):
+            return None
+        cx, cy = info.to_client(sx, sy)
+        w, h = info.client_size
+        return StageMap(w, h).to_stage(cx, cy)
 
     def _run_placeholder(self) -> None:
         """farm / opportunist arrive in M7 / M9: keep the watchdog alive and say so."""

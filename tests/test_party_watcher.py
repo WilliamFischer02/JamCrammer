@@ -104,11 +104,11 @@ class FakeWorld:
 
     def __init__(self, an: PanelAnalyzer) -> None:
         self.an = an
-        self.room = (
-            _load(PATHS.root / "captures/panel_probe/0_before.png")
-            if (PATHS.root / "captures/panel_probe/0_before.png").exists()
-            else np.full((1080, 1920, 3), 120, dtype=np.uint8)
-        )
+        # The live room probe is gitignored; the fallback needs vertical texture so the
+        # post-join roll below actually changes the frame (a flat room never "changes").
+        probe = PATHS.root / "captures/panel_probe/0_before.png"
+        ramp = np.linspace(40, 200, 1080, dtype=np.uint8)[:, None, None]
+        self.room = _load(probe) if probe.exists() else np.repeat(np.repeat(ramp, 1920, 1), 3, 2)
         self.panel = _load(FIXTURE_FULL)
         self.open = False
         self.joined = False

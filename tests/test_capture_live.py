@@ -33,9 +33,9 @@ def test_backend_grabs_client_sized_nonblack_frame(tracker: WindowTracker, kind:
     cw, ch = info.client_size
     if kind == "wgc":
         # maximized/windowed Electron: WGC frames can be a few px smaller than the client
-        assert (
-            abs(frame.size[0] - cw) <= WGC_SIZE_SLACK and abs(frame.size[1] - ch) <= WGC_SIZE_SLACK
-        )
+        # (the border grows with DPI: 13 px at 200% on the laptop)
+        slack = WGC_SIZE_SLACK * info.dpi / 96
+        assert abs(frame.size[0] - cw) <= slack and abs(frame.size[1] - ch) <= slack
     else:
         assert frame.size == info.client_size
     assert frame.image.shape[2] == 3

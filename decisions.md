@@ -151,3 +151,304 @@ Non-obvious choices and why. Newest at the bottom.
 - **Account:** his character is now "Bingusthewizard" (own name in `bestguess.own_name`); the Best Guess tag check uses it.
 - **Shortcut:** `Desktop\JamCrammer.lnk` → `.venv\Scripts\pythonw.exe -m jamcrammer gui` in `C:\dev\JamCrammer` (OneDrive desktop).
 - **Not automated:** the Derby "leave" when the end screen is not showing (the planner waits for a leaderboard/start line), and Best Guess rows that are not the third item (the Hunter identifies the row by OCR/pHash, not by position).
+
+## 2026-10-29 — Laptop bring-up
+
+- **The stage fits the client height, not `min(w/1920, h/1080)`.**
+  - The laptop's maximized client is 2560x1459, slightly narrower than 16:9.
+  - HUD pieces cut from a live PC frame (news, party hat, den hut, globe, chat buttons) matched
+    there at scale **1.351 = 1459/1080**, with a constant shift of only +4/+1 stage px.
+  - The letterbox rule predicted 1.333, which was 12-16 client px off toward the bottom-right.
+  - The PC's maximized window (1904x1013, wider than 16:9) fits both rules, which is why the
+    old one went unnoticed.
+  - Narrower clients therefore crop the stage's sides (the Expand / Log Out tabs are cut off);
+    `normalize()` leaves the cropped stage columns black, so coordinates never shift.
+  - Untested: clients much narrower than 1.75:1, e.g. true fullscreen 2560x1600. Keep AJC
+    maximized on the laptop.
+- **Start focuses the game.** On a single screen the GUI covers AJC after Start: mss would
+  capture the GUI, and Space/arrow presses would land on its buttons. `start_mode` calls
+  `focus_game()` (the same verified `bring_to_foreground` the anti-AFK uses). Because the focus
+  may tap ALT, it is recorded as bot input, so presence detection doesn't read it as "user
+  active". It runs in dry-run too: it is a window-manager action, not game input.
+- **Gitignored state is carried by `scripts/sync_state.py`, not git.**
+  - The bundle includes config, the real profiles, the replay records, `derby_learned.json`,
+    and an SQLite-backup copy of the DB.
+  - Import backs up whatever it replaces.
+  - It **merges** `bg_facts`: union of facts, max of counts, and on a disagreement the side
+    with more confirmations wins. Both machines keep learning.
+- **Replay-gate records restored as imports.** The PC's Best Guess (97.5%, 396 frames) and Derby
+  (99.8%) dense replays opened those gates. Their sessions are not on the laptop, so
+  `captures/sessions/20261026_pc_import_{bestguess,jamaa_derby}/analysis/replay.json` carry the
+  scores with `imported_from: PC`. The gate line names them. A laptop Learn session replaces
+  them once recorded.
+- **Fresh-clone crash.** `Engine.__init__` seeded the wiki facts before `self.state` existed,
+  and the seed's event used the payload key `source`, which collides with `emit(source=...)`.
+  The first launch on any new machine died; on the PC the bank was already seeded. Seeding now
+  runs after the state is created, the key is `facts_source`, and
+  `test_engine_starts_on_a_fresh_clone` covers it.
+- **Adventure invites are found by OCR in two passes** (`modes/adventures/invites.py`). The
+  first pass is full-frame OCR for fragments of the adventure name, matched by a token prefix
+  or suffix of >=4 chars or by fuzzy match. The room-name label covered "...otten" on the laptop
+  frame, and the pale blue "Join Me" header is rarely read at 1x. The second pass OCRs an
+  upscaled crop above each candidate for "join"; that header is the click point. A candidate
+  without a header is reported but never clicked. A template would fail because the bubble is
+  translucent over arbitrary scenery.
+
+## 2026-10-29 — Derby tuned on the laptop from William's Learn sessions (laptop branch only)
+
+- **A band is judged once.** After a stumble the band sits at the hooves for 1-3 s. Opening a
+  new record whenever `_pending` was empty re-judged it every tick: one stumble gave 5-10 hits
+  and lead steps. `_await_next_band` now holds until the nearest band is ahead of the hooves
+  again. A press made while the band is already passing becomes that band's late press, so a
+  stumble teaches "earlier". The old stumble test pressed at -260 px, which is outside the
+  window the farmer acts in, and only passed through the re-judging.
+- **Per-class leads come from William's own presses, not a physical model.**
+  - The strip measures a band below our lane, and the bands' ragged edges put the lane edge
+    50-100 px from the strip edge, by a different amount per art piece.
+  - A reach model (speed x airtime - width) would need the hitbox and an exact airtime that
+    5 fps keyframes can't give (0.8-1.1 s, versus the PC video's 0.75).
+  - His 85 grounded first presses, which cleared, give a robust median per kind and width.
+    Classes with fewer than 4 samples use the 3-column median and are marked `proposed`.
+  - The lead scales with live speed / 845 to keep the time margin. The old fixed `jump_lead_s`
+    is skipped for class leads, because his press already includes the same input latency.
+- **Tapping through a landing.** A press in the air is ignored by the game. William holds Space
+  and key repeat (32 ms) fires the jump on touchdown. When the next jump comes due while the
+  horse is up (horse box says airborne, or less than one airtime since the last press), the
+  farmer taps every tick from then until 0.15 s past the predicted landing, never longer than
+  0.9 s, so it can't cause a second jump. Synthetic: a 200-250 px gap is cleared only with the
+  train. Such a band's record is tagged `rejump` and teaches no lead, since its timing was the
+  landing's.
+- **Tight gaps:** a 1- or 2-column band with less than `tight_gap_px` (400) of ground before the
+  next band is jumped `tight_extra_px` (40) earlier. Synthetic: a 150 px gap is cleared only
+  with it.
+- **Boost reserve:** one carrot is kept back and clicked the moment a stumble is recognised.
+  His runs: 2.5-3 s to recover unboosted versus 0.6-1 s boosted. It is released on a clear
+  stretch after 28 s (a clean race is ~40-45 s of racing).
+- **Live airtime:** the farmer tracks the horse's ground row and logs press-to-touchdown per
+  jump (`derby.landed`), smoothed into `derby_learned.json` and used for the train's landing
+  prediction. The default is 0.8 s until measured.
+- **13:43 live run with the per-class leads: three fixes.**
+  - **One press per band.** At a ~400 px lead the band is still ahead of the hooves when the
+    0.5 s cooldown ends, so it was pressed for again. The horse was up, so a tap train
+    started and the horse re-jumped on landing, into the band. `_pressed_for` now skips a band
+    of the last press's kind that sits within `same_band_px` (150) of where that band's edge
+    should be. Synthetic, 5 bands: 5 presses with it, 50 presses and 5 trains without.
+  - **Race clock from GO.** `started_ts` is the start line (~20 s of countdown), so the boost
+    reserve was released 8 s into the race and all three carrots were gone before the first
+    stumble. Boost timing now uses `go_ts`, the first racing frame.
+  - **The learner's verdict comes from the measured airtime.** With per-class leads every
+    press is more than 120 px ahead, so the offset rule called every stumble "early". Now a
+    stall seen before touchdown is late (+15 px), and one seen after touchdown means the horse
+    landed in the band: early (-15 px). The three corrections from that run came from the
+    bug and were cleared.
+  - **Measured airtime:** 16 live samples, 0.56-1.45 s, smoothed to 0.91 s. That is longer
+    than the PC video's 0.75 s.
+- **16:24-17:56 live run (71 races): the learner was being fed the wrong band.**
+  - **Clipped widths.** The strip ends at x 1816, and 3-column bands still run past it at the
+    press: hedges show 680-770 of their 815 px, right ends at 1750-1807. They were classed
+    2-column and pressed with the 263 px hedge 2-column lead, ~0.33 s before the edge
+    (hay 3-column is pressed 0.13 s before and never stumbled). They landed in the band, 37%
+    of them, and the lesson went to the hedge:3col key, which those presses never used. It
+    ratcheted to the -160 clamp.
+  - **Fix for clipped widths:** a band ending within `clip_margin_px` (80) of the strip edge
+    takes the narrowest class whose full width covers what is visible. The full width is the
+    median seen at the hooves, where every band is whole, taken from the learned history, with
+    `column_px` per column until there are records.
+  - **Misattribution.** A record stayed open for `hit_window_s` (1.3 s) after its band reached
+    the hooves, so a stall on the next band was charged to the earlier one, after its
+    touchdown, as "early". Event sequences showed the horse had already jumped the second band
+    by tapping through the landing.
+    - It moved single-column leads later every time: mud/hedge 1-column reached -150. That is
+      the opposite of William's advice and makes the landing-bound failure more likely.
+  - **Fix for misattribution:**
+    - Stalls are watched on the record's own band, the leftmost passing band not behind it.
+    - When a different band reaches the hooves, the record closes as cleared and the newcomer
+      gets its own record.
+    - A record takes a press only if it was the press for that band. The last 3 presses are
+      kept as `Press` tuples, matched by kind and expected edge.
+  - **Landing-bound stumbles now teach.** A stumble on a band jumped by tapping through a
+    landing means the band before it was jumped too late to land in time. That band's lead
+    moves +15 px. If that band was a tight press, the move goes to its own
+    `tight:<kind>:<wclass>` lead, added on top of `tight_extra_px` only when the next band is
+    close. Verdicts on a tight press also go to the tight lead, so single tight jumps don't
+    shift every jump of the class.
+  - **Clean airtime samples.** Only a plain press's landing is an airtime sample. A train's
+    takeoff is a prediction, and a retry's is unknown. Those gave the 0.4-0.9 s and 1.2-1.6 s
+    tails (1,035 samples: median 1.01 s, EMA drifted to 1.12 s).
+  - **Learner version 2.** On load, v1 leads are archived next to the file and dropped. Ranges,
+    airtime and history are kept.
+  - **Tried and reverted:** timing the next band's press while the first still passes the
+    hooves. In the real game the horse is always still in the air then, and the tap train
+    covers it, so it changed nothing but the bookkeeping.
+
+## 2026-10-29 — The Mystery Below route farmer (laptop branch)
+
+- **Replay with closed loops, not a scripted solver.**
+  - One 31-minute Hard run has 1436 clicks and 1394 key holds.
+  - A hand-written solver for moths, torches, mirrors and plates would need many more
+    recordings and screens.
+  - Instead the run is the route, and every input is anchored to what the screen shows now:
+    patch matching for clicks, scene and dot alignment for position, the banner for progress.
+  - When it cannot recover, it stops and asks; William's fix is stored and reused there.
+- **Minimap: coarse but absolute.**
+  - Measured over the run: 399 scene px/s against 5.8 minimap px/s, so the dot resolves ~70 px.
+  - It catches gross drift and stuck-ness, and works in the cave's darkness. Fine alignment is
+    scene phase correlation.
+  - The scene image is high-passed so the darkness vignette, which stays fixed around the
+    animal, does not pull the shift to zero.
+  - The animal is masked so a different animal aligns the same.
+- **Motion-compensated click anchors.** Keyframes come at <=5 fps, and the one before a press
+  can be up to 0.2 s old. If the view was scrolling, the clicked thing has moved since: in
+  synthetic tests a fungus was missed by 48 px. The anchor undoes the share of the next
+  frame's scene shift that had happened by the press time.
+- **No step runs twice by accident.** Timing corrections and getting unstuck keep the step
+  index; only the start, an objective ahead, a segment retry or William's resume move it.
+  Before this, a 0.5 s timing correction re-ran a fungus click, a drag and an item-slot click.
+  On a mirror that would be an extra rotation.
+- **After William only walked, skipped clicks still run.** A position further along the route
+  is not proof that its clicks happened. When he clicked during his turn, he is assumed to
+  have done them.
+- **The objective banner is matched by word set** (`token_set_ratio`). OCR of the banner
+  sometimes starts mid-sentence: "deeper into the cit use the boomseeds to find a wa" was
+  read as three objectives before.
+- **"Item changed" only counts while the view held still.** The item slots' area shows the
+  world when no item is displayed, and walking past changed it: 296 of 1503 clicks were
+  flagged, and each would have been retried.
+- **Equip check by cursor handle.** mss frames do not contain the cursor (Windows draws it).
+  `GetCursorInfo` is the same OS-level read as the cursor position, not game memory. A held
+  item changes it; the item slots changing also counts.
+- **The watchdog's unknown-dialog layer stays out** (`known_screen=True`). Adventure dialogs
+  are centred boxes, exactly what that heuristic flags; the runner closes them itself, and
+  logout/fatal checks still run.
+- **Dialogs are searched where they open** (`dialog_x_search_roi`). A full-frame template
+  search would cost 30-60 ms a tick.
+- **Scene gate: hold the route clock only when the scene cannot be aligned at all.** A
+  thumbnail that differs from the recording at the current route time (the level still loading,
+  the drop to the next floor) stops the clock, which then waits for the live view. But a 64x36
+  thumbnail also stops matching after ~140 px of drift. So it only holds when phase correlation
+  finds no shift either: a merely shifted scene is drift, which the course correction handles.
+  After 45 s it re-localises, else it asks for help. Thumbnails leave the HUD out entirely: it
+  used to be zeroed before the mean, which made a black frame correlate ~0.3 with every frame.
+- **The route gate stays honest; supervised runs are William's call.**
+  - On the real run the vision a route farmer relies on is far below the 95% replay threshold:
+    localisation 34.8% leave-out, 60-70% when resuming near the route clock, click targets
+    re-found 38%.
+  - The gate record keeps the 34.8%.
+  - `adventures.route.supervised` (default off) lets the mode send input with the gate locked,
+    with a HIGH event saying so. It is meant for runs he watches and steers. It is not turned
+    on without his explicit yes.
+  - More recordings (different animals) and his stored fixes are what should raise the
+    numbers.
+
+## 2026-10-30 — The Mystery Below: starting from the den (laptop branch)
+
+- **A start without a minimap dot goes to the top of the route.** The whole-route thumbnail
+  match put a den start at 1880 s (the recording ends in that den, 0.996), and with the tail
+  excluded the den still matched a fungi frame at 0.604, over `start_min_sim`. The 64x36
+  thumbnails cannot tell rooms from the cave; the dot can: 99% of the recorded adventure frames
+  have one (longest gap 4 frames), a den or a room has none. Start waits `start_look_s` (1 s)
+  for a dot to cover the gap.
+- **A mid-route start is dot-gated and honest about its odds.** With a dot it matches only
+  inside the adventure (first banner to completion banner), at frames whose dot is within
+  `drift_dot_px`. Leave-out on the real run: within 4 s of the truth 20% (dot within 2.5 px) to
+  31% (5 px), even restricted to the live objective's segment, because the route crosses the
+  same spots many times over 31 minutes. The position is right, the moment is not; the banner
+  check (`objective_ahead` / `behind`) is what fixes the moment, so this stays.
+- **The user turn ends on OS quiet, not on `user_active()` dropping.** `user_active()` is
+  "last OS input is newer than our last injection"; with nothing injected while waiting for
+  him it is true forever, which is why the 23:24 run sat in USER for 14 minutes. A takeover is
+  now his input within `resume_idle_s`; the turn ends after `resume_idle_s` of no input at all
+  (nothing of ours is sent during a turn, so all input is his).
+- **The opening is not aligned.** Before the first banner the recording shows the room he
+  started in (Coral Canyons) and the menus; a start from the den would have held the scene
+  gate for 45 s and then asked for help. The HUD clicks are screen-fixed, so scene hold,
+  course and stuck checks begin at the first banner, and a user turn there resumes at the same
+  route time instead of localising against menus.
+- **`adventure.supervised` is NOTICE.** It announces a setting he chose; HIGH (three sounds, a
+  long toast) is for things that need him now.
+
+## 2026-10-30 — The Mystery Below: a level model instead of blind replay (laptop branch)
+
+- **Minimap coordinates are the world frame.** The minimap is the same map in every run and
+  gives an absolute position even in the dark; scene pixels drift with the camera and the
+  thumbnails localised the route right only a third of the time. Everything the level model
+  stores (floor, spots, the plan) is in minimap px; screen positions are derived from the dot.
+- **The item counters verify acts.** A lit crystal's glow is detected only a third of the
+  time (the glow washes out), the counter's "N/3" is read 92% of the time and never wrong, and
+  a use always takes one. So an act is done when the counter moves, never when the picture
+  looks right.
+- **Spots are approximate, the screen decides.** The clicks placed on the minimap scatter 3-5
+  px (dot quantised to a pixel, a second of camera lag). Rather than chase exact positions,
+  the runner walks to within 3 px (a third of a screen) and finds the thing by colour there.
+- **The plan is the reference run's act order, not a path model.** William's order differs
+  between runs and the game does not care; the newest run's sequence is replayed act by act,
+  an act whose crystal is not visible is skipped (it may already be lit), and restocking is
+  "nearest fungus spot", not his detour.
+- **Menus by OCR state, not by replayed clicks.** The Join/Host dialog has the same blue X as
+  the in-game dialogs, so a dialog closer must never run in the menus; and each menu click is
+  only right if the next panel shows. "PLAY" OCRs as "nay", so the lobby is recognised by the
+  adventure's name in its header.
+- **Walls are learned, not surveyed.** A held key with a still dot for a second marks a
+  3-cell wall and the path is replanned; a dialog holding the animal is closed first so it is
+  not mistaken for a wall. A survey mode driving the animal around was William's idea; the
+  recorded minimaps already show the floors, so it is not built.
+- **Torches and the city stay on replay for now** (`mode: replay` per phase). The model has
+  their spots (mirrors, rocks, piles) but no beam detector or switch timing yet; each phase
+  moves to the plan as it is built, and the handover is at the phase's banner.
+- **Stuck means still against an anchor, never against the last tick.** The dot moves a
+  quarter pixel per 50 ms tick, so any per-tick comparison with a 1 px threshold reads a walk
+  as a wall (the 12:11 run: every walk "blocked"). The anchor moves when the dot has gone 1 px.
+- **A fungus is picked by its pin, not by itself.** The paw pin appears over a fungus in
+  reach; the recordings' pickup clicks are all on it. So the pick act walks up until the pin
+  shows (template + yellow check) and clicks the pin.
+- **Markers are one detector with three inner marks.** The paw pin, the torch pin and the "!"
+  bubble are the same white shape with a yellow, orange or black mark inside; the recordings'
+  single clicks under a phase's banner say which marker a spot carries.
+- **An act's area opens with its first banner.** The torch hall is a new minimap; an act there
+  waits for "light the 3 torches" even if its own click came 3 s earlier, and the navigator
+  switches floors only then.
+- **The pilot is a tool, not a bot.** One command per process, William's switch, a yield to his
+  input, forbidden areas; its sessions are Learn recordings so nothing new has to be built to
+  learn from them.
+- **Counters by digit template, OCR second; the stock is never a remembered value.** The
+  empty slot's dimmed "0/3" is invisible to OCR; correlation against averaged digits ignores
+  contrast and read every frame tried. A stale count let the 15:43 run drop with nothing.
+- **One help per act, then skip.** Help that changes nothing twice is a loop; after William's
+  turn a light that still fails is skipped with a notice (he lit it by hand, or the spot is no
+  crystal), and a lit crystal within the map's error of the spot counts as done.
+- **Smashes come from the recording's repeated clicks and are verified by Courage pops.**
+  Rocks are grey like the cave, so they are clicked where the map says and the "Courage"
+  text says whether anything broke; purple crystals are found by colour first.
+- **An act's banner is the one 3 s before its click, not at it.** Some banners are caused
+  by the act (the pick banner comes as you reach the fungus); gating on them deadlocks.
+- **An act never runs before its banner.** The recording says under which banner each act
+  happened; the game gates rooms and crystals by the same banners (the door opens with "make
+  a path", the next crystal turns unlit as the moth arrives). Running ahead of the banner
+  finds the wrong blue thing (Cosmo, 14:13) or a muddy crystal.
+- **A target must be where the map says.** Spots are good to a few hundred scene px; a blob
+  further than 600 px from the prediction is not the thing, however blue.
+- **By screen when the thing is in view, by minimap only when it is not.** The crystals of a
+  path are a screen apart; a minimap plan between them fights objects the mask does not
+  know (the lit crystal blocked the diagonal on the 13:58 run and the walk oscillated).
+  Walking at the blob in bursts is direct and self-correcting.
+- **Stuck means a sidestep first, a wall second.** Things stand on the floor: the first
+  stuck steps across the heading; only a second stuck learns a wall, never at the goal.
+- **A crystal is lit only when the counter drops and the screen shows it.** The 13:19 run
+  consumed a blossom off the crystal: the counter alone lies. The Courage text (masked
+  template, 0 false positives on 100 other clicks) or a glow where it was dark is required.
+- **A crystal left dark stops the run, it does not get skipped.** Each path's crystals turn
+  unlit one by one behind the moth; skipping one leaves the rest muddy and every later act
+  fails. So a failed light asks for help and is tried again, never moved past.
+- **A list entry is matched by its nearest adventure name, never by a fragment.** The old
+  rule ("mystery" in any word at 75) clicked another adventure on the 12:37 run; the nearest
+  of the 20 names, by ratio, is unambiguous on the recorded list (the mystery below at 61,
+  the others 40-84 against their own names). The lobby header gets the same test before PLAY.
+- **The paw pin is found by colour, not by template.** William's screenshot of it scored
+  0.62 against the template cut from his recording (a paler paw, another size); a white
+  blob with enough yellow-to-beige inside finds both and nothing else in the cave.
+- **The adventure list scrolls by its arrow.** A scrollbar drag depends on where the thumb
+  is; released over something else it acts on that thing (it switched William's animal).
+- **Join, not Host**, because both recordings did that and it ran solo (`adventures.level.join`).
+  **Hard always**: William (2026-10-30) says the second half of the level needs Hard mode, so
+  `adventures.level.hard` stays true; Normal is only for a deliberate experiment.
+

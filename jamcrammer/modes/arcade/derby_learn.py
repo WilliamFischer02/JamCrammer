@@ -7,6 +7,9 @@ landed, the band's colour) drives two kinds of adjustment, both persisted in
 ``data/derby_learned.json`` and logged as ``derby.learned`` events:
 
 - a press that was late / early for that (kind, width) class moves the class lead in pixels;
+  pressed with little ground before the next band, it moves that class's *tight* lead instead;
+- a band hit because the horse was still up from the band before moves that earlier band's
+  lead earlier, so the horse lands sooner (William: jump single columns early in a tight pair);
 - a band that was never pressed for (not detected) widens that kind's colour range toward
   the band's measured colour, within the kind's hue family and never into the grass.
 """
@@ -14,6 +17,7 @@ landed, the band's colour) drives two kinds of adjustment, both persisted in
 from __future__ import annotations
 
 import json
+import statistics
 import time
 from collections import deque
 from dataclasses import asdict, dataclass, field
@@ -26,6 +30,10 @@ HsvRange = tuple[tuple[int, int, int], tuple[int, int, int]]
 HUE_FAMILY = {"hay": (12, 40), "mud": (0, 26), "water": (68, 112), "hedge": (34, 72)}
 HEDGE_V_MAX = 172  # light grass starts around V 150-180; never widen a hedge into it
 MIN_SAT = 40
+# 2: stumbles on the second band of a tight pair and clipped 3-column widths no longer feed
+# the leads; v1 leads learned from those (live 2026-10-29, 50 races) are archived and dropped
+LEARN_VERSION = 2
+CLASSES = ("1col", "2col", "3col")
 
 
 def width_class(width: int, column_px: int) -> str:
@@ -45,6 +53,8 @@ class BandRecord:
     boosted: bool
     colour: list[list[int]] | None = None  # HSV p5 / p50 / p95 of the band's columns
     outcome: str = "pending"  # cleared | hit
+    rejump: bool = False  # jumped by tapping through a landing: its timing was the landing's
+    tight: bool = False  # pressed with little ground before the next band (tight lead applied)
 
     def as_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -57,7 +67,9 @@ class LearnedDerby:
     ranges: dict[str, list[list[int]]] = field(default_factory=dict)  # kind -> [lo, hi]
     hits: int = 0
     cleared: int = 0
+    airtime_s: float | None = None  # press to landing, measured live (smoothed)
     history: deque[dict[str, Any]] = field(default_factory=lambda: deque(maxlen=300))
+    reset_note: str = ""  # set when an older learner's leads were archived on load
 
     @classmethod
     def load(cls, path: Path | None) -> LearnedDerby:
@@ -72,7 +84,23 @@ class LearnedDerby:
         obj.ranges = {str(k): v for k, v in doc.get("ranges", {}).items()}
         obj.hits = int(doc.get("hits", 0))
         obj.cleared = int(doc.get("cleared", 0))
+        air = doc.get("airtime_s")
+        obj.airtime_s = float(air) if air else None
         obj.history.extend(doc.get("history", [])[-300:])
+        version = int(doc.get("version", 1))
+        if version < LEARN_VERSION and obj.lead_px:
+            stamp = time.strftime("%Y%m%d_%H%M%S")
+            archive = path.with_name(f"{path.stem}_v{version}_{stamp}.json")
+            try:
+                archive.write_text(path.read_text(encoding="utf-8"), encoding="utf-8")
+            except OSError:
+                return obj  # keep the old leads rather than lose them unarchived
+            obj.reset_note = (
+                f"leads from learner v{version} dropped (archived to {archive.name}): "
+                f"{', '.join(f'{k} {v:+.0f}' for k, v in sorted(obj.lead_px.items()))}"
+            )
+            obj.lead_px = {}
+            obj.save()
         return obj
 
     def save(self) -> None:
@@ -80,17 +108,37 @@ class LearnedDerby:
             return
         self.path.parent.mkdir(parents=True, exist_ok=True)
         doc = {
+            "version": LEARN_VERSION,
             "updated": time.strftime("%Y-%m-%d %H:%M:%S"),
             "lead_px": self.lead_px,
             "ranges": self.ranges,
             "hits": self.hits,
             "cleared": self.cleared,
+            "airtime_s": self.airtime_s,
             "history": list(self.history),
         }
         self.path.write_text(json.dumps(doc, indent=1), encoding="utf-8")
 
     def lead_for(self, kind: str, wclass: str) -> float:
         return self.lead_px.get(f"{kind}:{wclass}", 0.0)
+
+    def tight_lead_for(self, kind: str, wclass: str) -> float:
+        return self.lead_px.get(f"tight:{kind}:{wclass}", 0.0)
+
+    def class_covering(self, kind: str, visible: int, cfg: DerbyConfig) -> str:
+        """Width class of a band whose far end is still off the strip: the narrowest class
+        whose full width (median seen at the hooves, where every band is whole) covers what
+        is visible. Without records for a class, ``column_px`` per column stands in."""
+        widths: dict[str, list[int]] = {}
+        for r in self.history:
+            if r.get("kind") == kind and r.get("wclass") in CLASSES:
+                widths.setdefault(str(r["wclass"]), []).append(int(r["width"]))
+        for cols, wclass in enumerate(CLASSES, start=1):
+            seen = widths.get(wclass)
+            full = statistics.median(seen) if seen else cols * cfg.column_px
+            if full >= visible - cfg.clip_tolerance_px:
+                return wclass
+        return CLASSES[-1]
 
     def range_for(self, kind: str, default: HsvRange) -> HsvRange:
         r = self.ranges.get(kind)
@@ -101,8 +149,19 @@ class LearnedDerby:
 
     # --- updates ----------------------------------------------------------------------------------
 
-    def note(self, rec: BandRecord, cfg: DerbyConfig, trigger_x: int, default: HsvRange) -> str:
-        """Fold one judged band into the adjustments. Returns a short note of what changed."""
+    def note(
+        self,
+        rec: BandRecord,
+        cfg: DerbyConfig,
+        trigger_x: int,
+        default: HsvRange,
+        *,
+        verdict: str | None = None,
+        prev: BandRecord | None = None,
+    ) -> str:
+        """Fold one judged band into the adjustments. Returns a short note of what changed.
+        ``prev``: the band jumped just before this one, for a stumble that came from that
+        jump's landing."""
         self.history.append(rec.as_dict())
         if rec.outcome != "hit":
             self.cleared += 1
@@ -110,25 +169,42 @@ class LearnedDerby:
             return ""
         self.hits += 1
         note = ""
-        key = f"{rec.kind}:{rec.wclass}"
+        if rec.rejump:
+            # the horse was still up from the band before: nothing about this band's lead to
+            # learn, but that band was jumped too late to land in time
+            if prev is not None and prev.outcome == "cleared" and prev.press_edge is not None:
+                note = "landing-bound: " + self._nudge(prev, cfg.learn_lead_step_px, cfg)
+            else:
+                note = "landing-bound"
+            self.save()
+            return note
         if rec.press_edge is None:
             if rec.colour is not None:
                 note = self._widen(rec.kind, rec.colour, default)
         else:
             offset = rec.press_edge - trigger_x  # >0: pressed before the edge got there
             step = cfg.learn_lead_step_px
-            if offset < 0:
+            if verdict == "late":
+                delta = step  # stumbled before touchdown: the jump came too late
+            elif verdict == "early":
+                delta = -step  # landed in the band: jumped too early
+            elif offset < 0:
                 delta = step  # late: press earlier next time
             elif offset > cfg.learn_early_px:
                 delta = -step  # early: landed before the band arrived
             else:
                 delta = step / 2  # on the edge and still hit: lean earlier
-            cur = self.lead_for(rec.kind, rec.wclass) + delta
-            new = min(cfg.learn_lead_max_px, max(-cfg.learn_lead_max_px, cur))
-            self.lead_px[key] = round(new, 1)
-            note = f"lead {key} {delta:+.0f}px -> {new:.0f}px"
+            note = self._nudge(rec, delta, cfg)
         self.save()
         return note
+
+    def _nudge(self, rec: BandRecord, delta: float, cfg: DerbyConfig) -> str:
+        """Move the lead the band was pressed with (its tight lead if it was a tight press)."""
+        key = f"tight:{rec.kind}:{rec.wclass}" if rec.tight else f"{rec.kind}:{rec.wclass}"
+        cur = self.lead_px.get(key, 0.0) + delta
+        new = min(cfg.learn_lead_max_px, max(-cfg.learn_lead_max_px, cur))
+        self.lead_px[key] = round(new, 1)
+        return f"lead {key} {delta:+.0f}px -> {new:.0f}px"
 
     def _widen(self, kind: str, colour: list[list[int]], default: HsvRange) -> str:
         p5, _p50, p95 = colour

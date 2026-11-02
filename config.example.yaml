@@ -112,6 +112,17 @@ planner:
   hunt_interval_s: 20                        # My Parties re-check cadence once Best Guess is due
   max_attempts: 2
 
+# --- Adventures (The Forgotten Desert / The Mystery Below, docs/ADVENTURES.md) ---
+adventures:
+  invite_keywords: [forgotten desert]        # "Join Me" bubbles naming these adventures are joined
+  invite_join_words: [join, join me]         # the bubble's clickable blue header
+  invite_fuzzy: 75                           # name fragments: the room label can cover half the bubble
+  invite_min_chars: 4
+  invite_line_gap: 1.5                       # name lines of one bubble, in line heights
+  invite_crop_up: 3.0                        # "Join" is searched up to 3 name-line heights above
+  invite_crop_side: 4.0
+  invite_upscale: 2.0
+
 # --- Opportunist (KICKOFF 10) ---
 opportunist:
   entry_timeout_s: 8                         # the board must show within this after the entry clicks
@@ -186,3 +197,12 @@ derby:
   highlight_row_fill: 0.5                    # rows of the frame's long yellow lines
   highlight_min_rows: 6
   highlight_max_height_px: 90
+
+# --- Pilot: Claude at the controls (docs/PILOT.md) ---
+pilot:
+  enabled: false                             # William's switch: pilot input allowed (look always works)
+  forbidden_rois: [[760, 990, 600, 90], [1840, 985, 80, 95]]   # the chat field and the log-out button: never clicked
+  max_hold_s: 3.0                            # a movement key held at most this long per command
+  yield_s: 2.0                               # William's own input this recent: his controls, the pilot refuses
+  max_goto_s: 60                             # one goto walks at most this long
+  area: moths                                # the level area whose floor goto plans on
