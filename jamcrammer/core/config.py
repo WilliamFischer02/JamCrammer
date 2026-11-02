@@ -321,6 +321,36 @@ class LevelConfig(StrictModel):
     # 2026-10-30); Normal is only here for a deliberate experiment
 
 
+class WorldConfig(StrictModel):
+    """The world map of an adventure (modes/adventures/world.py, docs/MAPPING.md): one
+    occupancy grid and one scene mosaic per area, in scene px anchored to the minimap, plus
+    the things in it; the localiser (localize.py) fuses the minimap dot with scene
+    odometry; the pilot's probes find walls by walking into them."""
+
+    grid_px: int = Field(35, ge=5)  # scene px per occupancy cell (half a minimap px)
+    mosaic_scale: float = Field(0.2, gt=0, le=1)  # the mosaic is kept at this downscale
+    vignette_px: int = Field(480, ge=0)  # the lit disc around the animal that is pasted in
+    mosaic_min_v: int = Field(24, ge=0, le=255)  # darker pixels never overwrite the mosaic
+    merge_px: float = Field(120.0, ge=0)  # observations of one kind this close are one object
+    # odometry: phase correlation between consecutive frames (sight.scene_shift)
+    odom_scale: float = Field(0.25, gt=0, le=1)
+    odom_sigma: float = Field(6.0, gt=0)
+    odom_min_response: float = Field(0.05, ge=0)  # a weaker peak is no measurement
+    odom_max_px_s: float = Field(700.0, gt=0)  # faster than the animal walks: a bad peak
+    # the minimap dot: absolute, quantised to a pixel (~70 scene px), a little behind
+    dot_gain: float = Field(0.15, ge=0, le=1)  # pull toward the dot per update
+    dot_reset_px: float = Field(250.0, ge=0)  # this far off the dot ...
+    dot_reset_n: int = Field(4, ge=1)  # ... this many updates in a row: the dot wins outright
+    dot_rejoin_px: float = Field(100.0, ge=0)  # between commands, a dot this far from the
+    # estimate means someone moved the animal: start from the dot again
+    # probing: hold a direction until the scene stops moving
+    probe_tick_s: float = Field(0.1, gt=0)
+    probe_max_s: float = Field(2.5, gt=0)
+    stuck_px: float = Field(12.0, ge=0)  # moved less than this in a tick while a key is held
+    stuck_ticks: int = Field(3, ge=1)  # ... this many ticks running: a collision
+    unknown_cost: float = Field(3.0, ge=1)  # A* cost of an unknown cell (floor 1, walked 0.8)
+
+
 class AdventureConfig(StrictModel):
     """Adventure bots (The Forgotten Desert, The Mystery Below): invite bubbles in Jamaa rooms."""
 
@@ -334,6 +364,7 @@ class AdventureConfig(StrictModel):
     invite_upscale: float = Field(2.0, gt=0)  # OCR upscale of the bubble crop
     route: RouteConfig = RouteConfig()
     level: LevelConfig = LevelConfig()
+    world: WorldConfig = WorldConfig()
 
 
 class OpportunistConfig(StrictModel):
@@ -469,6 +500,9 @@ class PilotConfig(StrictModel):
     yield_s: float = Field(2.0, ge=0)  # William's own input this recent: his controls, refuse
     max_goto_s: float = Field(60.0, gt=0)  # one goto walks at most this long
     area: str = "moths"  # the level area whose floor goto plans on
+    budget_min: float = Field(45.0, gt=0)  # a pilot session sends input at most this long
+    serve_poll_s: float = Field(0.05, gt=0)  # the server looks for a command file this often
+    serve_timeout_s: float = Field(90.0, gt=0)  # a client waits this long for the server's answer
 
 
 class SwoopyConfig(StrictModel):

@@ -122,6 +122,25 @@ adventures:
   invite_crop_up: 3.0                        # "Join" is searched up to 3 name-line heights above
   invite_crop_side: 4.0
   invite_upscale: 2.0
+  world:                                     # the world map (docs/MAPPING.md): per area a grid, a mosaic, the things
+    grid_px: 35                              # scene px per occupancy cell (half a minimap px)
+    mosaic_scale: 0.2                        # the mosaic is kept at this downscale
+    vignette_px: 480                         # the lit disc around the animal that is pasted into the mosaic
+    mosaic_min_v: 24                         # darker pixels never overwrite the mosaic
+    merge_px: 120                            # sightings of one kind this close are one thing
+    odom_scale: 0.25                         # odometry: phase correlation at this downscale ...
+    odom_sigma: 6.0                          # ... after this high-pass (the darkness vignette)
+    odom_min_response: 0.05                  # a weaker correlation peak is no measurement
+    odom_max_px_s: 700                       # faster than the animal walks: a bad peak
+    dot_gain: 0.15                           # the estimate moves this share toward the dot per update
+    dot_reset_px: 250                        # this far off the dot ...
+    dot_reset_n: 4                           # ... this many updates running: the dot wins outright
+    dot_rejoin_px: 100                       # between commands, a dot this far away means the animal was moved
+    probe_tick_s: 0.1                        # a probe looks this often
+    probe_max_s: 2.5                         # ... and walks at most this long
+    stuck_px: 12                             # moved less than this in a tick while a key is held ...
+    stuck_ticks: 3                           # ... this many ticks running: a collision
+    unknown_cost: 3.0                        # A* cost of an unknown cell (floor 1, walked 0.8)
 
 # --- Opportunist (KICKOFF 10) ---
 opportunist:
@@ -206,3 +225,6 @@ pilot:
   yield_s: 2.0                               # William's own input this recent: his controls, the pilot refuses
   max_goto_s: 60                             # one goto walks at most this long
   area: moths                                # the level area whose floor goto plans on
+  budget_min: 45                             # a pilot session sends input at most this long (time-boxed)
+  serve_poll_s: 0.05                         # `pilot serve` looks for a command file this often
+  serve_timeout_s: 90                        # a client waits this long for the server's answer

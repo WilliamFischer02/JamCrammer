@@ -1,6 +1,42 @@
 # Handoff
 
-_Last updated: 2026-10-30 (The Mystery Below: level model, menus by state, moth chamber from a plan)_
+_Last updated: 2026-11-02 (the world map, the localiser, pilot v2 with a server: docs/MAPPING.md)_
+
+## The world map and pilot v2 (2026-11-02, PC, main)
+William's brief: the replay-and-fix loop on The Mystery Below is too slow; he wants a
+virtual map of the level the bot always places itself in, built by Claude piloting the
+character (walls by collision, things labelled), with the next objective chosen from the
+map. Assessment, design and plan: **`docs/MAPPING.md`**. Built today (milestone A1):
+- **`modes/adventures/world.py`**: per area an occupancy grid (35 scene px cells: unknown /
+  floor / walked / blocked), a scene mosaic at 1/5 scale, typed things with status, source
+  and confidence (merged by kind and distance), collisions, notes; A* on the grid; a
+  rendered map PNG; files under `profiles/levels/<target>/world/`. Seeded from the level
+  model (floors, 201 spots) when no saved world exists.
+- **`modes/adventures/localize.py`**: the position in world px from scene odometry (phase
+  correlation between consecutive frames) fused with the minimap dot; a probe knows it is
+  stuck in 0.3 s.
+- **`pilot.py` / `commands/pilot_cmd.py`**: an `Executor` with injected eyes and hands (the
+  synthetic adventure drives it in tests); new commands `probe`, `survey`, `scan`, `mark`,
+  `where`, `map`, `unblock`, `forget`, `save`, `status`; `goto --world`; **`pilot serve`**
+  keeps one process up and answers command files (`data/pilot/cmd|out`), the client sends
+  itself there when the server's heartbeat is fresh. Input now needs a started session and
+  stops at its budget (`pilot start --budget 30 --goal ...`).
+- `config.yaml`: `adventures.world.*` (`WorldConfig`), `pilot.budget_min`,
+  `pilot.serve_poll_s`, `pilot.serve_timeout_s`.
+- **Verified:** `tests/test_world.py` (12 tests on the synthetic adventure: coordinates,
+  the level seed, save/load, planning around blocks, odometry within 45 px over a 2 s walk,
+  a probe that finds a wall within 40 px, a scan that places a crystal within 60 px, a mark,
+  the map PNG, the switch and the budget, the server round trip, the real level seeding a
+  world). ruff, mypy, the full suite green. `pilot look` ran against the live window
+  (read-only): it showed the logged-out dialog, so nothing live was tried.
+- **Next (A2, needs William):** log in, stand in the start room of The Mystery Below (or
+  the den), `pilot.enabled: true`, then a 30-minute session: `pilot serve`, `where`,
+  `survey`, `scan`, `look`, `mark`, `map`. Measure the odometry and the probe stops live
+  and put the numbers in `docs/MAPPING.md` §3. Then A3 (the chamber mapped) and A4 (the
+  level runner plans on the map). Questions for him are in `docs/MAPPING.md` §6.
+- **Note:** the two Mystery Below recordings are on the laptop only; `captures/sessions`
+  on the PC has none. The committed `profiles/levels/mystery_below/` (level.json, floors)
+  is what seeds the world here.
 
 ## Laptop (2026-10-29)
 - **Git on the laptop:** work happens on the local branch `laptop`; `main` stays at

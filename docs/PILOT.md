@@ -1,4 +1,4 @@
-# The pilot: Claude at the controls (v1 · 2026-10-30)
+# The pilot: Claude at the controls (v2 · 2026-11-02; v1 2026-10-30)
 
 William's idea: let Claude Code, which can look at a frame and think about it, drive the
 game directly, to explore rooms, map levels, learn the menus and collect templates, with
@@ -15,12 +15,21 @@ under `captures/pilot/` as full PNGs plus half-size copies for reading.
 
 | Command | What it does |
 |---|---|
-| `pilot start [--target mystery_below]` | starts a Learn recording in the background (`learn --stop-file`) and makes it the active pilot session; keyframes, OCR and every input land in `captures/sessions/<stamp>_<target>_pilot/` as in any Learn session |
-| `pilot look` | one frame: menu state, banner and phase, minimap dot, item counts, dialog X, crystals / fungi / the paw pin, OCR lines; saves the frame |
-| `pilot key <up/down/left/right/space/escape> <seconds>` | holds a key (at most `max_hold_s`), reports the dot before and after and the scene shift |
+| `pilot start [--target mystery_below] [--budget MIN] [--goal ...]` | starts a Learn recording in the background (`learn --stop-file`) and makes it the active pilot session with a stated goal and a time budget (`pilot.budget_min`, 45); keyframes, OCR and every input land in `captures/sessions/<stamp>_<target>_pilot/` as in any Learn session |
+| `pilot serve` / `pilot quit` / `pilot status` | one process that keeps the window, the capture and the world map open and answers every other command through `data/pilot/cmd/` in a fraction of a second (`docs/MAPPING.md` §4); without it each command is its own 4-5 s process |
+| `pilot look` | one frame: menu state, banner and phase, minimap dot, item counts, dialog X, crystals / fungi / the paw pin, OCR lines, the fused position (world px and minimap px); saves the frame |
+| `pilot where` | the fused position, the grid state under the animal, the things within 1,200 px with their predicted screen points, the collisions nearby |
+| `pilot probe <dir> [--max s] [--note ...]` | walks up / down / left / right / ul / ur / dl / dr until the scene stops moving (a wall, a rock, a ledge, an NPC) or `--max`; the stop is a collision on the world map, the cell ahead blocked |
+| `pilot survey [--max s] [--dirs 4\|8]` | probes every direction from here and walks back by odometry: the obstacle edges around the animal in one command |
+| `pilot scan` | puts what the detectors see (crystals by status, decoys, fungi, pins) on the world map at confidence 0.5 |
+| `pilot mark <kind> [x y] [--status s] [--note ...] [--world]` | puts what I say is there on the map at confidence 0.9: at a screen point, at the animal (no x y), or at a world point |
+| `pilot forget <id>` / `pilot unblock [x y]` | a thing is not there / no wall here after all |
+| `pilot map [--area a] [--crop x y w h] [--zoom z] [--no-labels]` | renders the world map to a PNG to read: grid colours, the mosaic, the things with ids, collisions, the animal, minimap gridlines labelled in minimap px |
+| `pilot save` | writes the world map now (it is also saved after every command that changed it) |
+| `pilot key <up/down/left/right/space/escape> <seconds>` | holds a key (at most `max_hold_s`); an arrow is tracked on the map (distance travelled, position before and after) |
 | `pilot click <x> <y>` | a stage-pixel click; refused on the chat field or the log-out button |
 | `pilot drag <x0> <y0> <x1> <y1>` | a drag (item slot onto a crystal, a scrollbar) |
-| `pilot goto <mx> <my> [--timeout s]` | walks to a minimap point by the level's floor mask (all floor when there is no level), the navigator's trace in the answer |
+| `pilot goto <x> <y> [--timeout s] [--tol px] [--world]` | walks to a minimap point (or a world point with `--world`) by the level's floor mask (all floor when there is no level), the navigator's trace in the answer, the walk tracked on the map |
 | `pilot note <text>` | a note into the session's `pilot_log.jsonl` (what I saw, what I think a thing is) |
 | `pilot crop <x> <y> <w> <h> <name>` | saves a template crop of the live frame under `captures/pilot/templates/` for promotion to `assets/templates/` later |
 | `pilot stop` | ends the recording |
@@ -33,7 +42,10 @@ exploration is read with `build_route` / `Route.load` directly).
 ## Guardrails (not optional)
 
 - **William's switch:** input commands work only with `pilot.enabled: true` in `config.yaml`.
-  `look`, `note` and `crop` always work. He turns it on for a session and off after.
+  `look`, `where`, `map`, `scan`, `mark`, `note` and `crop` always work. He turns it on for a
+  session and off after; the server re-reads it for every command.
+- **Time-boxed, enforced:** input needs a started session and stops when its budget is spent
+  (`pilot start --budget 30 --goal ...`; default `pilot.budget_min`).
 - **His controls:** any command that would send input is refused if the OS saw his own
   keyboard or mouse within `yield_s` (2 s). A `goto` stops the moment he touches anything.
 - **Never:** the chat field, the log-out button (`forbidden_rois`), typing text (the key list
@@ -47,6 +59,9 @@ exploration is read with `build_route` / `Route.load` directly).
   hall: 10 minutes"); when the budget is spent the session stops, mapped or not.
 
 ## The loop
+
+With `pilot serve` running in its own terminal, each command below answers in well under a
+second; the mapping commands are in `docs/MAPPING.md` §4 with a session walkthrough.
 
 ```
 pilot start --target mystery_below

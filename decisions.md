@@ -452,3 +452,43 @@ Non-obvious choices and why. Newest at the bottom.
   **Hard always**: William (2026-10-30) says the second half of the level needs Hard mode, so
   `adventures.level.hard` stays true; Normal is only for a deliberate experiment.
 
+
+## 2026-11-02 — The world map, the localiser and pilot v2 (PC, main)
+
+- **World px are scene px anchored to the minimap, one area per minimap.** The minimap
+  is pixel-identical across runs and the dot on it is absolute, so the world frame costs
+  nothing; and a screen point seen from a known position lands on it by one subtraction.
+  Minimap px stay the unit of `goto` and the level's spots (the map's gridlines are
+  labelled in them) so the two never need a third coordinate system.
+- **Three layers, not one.** The grid (walls and floor, for planning), the mosaic (what
+  the area looks like, for reading and later for matching) and the things (typed, with a
+  status and a source) answer different questions; folding them into one raster would lose
+  either the provenance of a thing or the cheapness of planning.
+- **Walls come from probes, never from pixels.** The cave's walls are dark on dark; a
+  collision (a key held, the scene not moving) is unambiguous and lands within a cell. The
+  cell ahead of the stop is blocked, the cell under the animal free, and `unblock` exists
+  because NPCs and moths stop the animal too.
+- **Odometry by phase correlation, the dot as the anchor.** The dot alone is 70 px
+  quantised and a second late; the scene shift between consecutive frames is exact per
+  tick but drifts. Fused with a small gain and a hard reset when far off the dot, a probe
+  stops within 40 px of the wall on the synthetic world and reports a stuck in 0.3 s instead
+  of the navigator's 1 s.
+- **Sightings merge by kind and distance, and confidence decides.** The level's spots
+  (0.4), a detector's scan (0.5) and Claude's mark (0.9) are the same thing when they are
+  within 120 px; the position moves toward the surer one and the status follows it. A
+  forgotten thing stays in the file as `gone` so a later scan does not resurrect it
+  silently (it is skipped by `near` / `nearest`).
+- **The executor has injected eyes and hands.** The real pilot wires the window, the
+  capture and the InputController; the tests wire the synthetic adventure. The dispatch
+  table is the one place a command name meets a method, so the server and the in-process
+  path cannot drift apart.
+- **A file-based server, not a socket.** `pilot serve` answers JSON command files; the
+  client writes one and waits. It is debuggable by hand, needs no port, and the server's
+  heartbeat file is also its liveness check. William's switch and the session pointer are
+  re-read per command so turning the switch off takes effect at once.
+- **Input needs a session and stops at a budget.** PILOT.md said sessions are time-boxed;
+  now the code refuses input without a started session and after `budget_min`. It is a
+  stricter rule than v1 (which allowed input without a session), chosen because the
+  recording is the only record of what the pilot did.
+- **The map is committed with the level.** `profiles/levels/<target>/world/` is a product
+  of the sessions like `level.json`; the mosaic PNGs are a few MB per area at 1/5 scale.
