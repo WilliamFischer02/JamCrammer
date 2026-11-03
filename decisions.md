@@ -492,3 +492,30 @@ Non-obvious choices and why. Newest at the bottom.
   recording is the only record of what the pilot did.
 - **The map is committed with the level.** `profiles/levels/<target>/world/` is a product
   of the sessions like `level.json`; the mosaic PNGs are a few MB per area at 1/5 scale.
+
+## 2026-11-02 — Interface overhaul and the Mapping tab
+
+- **The bot's controls live on its page, not in a global bar.** One bot runs at a time,
+  and what you want to see while it runs is that bot's numbers; a global bar showed a mode
+  combo and a long status line for everyone. The run strip exists only for the case the
+  bar served: you are on another page while a bot runs.
+- **One accent per bot, one for tools, muted for system.** The accent is applied through a
+  dynamic property and rules generated from tokens (`_accent_rules`), never an inline
+  colour, so the whole look still comes from `theme.py`.
+- **Animations are short and leave nothing behind.** Fades and pulses use graphics
+  effects that are removed when done (a resting effect costs a repaint through a pixmap);
+  meters and tiles animate the value, not the widget, so layouts never jump.
+- **The Mapping tab reads files, not the engine.** The pilot runs in its own process; the
+  tab watches `world.json`'s mtime, the tiles' mtimes and `position.json`, so it shows a
+  session no matter which process is mapping, and it costs nothing when nothing changes.
+- **Full-resolution tiles, written where observed.** A full-resolution mosaic of an area
+  would be 800 MB in memory; tiles on disk only where the animal has been are a few MB and
+  fill in like an explored chart. The low-resolution mosaic stays in memory for reading
+  the whole area and for matching.
+- **The pilot's own keys are not William's input.** `GetLastInputInfo` counts injected
+  input; the pilot uses the presence detector's rule (input at or just after our last
+  injection is ours) or it stops its own holds.
+- **A dialog is closed before every input command.** Cosmo's dialogs pop up next to the
+  fungi and hold the animal; a probe into one would read as a wall.
+- **JSON hand-offs retry on Windows locks.** A reader holding `server.json` for an
+  instant makes `os.replace` fail with a permission error; the server must not die on it.

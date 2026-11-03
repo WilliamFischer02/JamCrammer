@@ -1,6 +1,48 @@
 # Handoff
 
-_Last updated: 2026-11-02 (the world map, the localiser, pilot v2 with a server: docs/MAPPING.md)_
+_Last updated: 2026-11-02 evening (interface overhaul, the Mapping tab, the first live pilot steps)_
+
+## Interface overhaul, the Mapping tab, first live pilot steps (2026-11-02 evening, PC)
+William's answers: purple crystals and cracked rocks break by **repeated clicks** (several
+each); sessions travel in the sync bundle; the desktop is the main machine for a while;
+unattended runs are fine; he parked his animal in the Mystery Below start room.
+- **Interface** (`app/theme.py`, `widgets.py`, `main_window.py`, `pages/modes.py`): pages have
+  a kind (home / bot / tool / system) and an accent (Best Guess violet, Arcade blue,
+  Adventure amber, Opportunist green, Den Planner teal, tools cyan); the nav rail is grouped
+  Bots / Tools / System with an accent bar on the open page; every bot page starts with a
+  **run panel** (one status line, Start / Stop / Pause / Dry run, the bot's own tiles and
+  meters); the old top command bar is gone, replaced by a **run strip** that slides in only
+  while a bot runs and another page is open; starting a bot (page, dashboard, tray, F9)
+  opens its page; buttons pulse on press, meters and stat tiles animate, pages fade in;
+  shorter labels throughout; 41 new mono icons. QA screenshots at 100% and 150% in
+  `docs/ui/`.
+- **Mapping tab** (`pages/mapping.py`): the world map as a zoomable picture (grid colours,
+  the low-res mosaic with the unseen part transparent, **full-resolution tiles** that load
+  when zoomed in), the things with ids, collisions, the animal's position
+  (`data/pilot/position.json`, written by the pilot); meters for the share of the known
+  floor seen and walked, counts, the agent's session and budget and its last command;
+  Export PNG stitches the observed tiles into one full-resolution file under
+  `captures/maps/` and opens it. Refreshes every 3 s while the world file changes.
+- **World map**: `TileStore` (`world.py`) keeps 512 px full-resolution tiles under
+  `profiles/levels/<target>/world/tiles/<area>/`, written only where observed;
+  `World.coverage(area)` gives the numbers the tab shows.
+- **Pilot fixes from the first live steps:** (1) the OS counts the pilot's own injected
+  keys as input, so a hold stopped itself after 15 px: `_user_input_age` now treats input
+  at or just after our last injection as ours (the presence detector's rule); (2) Cosmo's
+  dialog held the animal: the executor closes any game dialog before input and treats a
+  stop with a dialog open as `dialog`, not a collision; (3) the server died on a Windows
+  file lock when a client read the heartbeat while it was replaced: JSON writes retry and
+  the serve loop never dies on a file error; (4) `pilot start` now names the recorder's
+  folder (`learn --session-dir`) so the pilot log and the recording share a folder.
+- **Live numbers so far:** a 0.6 s hold right travelled 254 px (423 px/s, matches the
+  recordings' 400), odometry response 0.6-0.96, fused position 7-12 px off the dot. The
+  banner moved to "pick some light blossoms" as the animal reached the start fungus.
+- **Keepalive:** `scripts/pilot_keepalive.ps1` sends a left/right pair through the pilot
+  every 4 min so the parked account is never logged out while Claude works elsewhere
+  (log `data/logs/pilot_keepalive.log`; stop file `data/pilot/keepalive.stop`).
+- `config.yaml` now has `pilot.enabled: true` and `budget_min: 240` (William's say-so).
+- `scripts/sync_state.py export` carries `captures/sessions/*mystery_below*` whole
+  (`--no-sessions` to skip).
 
 ## The world map and pilot v2 (2026-11-02, PC, main)
 William's brief: the replay-and-fix loop on The Mystery Below is too slow; he wants a

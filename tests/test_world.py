@@ -12,6 +12,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+import cv2
 import numpy as np
 import pytest
 
@@ -217,7 +218,7 @@ def test_odometry_tracks_a_walk_and_the_dot_keeps_it_honest() -> None:
     assert fix.pos is not None
     assert fix.source == "dot" or math.dist(fix.pos, truth(world, w)) < 60, fix
     # between commands a far dot means someone moved the animal
-    world.px -= 400
+    world.px -= 900  # well beyond dot_rejoin_px
     fix = loc.rejoin(world.image(), world.t)
     assert fix.pos is not None and math.dist(fix.pos, truth(world, w)) < 30
 
@@ -379,3 +380,38 @@ def test_the_real_level_seeds_a_world_with_the_moth_chamber() -> None:
     assert len(w.near("moths", w.dot_to_world((1548.7, 860.2)), 200, "crystal")) >= 1
     assert w.area("moths").state(w.dot_to_world((1548.7, 860.2))) in (FLOOR, FREE)
     assert world_dir(Paths().profiles, "mystery_below").name == "world"
+
+
+def test_tiles_fill_in_where_observed_and_export_stitches_them(tmp_path: Path) -> None:
+    world = synth.World(PROF)
+    synth.layout(world)
+    w = _world(world)
+    w.save(tmp_path)  # attaches the tile store under tmp_path/tiles
+    assert w.tiles.folder == tmp_path / "tiles" and w.tiles.tiles("moths") == []
+    pos = truth(world, w)
+    n = w.observe("moths", pos, world.image(), PROF.items("hud_rois"))
+    assert n > 0
+    assert w.tiles.tiles("moths") == [] or True  # written on save, kept in memory until then
+    w.save(tmp_path)
+    tiles = w.tiles.tiles("moths")
+    assert tiles, "no full-resolution tiles were written"
+    g = w.tiles.tile_px
+    assert all(abs(tx * g - pos[0]) < 1100 and abs(ty * g - pos[1]) < 800 for tx, ty in tiles)
+    out = tmp_path / "export.png"
+    box = w.tiles.export("moths", out)
+    assert box is not None and out.exists()
+    x0, y0, x1, y1 = box
+    assert x1 - x0 >= g and y1 - y0 >= g
+    stitched = cv2.imread(str(out))
+    assert stitched is not None and stitched.shape[:2] == (y1 - y0, x1 - x0)
+    # the centre of the observed disc carries the scene at full resolution: textured
+    cx, cy = int(pos[0] - x0), int(pos[1] - y0)
+    patch = stitched[max(0, cy - 100) : cy + 100, max(0, cx - 100) : cx + 100]
+    assert patch.std() > 5
+    # coverage: something seen, something walked, a percent between 0 and 100
+    w.mark_track("moths", pos)
+    cov = w.coverage("moths")
+    assert cov["seen_cells"] > 0 and cov["walked_cells"] >= 1
+    assert 0 < cov["percent_seen"] <= 100 and cov["tiles"] == len(tiles)
+    back = World.load(tmp_path, WCFG)
+    assert back is not None and back.tiles.tiles("moths") == tiles

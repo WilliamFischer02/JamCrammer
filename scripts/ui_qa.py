@@ -47,7 +47,7 @@ def main() -> int:
     paths = Paths()
     engine = Engine(load_config(paths), paths)
     window = MainWindow(engine, paths)
-    window.move(-1900, 100)  # the second monitor, away from the game
+    window.move(80, 60)  # the primary monitor; the game sits on the left one
     window.show()
     engine.start_capture()
     wizard = OnboardingWizard(engine)
@@ -56,7 +56,7 @@ def main() -> int:
     steps: list[tuple[str, object]] = []
     for i, page in enumerate(window.pages):
         steps.append((page.key, lambda i=i: window.show_page(i)))
-    steps.append(("hud", lambda: (window.hud_action.setChecked(True), hud.move(-1500, 900))))
+    steps.append(("hud", lambda: (window.hud_action.setChecked(True), hud.move(1500, 900))))
     steps.append(("onboarding", lambda: (wizard.show(), wizard._detect())))
     results: list[str] = []
     state = {"i": 0, "shot": False}

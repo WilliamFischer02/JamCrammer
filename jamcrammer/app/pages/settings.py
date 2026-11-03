@@ -15,7 +15,7 @@ from jamcrammer.app.widgets import Card, Page, icon_button, row
 class SettingsPage(Page):
     key = "settings"
     title = "Settings"
-    subtitle = "Everything in config.yaml. Changes apply live where possible; Save writes the file."
+    subtitle = "config.yaml. Changes apply live where they can; Save writes the file."
     icon = "settings"
 
     def __init__(self, engine: Engine, window: Any) -> None:

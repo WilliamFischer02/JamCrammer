@@ -20,7 +20,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from jamcrammer.app import theme
 from jamcrammer.app.engine import Engine
 from jamcrammer.app.widgets import Card, Page, icon_button, row
 from jamcrammer.core.events import Event
@@ -68,27 +67,28 @@ class DropArea(QLabel):
 class LearnPage(Page):
     key = "learn"
     title = "Learn"
-    subtitle = "First contact: play a game manually while JamCrammer records everything it needs."
+    subtitle = "Play by hand while JamCrammer records what it needs."
     icon = "learn"
 
     def __init__(self, engine: Engine, window: Any) -> None:
         super().__init__()
         self.engine = engine
         rec = Card(
-            "Record live play",
-            "Nothing is sent to the game while learning. F6 mark, F7 correct, F8 wrong, F12 stop.",
+            "Record", "Nothing is sent to the game. F6 mark, F7 correct, F8 wrong, F12 stop."
         )
         form = QFormLayout()
         self.target = QComboBox()
+        self.target.setMinimumWidth(260)
+        form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.FieldsStayAtSizeHint)
         for t in TARGETS:
             self.target.addItem(t)
         form.addRow("Target", self.target)
         rec.add_layout(form)
         self.start = icon_button(
-            "play", "Start Learning", color=theme.PALETTE.bg, kind="primary", on_click=self._start
+            "play", "Record", kind="accent", accent="tool", size="big", on_click=self._start
         )
         self.start.setMinimumHeight(44)
-        self.stop = icon_button("stop", "Stop", on_click=self._stop)
+        self.stop = icon_button("stop", "Stop", kind="danger", size="big", on_click=self._stop)
         self.mark_btns = [self._mark_button(k) for k in ("mark", "correct", "wrong")]
         rec.add_layout(row(self.start, self.stop, *self.mark_btns, stretch_last=True))
         self.stats = QLabel("Not recording")
@@ -96,9 +96,7 @@ class LearnPage(Page):
         rec.add(self.stats)
         self.content.addWidget(rec)
 
-        inbox = Card(
-            "Inbox", f"Drop files, or copy them into {engine.paths.inbox}. Import runs ingest (M5)."
-        )
+        inbox = Card("Inbox", f"Drop files here or into {engine.paths.inbox}.")
         self.drop = DropArea(self._dropped)
         inbox.add(self.drop)
         self.inbox_list = QListWidget()
@@ -106,22 +104,22 @@ class LearnPage(Page):
         inbox.add(self.inbox_list)
         inbox.add_layout(
             row(
-                icon_button("import", "Import inbox", on_click=self._import),
-                icon_button("refresh", "Refresh", on_click=self.refresh_inbox),
+                icon_button("import", "Import", kind="ghost", on_click=self._import),
+                icon_button("refresh", "Refresh", kind="ghost", on_click=self.refresh_inbox),
                 stretch_last=True,
             )
         )
         self.content.addWidget(inbox)
 
-        sessions = Card("Sessions", "Recorded and imported sessions under captures/sessions.")
+        sessions = Card("Sessions")
         self.sessions = QListWidget()
         self.sessions.setMinimumHeight(160)
         sessions.add(self.sessions)
         sessions.add_layout(
             row(
-                icon_button("eye", "Open folder", on_click=self._open_session),
-                icon_button("learn", "Review wizard", on_click=self._review),
-                icon_button("eye", "Learn Report", on_click=self._open_report),
+                icon_button("folder", "Folder", kind="ghost", on_click=self._open_session),
+                icon_button("learn", "Review", kind="ghost", on_click=self._review),
+                icon_button("eye", "Report", kind="ghost", on_click=self._open_report),
                 stretch_last=True,
             )
         )
@@ -131,7 +129,9 @@ class LearnPage(Page):
         self.refresh_sessions()
 
     def _mark_button(self, kind: str) -> QPushButton:
-        return icon_button("check", kind.title(), on_click=lambda: self.engine.mark(kind))
+        return icon_button(
+            "flag", kind.title(), kind="ghost", on_click=lambda: self.engine.mark(kind)
+        )
 
     def _start(self) -> None:
         self.engine.start_learn(self.target.currentText())

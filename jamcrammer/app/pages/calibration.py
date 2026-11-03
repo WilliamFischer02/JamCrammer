@@ -196,7 +196,7 @@ class Canvas(QGraphicsView):
 class CalibrationPage(Page):
     key = "calibration"
     title = "Calibration"
-    subtitle = "Snap a frame, then set every point, region, color and template a mode needs. All coordinates are stage pixels (1920x1080)."
+    subtitle = "Snap a frame, then set the points, regions, colours and templates. Stage pixels (1920x1080)."
     icon = "calibration"
 
     def __init__(self, engine: Engine, window: Any) -> None:
@@ -232,8 +232,8 @@ class CalibrationPage(Page):
         self.inspector.setObjectName("CardHelp")
         canvas_card.add_layout(
             row(
-                icon_button("camera", "Snap frame", on_click=self.snap),
-                icon_button("refresh", "Fit", on_click=self.canvas.fit),
+                icon_button("camera", "Snap", kind="ghost", on_click=self.snap),
+                icon_button("maximize", "Fit", kind="ghost", on_click=self.canvas.fit),
                 self.inspector,
                 stretch_last=True,
             )
@@ -267,8 +267,8 @@ class CalibrationPage(Page):
         fields.add(self.table)
         fields.add_layout(
             row(
-                icon_button("check", "Mark calibrated", on_click=self.mark_calibrated),
-                icon_button("alert", "Mark uncalibrated", on_click=self.mark_uncalibrated),
+                icon_button("check", "Calibrated", kind="ghost", on_click=self.mark_calibrated),
+                icon_button("alert", "Uncalibrated", kind="ghost", on_click=self.mark_uncalibrated),
                 icon_button(
                     "export",
                     "Save profile",

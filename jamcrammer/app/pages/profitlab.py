@@ -19,7 +19,7 @@ MODE_FOR_GAME = {"bestguess": "hunt", "double_up": "farm", "jamaa_derby": "farm"
 class ProfitLabPage(Page):
     key = "profitlab"
     title = "Profit Lab"
-    subtitle = "Which mode actually earns the most, measured from the HUD gem total and end-screen payouts."
+    subtitle = "Which bot earns most, measured from the gem total and the end screens."
     icon = "profitlab"
 
     def __init__(self, engine: Engine, window: Any) -> None:
@@ -29,10 +29,7 @@ class ProfitLabPage(Page):
 
         top = QHBoxLayout()
         top.setSpacing(theme.PAD_MD)
-        chart = Card(
-            "Gems per hour by mode",
-            "Ledger-verified (solid) vs estimated (outline). Fills in as modes run.",
-        )
+        chart = Card("Gems per hour")
         self.plot = pg.PlotWidget(background=None)
         self.plot.setMinimumHeight(240)
         self.plot.setMouseEnabled(False, False)
@@ -40,7 +37,7 @@ class ProfitLabPage(Page):
         chart.add(self.plot)
         top.addWidget(chart, 2)
         rec = Card("Recommendation")
-        self.reco = QLabel("Not enough data yet. Run Double Up and Best Guess sessions first.")
+        self.reco = QLabel("No data yet. Run a bot first.")
         self.reco.setWordWrap(True)
         self.reco.setObjectName("StatValue")
         rec.add(self.reco)
@@ -50,9 +47,7 @@ class ProfitLabPage(Page):
         top.addWidget(rec, 1)
         self.content.addLayout(top)
 
-        table = Card(
-            "Rounds", "Per-game round time distribution and payouts (arcade_rounds / bg_rounds)."
-        )
+        table = Card("Rounds")
         self.table = QTableWidget(0, 5)
         self.table.setHorizontalHeaderLabels(
             ["Game", "Rounds", "Median round (s)", "Gems / round", "Gems / hour"]

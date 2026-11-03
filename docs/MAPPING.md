@@ -146,6 +146,17 @@ pilot stop ; pilot quit
 Every command and answer is in the session's `pilot_log.jsonl`; the frames are under
 `captures/pilot/`; the map is saved after every command that changed it.
 
+## 4b. The Mapping tab
+
+The GUI's Mapping page (`app/pages/mapping.py`) shows the world as a zoomable picture: the
+occupancy grid's colours, the low-resolution mosaic where seen, and **full-resolution tiles**
+(`world/tiles/<area>/<tx>_<ty>.png`, 512 px, written only where the animal has looked) once
+zoomed in; the things with ids, the collisions, the animal's position from
+`data/pilot/position.json`. Meters: the share of the recordings' floor that has been seen and
+walked (`World.coverage`). Export PNG stitches every observed tile into one full-resolution
+file under `captures/maps/`, to look at or to edit. The page re-reads the world every 3 s
+while the pilot writes it.
+
 ## 5. Milestones
 
 | # | Milestone | Acceptance |
@@ -161,13 +172,9 @@ Every command and answer is in the session's `pilot_log.jsonl`; the frames are u
 1. **When can the first live session run?** Needs: AJC logged in, in The Mystery Below at
    the start room (or in the den: the opening module can take it there), `pilot.enabled:
    true` in `config.yaml`, and him within reach. Default: wait.
-2. **Purple crystals and rocks.** Does clicking alone break a purple crystal, or does it
-   need a boomseed / the spike seeds? How many clicks does a cracked rock take? Default:
-   find out in the session (click, watch the mosaic and the Courage text).
-3. **The recordings.** The two Mystery Below sessions are on the laptop only
-   (`captures/sessions` here has none). Should `scripts/sync_state.py` carry sessions, or
-   will he copy the two folders? Default: not needed for A1-A3; the mosaic from recordings
-   is a later extra.
-4. **Unattended sessions.** May Claude run mapping sessions while he is away (the
-   guardrails yield to his input and stop at the budget), or only with him present?
-   Default: present.
+2. **Purple crystals and rocks.** Answered 2026-11-02: both break by repeated clicks,
+   several hits each. The planner (A4) smashes until the thing is gone from the screen.
+3. **The recordings.** Answered: `sync_state.py` carries `*mystery_below*` sessions whole;
+   run `export` on the laptop and `import` here when convenient.
+4. **Unattended sessions.** Answered: yes, while he is away; the guardrails yield to his
+   input and stop at the budget.

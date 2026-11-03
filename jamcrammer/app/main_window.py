@@ -1,4 +1,9 @@
-"""Main window: nav rail, command bar, page stack, tray, mini HUD, overlap warning."""
+"""Main window: grouped nav rail, page stack, the run strip, tray, mini HUD, overlap warning.
+
+Navigation rules (William, 2026-11-02): starting a bot takes you to its page; the page's
+own run panel holds Start / Stop / Pause and the live stats. The **run strip** at the top
+appears only while a bot runs and you are looking at another page; it slides in with the
+bot's state and a button back to its page, and slides away when you return."""
 
 from __future__ import annotations
 
@@ -9,8 +14,6 @@ from PySide6.QtGui import QAction, QCloseEvent, QIcon, QKeySequence, QPixmap, QS
 from PySide6.QtWidgets import (
     QApplication,
     QButtonGroup,
-    QCheckBox,
-    QComboBox,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -26,17 +29,33 @@ from PySide6.QtWidgets import (
 from jamcrammer import __version__
 from jamcrammer.app import theme
 from jamcrammer.app.bridge import QtBus
-from jamcrammer.app.engine import MODE_LABELS, MODES, Engine
+from jamcrammer.app.engine import MODE_LABELS, Engine
 from jamcrammer.app.hud import MiniHud
 from jamcrammer.app.icons import make_icon, render_svg_file
 from jamcrammer.app.pages import build_pages
-from jamcrammer.app.widgets import Page, StatePill, icon_button, nav_button, repolish
+from jamcrammer.app.widgets import (
+    Page,
+    StatePill,
+    animate_height,
+    fade_in,
+    icon_button,
+    nav_button,
+    repolish,
+    set_prop,
+)
 from jamcrammer.core.events import Event
 from jamcrammer.core.paths import Paths
 
 TICK_MS = 500
 OVERLAP_CHECK_MS = 1000
 TRAY_ICON_PX = 32
+MODE_ICONS = {
+    "hunt": "bestguess",
+    "farm": "arcade",
+    "adventure": "adventure",
+    "opportunist": "opportunist",
+    "planner": "home",
+}
 
 
 class NavRail(QFrame):
@@ -54,6 +73,7 @@ class NavRail(QFrame):
         self.toggle = QToolButton()
         self.toggle.setIcon(make_icon("menu", theme.PALETTE.muted))
         self.toggle.setAutoRaise(True)
+        self.toggle.setToolTip("Collapse the rail")
         self.toggle.clicked.connect(self.toggle_collapsed)
         head.addWidget(self.brand)
         head.addStretch(1)
@@ -62,13 +82,24 @@ class NavRail(QFrame):
         self.group = QButtonGroup(self)
         self.group.setExclusive(True)
         self.buttons: list[QToolButton] = []
-        for i, page in enumerate(pages):
-            color = theme.PALETTE.for_mode(page.key)
-            btn = nav_button(page.icon, page.title, color)
-            btn.setToolTip(f"{page.title}  (Ctrl+{i + 1})" if i < 9 else page.title)
-            self.group.addButton(btn, i)
-            lay.addWidget(btn)
-            self.buttons.append(btn)
+        self.labels: list[QLabel] = []
+        by_key = {p.key: (i, p) for i, p in enumerate(pages)}
+        for title, keys in theme.NAV_GROUPS:
+            present = [by_key[k] for k in keys if k in by_key]
+            if not present:
+                continue
+            if title:
+                lab = QLabel(title)
+                lab.setObjectName("NavGroup")
+                lay.addWidget(lab)
+                self.labels.append(lab)
+            for i, page in present:
+                color = theme.PALETTE.for_page(page.key)
+                btn = nav_button(page.icon, page.title, color, page.accent)
+                btn.setToolTip(f"{page.title}  (Ctrl+{i + 1})" if i < 9 else page.title)
+                self.group.addButton(btn, i)
+                lay.addWidget(btn)
+                self.buttons.append(btn)
         lay.addStretch(1)
         self.version = QLabel(f"v{__version__}")
         self.version.setObjectName("CardHelp")
@@ -76,13 +107,17 @@ class NavRail(QFrame):
         self.group.idClicked.connect(on_select)
 
     def select(self, index: int) -> None:
-        self.buttons[index].setChecked(True)
+        btn = self.group.button(index)
+        if btn is not None:
+            btn.setChecked(True)
 
     def toggle_collapsed(self) -> None:
         self._collapsed = not self._collapsed
         self.setFixedWidth(theme.NAV_COLLAPSED if self._collapsed else theme.NAV_WIDTH)
         self.brand.setVisible(not self._collapsed)
         self.version.setVisible(not self._collapsed)
+        for lab in self.labels:
+            lab.setVisible(not self._collapsed)
         style = (
             Qt.ToolButtonStyle.ToolButtonIconOnly
             if self._collapsed
@@ -92,71 +127,65 @@ class NavRail(QFrame):
             b.setToolButtonStyle(style)
 
 
-class CommandBar(QFrame):
-    def __init__(self, engine: Engine) -> None:
+class RunStrip(QFrame):
+    """The running bot's state while another page is open: name, one line, Pause / Stop,
+    and a button back to the bot's page."""
+
+    def __init__(self, engine: Engine, go_to: Callable[[str], None]) -> None:
         super().__init__()
-        self.setObjectName("CommandBar")
-        self.setFixedHeight(theme.COMMAND_BAR_HEIGHT)
+        self.setObjectName("RunStrip")
         self.engine = engine
+        self._go_to = go_to
+        self._shown = False
+        self.setMaximumHeight(0)
         lay = QHBoxLayout(self)
         lay.setContentsMargins(theme.PAD_MD, theme.PAD_SM, theme.PAD_MD, theme.PAD_SM)
         lay.setSpacing(theme.PAD_MD)
-        self.mode = QComboBox()
-        for m in MODES:
-            self.mode.addItem(MODE_LABELS[m], m)
-        self.mode.setCurrentIndex(0)
-        self.mode.currentIndexChanged.connect(self._mode_changed)
-        self.mode.setMinimumWidth(170)
+        self.icon = QLabel()
+        self.title = QLabel("")
+        self.title.setObjectName("StripTitle")
         self.pill = StatePill()
-        self.pill.setMinimumWidth(200)
-        self.pill.setMaximumWidth(320)
-        self.start = icon_button(
-            "play", "Start", color=theme.PALETTE.bg, kind="ok", on_click=self._start, tooltip="F9"
-        )
-        self.stop = icon_button(
-            "stop", "Stop", color=theme.PALETTE.bg, kind="danger", on_click=self._stop, tooltip="F9"
-        )
-        self.pause = icon_button("pause", "Pause", on_click=self._pause, tooltip="F11")
-        self.dry = QCheckBox("Dry-run")
-        self.dry.setChecked(engine.state.dry_run)
-        self.dry.setToolTip("Capture, analyse and log, but never send input")
-        self.dry.toggled.connect(engine.set_dry_run)
-        self.hotkeys = QLabel("F9 · F11 · F12 · F6-F8")
-        self.hotkeys.setToolTip(
-            "F9 start/stop the selected mode · F11 pause/resume · F12 kill · F6 mark · F7 correct · F8 wrong"
-        )
-        self.hotkeys.setObjectName("HotkeyHint")
-        self.lease = QLabel("input: nobody")
+        self.line = QLabel("")
+        self.line.setObjectName("StatusDetail")
+        self.pause_btn = icon_button("pause", "Pause", kind="ghost", on_click=engine.toggle_pause)
+        self.stop_btn = icon_button("stop", "Stop", kind="danger", on_click=engine.stop_mode)
+        self.back_btn = icon_button("arrow-right", "Open", kind="ghost", on_click=self._open)
+        self.lease = QLabel("")
         self.lease.setObjectName("LeaseIndicator")
-        for w in (self.mode, self.pill, self.start, self.stop, self.pause, self.dry):
+        for w in (self.icon, self.title, self.pill, self.line):
             lay.addWidget(w)
         lay.addStretch(1)
-        lay.addWidget(self.hotkeys)
-        lay.addSpacing(theme.PAD_MD)
         lay.addWidget(self.lease)
-        self.lease.setMinimumWidth(110)
+        for b in (self.pause_btn, self.stop_btn, self.back_btn):
+            lay.addWidget(b)
+        self._mode = ""
 
-    def _mode_changed(self, index: int) -> None:
-        self.engine.selected_mode = str(self.mode.itemData(index))
+    def _open(self) -> None:
+        if self._mode:
+            self._go_to(self._mode)
 
-    def _start(self) -> None:
-        self.engine.start_mode(self.engine.selected_mode)
-
-    def _stop(self) -> None:
-        self.engine.stop_mode()
-
-    def _pause(self) -> None:
-        self.engine.toggle_pause()
-
-    def refresh(self) -> None:
+    def refresh(self, current_page_key: str) -> None:
         st = self.engine.state
-        self.pill.set_state(st.pill_text, st.pill_kind)
-        running = st.mode is not None
-        self.start.setEnabled(not running and not st.killed)
-        self.stop.setEnabled(running)
-        self.pause.setText("Resume" if st.paused else "Pause")
-        owner = self.engine.lease.owner or "nobody"
-        self.lease.setText(f"input: {owner}" + ("  (dry-run)" if st.dry_run else ""))
+        mode = st.mode or ""
+        want = bool(mode) and current_page_key != mode
+        if mode and mode != self._mode:
+            self._mode = mode
+            self.title.setText(MODE_LABELS.get(mode, mode))
+            self.icon.setPixmap(
+                make_icon(MODE_ICONS.get(mode, "bot"), theme.PALETTE.for_mode(mode), 20).pixmap(
+                    20, 20
+                )
+            )
+            set_prop(self, "accent", mode)
+        if want:
+            self.pill.set_state(st.mode_state, st.pill_kind)
+            self.line.setText(st.mode_detail)
+            self.pause_btn.setText("Resume" if st.paused else "Pause")
+            owner = self.engine.lease.owner or "nobody"
+            self.lease.setText(f"input: {owner}" + ("  (dry run)" if st.dry_run else ""))
+        if want != self._shown:
+            self._shown = want
+            animate_height(self, theme.RUN_STRIP_HEIGHT if want else 0)
 
 
 class MainWindow(QMainWindow):
@@ -166,7 +195,7 @@ class MainWindow(QMainWindow):
         self.paths = paths or Paths()
         self.setWindowTitle(f"JamCrammer {__version__}")
         self.resize(1360, 860)
-        self.setMinimumSize(1280, 720)
+        self.setMinimumSize(1180, 700)
         self._app_icon = self._load_app_icon()
         self.setWindowIcon(self._app_icon)
 
@@ -175,7 +204,7 @@ class MainWindow(QMainWindow):
         for p in self.pages:
             self.stack.addWidget(p)
         self.nav = NavRail(self.pages, self.show_page)
-        self.bar = CommandBar(engine)
+        self.strip = RunStrip(engine, self.show_page_key)
 
         central = QWidget()
         h = QHBoxLayout(central)
@@ -184,7 +213,7 @@ class MainWindow(QMainWindow):
         right = QVBoxLayout()
         right.setContentsMargins(0, 0, 0, 0)
         right.setSpacing(0)
-        right.addWidget(self.bar)
+        right.addWidget(self.strip)
         right.addWidget(self.stack, 1)
         h.addWidget(self.nav)
         h.addLayout(right, 1)
@@ -210,6 +239,7 @@ class MainWindow(QMainWindow):
         self.overlap_timer = QTimer(self)
         self.overlap_timer.timeout.connect(self._check_overlap)
         self.overlap_timer.start(OVERLAP_CHECK_MS)
+        self._current = -1
         self.show_page(0)
 
     # --- icons / tray ------------------------------------------------------------------------
@@ -268,9 +298,16 @@ class MainWindow(QMainWindow):
     # --- navigation ---------------------------------------------------------------------------
 
     def show_page(self, index: int) -> None:
+        if index == self._current:
+            return
+        self._current = index
+        page = self.pages[index]
         self.stack.setCurrentIndex(index)
         self.nav.select(index)
-        self.pages[index].on_show()
+        page.on_show()
+        if self.isVisible():
+            fade_in(page)
+        self.strip.refresh(page.key)
 
     def show_page_key(self, key: str) -> None:
         for i, p in enumerate(self.pages):
@@ -278,10 +315,14 @@ class MainWindow(QMainWindow):
                 self.show_page(i)
                 return
 
+    @property
+    def current_key(self) -> str:
+        return self.pages[self.stack.currentIndex()].key
+
     # --- updates ------------------------------------------------------------------------------
 
     def _tick(self) -> None:
-        self.bar.refresh()
+        self.strip.refresh(self.current_key)
         self._update_tray_icon(self.engine.state.pill_kind)
         page = self.pages[self.stack.currentIndex()]
         page.on_tick()
@@ -290,6 +331,10 @@ class MainWindow(QMainWindow):
             self.status.showMessage(self.engine.state.last_error, 4000)
 
     def _on_event(self, event: Event) -> None:
+        if event.type == "engine.mode_started":
+            mode = str(event.payload.get("mode", ""))
+            if mode:
+                self.show_page_key(mode)
         for p in self.pages:
             handler = getattr(p, "on_event", None)
             if handler is not None:
@@ -303,7 +348,7 @@ class MainWindow(QMainWindow):
             and self.engine.overlaps_game(g.left(), g.top(), g.right(), g.bottom())
         )
         self.overlap_label.setText(
-            "⚠ GUI overlaps the AJC window: it will steal clicks" if over else ""
+            "GUI overlaps the game window: it will steal clicks" if over else ""
         )
         self.overlap_label.setProperty("warn", over)
         repolish(self.overlap_label)

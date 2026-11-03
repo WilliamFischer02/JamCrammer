@@ -135,7 +135,7 @@ adventures:
     dot_gain: 0.15                           # the estimate moves this share toward the dot per update
     dot_reset_px: 250                        # this far off the dot ...
     dot_reset_n: 4                           # ... this many updates running: the dot wins outright
-    dot_rejoin_px: 100                       # between commands, a dot this far away means the animal was moved
+    dot_rejoin_px: 400                       # between commands, a dot this far away means the animal was moved (the dot lags a walk by ~1 s)
     probe_tick_s: 0.1                        # a probe looks this often
     probe_max_s: 2.5                         # ... and walks at most this long
     stuck_px: 12                             # moved less than this in a tick while a key is held ...

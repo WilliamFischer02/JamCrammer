@@ -19,7 +19,7 @@ COLUMNS = ("fact", "answer", "seen", "confirmed", "conflicts", "source", "last s
 class AnswerBankPage(Page):
     key = "answerbank"
     title = "Answer Bank"
-    subtitle = "Every Best Guess fact seen, with its answer and confidence. Double-click an answer to edit."
+    subtitle = "Every Best Guess fact and its answer. Double-click an answer to edit."
     icon = "answerbank"
 
     def __init__(self, engine: Engine, window: Any) -> None:
@@ -35,9 +35,9 @@ class AnswerBankPage(Page):
             row(
                 self.search,
                 self.conflicts,
-                icon_button("import", "Import CSV", on_click=self.import_csv),
-                icon_button("export", "Export CSV", on_click=self.export_csv),
-                icon_button("refresh", "Refresh", on_click=self.refresh),
+                icon_button("import", "Import", kind="ghost", on_click=self.import_csv),
+                icon_button("export", "Export", kind="ghost", on_click=self.export_csv),
+                icon_button("refresh", "Refresh", kind="ghost", on_click=self.refresh),
             )
         )
         self.table = QTableWidget(0, len(COLUMNS))

@@ -1,7 +1,8 @@
 """Carry the gitignored machine state between William's PC and laptop.
 
 git syncs the code but not config.yaml, the calibrated profiles, the answer bank, the Derby
-learned offsets or the replay records that open the live gate. ``export`` zips them into a
+learned offsets, the replay records that open the live gate, or the recorded adventure
+sessions (carried whole, frames included, unless ``--no-sessions``). ``export`` zips them into a
 OneDrive folder; ``import`` unpacks a bundle, backing up whatever it replaces. The answer bank
 is merged (both machines keep learning), never overwritten.
 
@@ -48,24 +49,33 @@ FILE_GLOBS = (
     "captures/sessions/*/analysis/*.json",
     "captures/sessions/*/analysis/*.txt",
 )
+# whole recorded sessions that travel too (William, 2026-11-02: carry the adventure sessions
+# back and forth); frames included, so a bundle can be hundreds of MB
+SESSION_GLOBS = ("captures/sessions/*mystery_below*/**/*",)
 
 
-def _state_files() -> list[Path]:
+def _state_files(sessions: bool = True) -> list[Path]:
     found: list[Path] = []
-    for pattern in FILE_GLOBS:
+    globs = FILE_GLOBS + (SESSION_GLOBS if sessions else ())
+    seen: set[Path] = set()
+    for pattern in globs:
         for p in sorted(ROOT.glob(pattern)):
-            if p.is_file() and not p.name.endswith((".example.yaml", ".proposed.yaml")):
-                found.append(p)
+            if p in seen or not p.is_file():
+                continue
+            if p.name.endswith((".example.yaml", ".proposed.yaml")):
+                continue
+            seen.add(p)
+            found.append(p)
     return found
 
 
-def export(out_dir: Path) -> Path:
+def export(out_dir: Path, sessions: bool = True) -> Path:
     out_dir.mkdir(parents=True, exist_ok=True)
     bundle = (
         out_dir / f"jamcrammer_state_{socket.gethostname()}_{time.strftime('%Y%m%d_%H%M%S')}.zip"
     )
     with zipfile.ZipFile(bundle, "w", zipfile.ZIP_DEFLATED) as zf:
-        for p in _state_files():
+        for p in _state_files(sessions):
             zf.write(p, p.relative_to(ROOT).as_posix())
         db = ROOT / DB
         if db.exists():
@@ -141,12 +151,15 @@ def main() -> int:
         "--dir", type=Path, default=DEFAULT_DIR, help=f"bundle folder (default {DEFAULT_DIR})"
     )
     ap.add_argument("--bundle", type=Path, help="import this zip instead of the newest in --dir")
+    ap.add_argument(
+        "--no-sessions", action="store_true", help="export without the adventure sessions"
+    )
     args = ap.parse_args()
     if not _is_repo(ROOT):
         print(f"{ROOT} is not the JamCrammer repo; cd into it first", file=sys.stderr)
         return 2
     if args.action == "export":
-        export(args.dir)
+        export(args.dir, sessions=not args.no_sessions)
         return 0
     bundle = args.bundle
     if bundle is None:

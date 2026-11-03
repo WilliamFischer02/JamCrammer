@@ -20,7 +20,7 @@ MAX_LINES = 5000
 class LogsPage(Page):
     key = "logs"
     title = "Logs"
-    subtitle = "Every event on the bus. Files: data/logs/jamcrammer.log and jamcrammer.jsonl."
+    subtitle = "Every event, live. Files under data/logs."
     icon = "logs"
 
     def __init__(self, engine: Engine, window: Any) -> None:
@@ -39,8 +39,8 @@ class LogsPage(Page):
             row(
                 self.level,
                 self.filter,
-                icon_button("export", "Copy", on_click=self.copy),
-                icon_button("export", "Export", on_click=self.export),
+                icon_button("list", "Copy", kind="ghost", on_click=self.copy),
+                icon_button("export", "Export", kind="ghost", on_click=self.export),
             )
         )
         self.view = QPlainTextEdit()

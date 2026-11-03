@@ -45,8 +45,13 @@ class ModeCard(Card):
         self.add(self.rate)
         self.add(self.last)
         btns = row(
-            icon_button("play", "Start", color=theme.PALETTE.bg, kind="ok", on_click=self._start),
-            icon_button("settings", "Settings", on_click=lambda: window.show_page_key(self.mode)),
+            icon_button("play", "Start", kind="accent", accent=mode, on_click=self._start),
+            icon_button(
+                "arrow-right",
+                "Open",
+                kind="ghost",
+                on_click=lambda: window.show_page_key(self.mode),
+            ),
             stretch_last=True,
         )
         self.add_layout(btns)
@@ -74,7 +79,7 @@ class ModeCard(Card):
 class DashboardPage(Page):
     key = "dashboard"
     title = "Dashboard"
-    subtitle = "What is running, what the game looks like right now, and what just happened."
+    subtitle = "What is running, what the game shows, and what just happened."
     icon = "dashboard"
 
     def __init__(self, engine: Engine, window: Any) -> None:
@@ -86,20 +91,16 @@ class DashboardPage(Page):
 
         mid = QHBoxLayout()
         mid.setSpacing(theme.PAD_MD)
-        preview = Card("Live preview", "The captured client, normalized to the 1920x1080 stage.")
-        self.overlay = QCheckBox("Overlay ROIs and click targets")
+        preview = Card("Game")
+        self.overlay = QCheckBox("Overlay")
         self.overlay.setChecked(True)
         preview.head.addWidget(self.overlay)
-        self.image = QLabel("Capture not running. Press Start, or Learn → Start Learning.")
+        self.image = QLabel("Not capturing. Start a bot, or press Preview.")
         self.image.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.image.setFixedSize(PREVIEW_W, PREVIEW_W * 9 // 16)
         self.image.setWordWrap(True)
         preview.add(self.image)
-        snap = icon_button(
-            "camera",
-            "Start capture",
-            on_click=self._start_capture,
-        )
+        snap = icon_button("camera", "Preview", kind="ghost", on_click=self._start_capture)
         preview.add_layout(row(snap, stretch_last=True))
         preview.body.addStretch(1)
         mid.addWidget(preview, 3)
@@ -107,18 +108,18 @@ class DashboardPage(Page):
         stats = QVBoxLayout()
         stats.setSpacing(theme.PAD_MD)
         self.tiles = {
-            "gems": StatTile("Gems this session", theme.PALETTE.arcade),
-            "rate": StatTile("Gems / hour", theme.PALETTE.opportunist),
+            "gems": StatTile("Gems", theme.PALETTE.arcade),
+            "rate": StatTile("Gems per hour", theme.PALETTE.opportunist),
             "accuracy": StatTile("Accuracy", theme.PALETTE.bestguess, unit="%"),
             "streak": StatTile("Streak", theme.PALETTE.warn),
-            "popups": StatTile("Popups dismissed", theme.PALETTE.danger),
+            "popups": StatTile("Popups cleared", theme.PALETTE.danger),
         }
         for t in self.tiles.values():
             stats.addWidget(t)
         mid.addLayout(stats, 1)
         self.content.addLayout(mid)
 
-        timeline = Card("Event timeline", "NOTICE and HIGH events with screenshots when available.")
+        timeline = Card("Events")
         self.timeline = QListWidget()
         self.timeline.setMinimumHeight(220)
         self.timeline.setIconSize(QPixmap(THUMB_W, THUMB_W * 9 // 16).size())

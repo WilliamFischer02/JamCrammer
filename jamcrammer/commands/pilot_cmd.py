@@ -50,7 +50,17 @@ log = get_logger("cmd.pilot")
 EXIT_NO_WINDOW = 3
 EXIT_REFUSED = 5
 BANNER_UPSCALE = 2.0
+FOREVER_S = 1e9  # no user input since our own
 LOCAL_COMMANDS = ("start", "stop", "serve", "quit", "status")
+
+
+def _user_input_age(inp: InputController, slack_s: float) -> float:
+    """Seconds since William's own input. The OS counts injected input too, so input at or
+    just after our last injection is ours (the same rule as the presence detector)."""
+    last_user = last_user_input_time()
+    if last_user <= inp.stats.last_injected_ts + slack_s:
+        return FOREVER_S
+    return time.time() - last_user
 
 
 def _executor(cfg: AppConfig, paths: Paths) -> tuple[Executor, Any]:
@@ -93,7 +103,7 @@ def _executor(cfg: AppConfig, paths: Paths) -> tuple[Executor, Any]:
         banner_ocr=lambda fr: sight.banner_text(
             fr, prof, lambda im: ocr_image(im, upscale=BANNER_UPSCALE).text
         ),
-        user_input_age=lambda: time.time() - last_user_input_time(),
+        user_input_age=lambda: _user_input_age(inp, cfg.presence_slack_s),
         foreground=foreground,
         window=window,
         digits=digits,
@@ -101,6 +111,7 @@ def _executor(cfg: AppConfig, paths: Paths) -> tuple[Executor, Any]:
         out_dir=paths.captures / "pilot",
         world_dir=world_dir(paths.profiles, cfg.adventures.route.target),
         session=PilotSession.load(pointer_path(paths.data)),
+        position_path=paths.data / "pilot" / "position.json",
     )
     return ex, backend
 
@@ -124,8 +135,8 @@ def _start(args: argparse.Namespace) -> int:
         "learn",
         "--target",
         args.target,
-        "--name",
-        "pilot",
+        "--session-dir",
+        name,
         "--stop-file",
         str(stop_file),
     ]

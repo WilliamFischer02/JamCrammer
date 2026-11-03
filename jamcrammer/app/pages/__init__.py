@@ -18,6 +18,7 @@ def build_pages(engine: Engine, window: MainWindow) -> list[Page]:
     from jamcrammer.app.pages.dashboard import DashboardPage
     from jamcrammer.app.pages.learn import LearnPage
     from jamcrammer.app.pages.logs import LogsPage
+    from jamcrammer.app.pages.mapping import MappingPage
     from jamcrammer.app.pages.modes import ArcadePage, BestGuessPage, OpportunistPage
     from jamcrammer.app.pages.notifications import NotificationsPage
     from jamcrammer.app.pages.parties import PartiesPage
@@ -32,6 +33,7 @@ def build_pages(engine: Engine, window: MainWindow) -> list[Page]:
         ArcadePage(engine, window),
         AdventuresPage(engine, window),
         OpportunistPage(engine, window),
+        MappingPage(engine, window),
         LearnPage(engine, window),
         CalibrationPage(engine, window),
         AnswerBankPage(engine, window),

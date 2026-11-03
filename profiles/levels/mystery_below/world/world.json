@@ -3034,13 +3034,199 @@
    "ts": 0.0,
    "shot": "",
    "gone": false
+  },
+  {
+   "id": 201,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 3136.2000000000025,
+   "y": 9633.399999999998,
+   "status": "lit",
+   "source": "scan",
+   "confidence": 0.5,
+   "note": "",
+   "seen": 2,
+   "ts": 1793664119.641738,
+   "shot": "C:\\dev\\JamCrammer\\captures\\pilot\\20261102_170159_scan.png",
+   "gone": true
+  },
+  {
+   "id": 202,
+   "kind": "crystal",
+   "area": "moths",
+   "x": 3374.2000000000025,
+   "y": 9879.399999999998,
+   "status": "lit",
+   "source": "scan",
+   "confidence": 0.5,
+   "note": "",
+   "seen": 1,
+   "ts": 1793664119.641713,
+   "shot": "C:\\dev\\JamCrammer\\captures\\pilot\\20261102_170159_scan.png",
+   "gone": true
+  },
+  {
+   "id": 203,
+   "kind": "fungus",
+   "area": "moths",
+   "x": 3367.2000000000025,
+   "y": 9884.399999999998,
+   "status": "",
+   "source": "scan",
+   "confidence": 0.5,
+   "note": "",
+   "seen": 1,
+   "ts": 1793664119.6491218,
+   "shot": "C:\\dev\\JamCrammer\\captures\\pilot\\20261102_170159_scan.png",
+   "gone": false
+  },
+  {
+   "id": 204,
+   "kind": "npc",
+   "area": "moths",
+   "x": 3162.2000000000025,
+   "y": 9648.399999999998,
+   "status": "",
+   "source": "claude",
+   "confidence": 0.9,
+   "note": "Cosmo, blue coat reads as an unlit crystal",
+   "seen": 1,
+   "ts": 1793664151.5875926,
+   "shot": "C:\\dev\\JamCrammer\\captures\\pilot\\20261102_170159_scan.png",
+   "gone": false
+  },
+  {
+   "id": 205,
+   "kind": "npc",
+   "area": "moths",
+   "x": 3542.2000000000025,
+   "y": 9828.399999999998,
+   "status": "",
+   "source": "claude",
+   "confidence": 0.9,
+   "note": "Graham, by the start fungus",
+   "seen": 1,
+   "ts": 1793664152.5359132,
+   "shot": "C:\\dev\\JamCrammer\\captures\\pilot\\20261102_170159_scan.png",
+   "gone": false
   }
  ],
- "collisions": [],
- "notes": [],
+ "collisions": [
+  {
+   "area": "moths",
+   "x": 3196.2041503468827,
+   "y": 9796.095067147699,
+   "dx": 1,
+   "dy": 1,
+   "ts": 1793664027.3431046,
+   "source": "probe",
+   "note": ""
+  },
+  {
+   "area": "moths",
+   "x": 3165.141228441058,
+   "y": 10091.419598633,
+   "dx": 0,
+   "dy": 1,
+   "ts": 1793664029.4404385,
+   "source": "probe",
+   "note": ""
+  },
+  {
+   "area": "moths",
+   "x": 2906.4674934852587,
+   "y": 10005.158125840468,
+   "dx": -1,
+   "dy": 1,
+   "ts": 1793664032.8811715,
+   "source": "probe",
+   "note": ""
+  },
+  {
+   "area": "moths",
+   "x": 2830.0909471752802,
+   "y": 9877.584529516851,
+   "dx": -1,
+   "dy": 0,
+   "ts": 1793664035.9342165,
+   "source": "probe",
+   "note": ""
+  },
+  {
+   "area": "moths",
+   "x": 3169.962915212679,
+   "y": 9304.627291690877,
+   "dx": 0,
+   "dy": -1,
+   "ts": 1793664043.4447472,
+   "source": "probe",
+   "note": ""
+  },
+  {
+   "area": "moths",
+   "x": 3796.102644278143,
+   "y": 9604.964282638193,
+   "dx": 1,
+   "dy": -1,
+   "ts": 1793664046.8747542,
+   "source": "probe",
+   "note": ""
+  },
+  {
+   "area": "moths",
+   "x": 3374.4301510408686,
+   "y": 10175.1174651436,
+   "dx": 1,
+   "dy": 1,
+   "ts": 1793664081.8313615,
+   "source": "probe",
+   "note": ""
+  },
+  {
+   "area": "moths",
+   "x": 2996.3606031796808,
+   "y": 10132.28693319247,
+   "dx": 0,
+   "dy": 1,
+   "ts": 1793664083.6424155,
+   "source": "probe",
+   "note": ""
+  },
+  {
+   "area": "moths",
+   "x": 3116.032009408225,
+   "y": 10044.458615796444,
+   "dx": -1,
+   "dy": 1,
+   "ts": 1793664085.736672,
+   "source": "probe",
+   "note": ""
+  },
+  {
+   "area": "moths",
+   "x": 3134.519575716536,
+   "y": 10032.968714275597,
+   "dx": -1,
+   "dy": 0,
+   "ts": 1793664087.4280686,
+   "source": "probe",
+   "note": ""
+  }
+ ],
+ "notes": [
+  {
+   "ts": 1793664153.4581892,
+   "area": "moths",
+   "pos": [
+    3007,
+    10028
+   ],
+   "text": "start room: fungus 203 is the start fungus, lit"
+  }
+ ],
  "sessions": [
   "20261029_134501_mystery_below",
   "20261030_100745_mystery_below"
  ],
- "saved": "2026-11-02 16:08:21"
+ "saved": "2026-11-02 17:05:09"
 }

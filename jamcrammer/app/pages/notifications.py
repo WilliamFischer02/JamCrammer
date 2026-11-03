@@ -15,7 +15,7 @@ from jamcrammer.core.config import Level
 class NotificationsPage(Page):
     key = "notifications"
     title = "Notifications"
-    subtitle = "INFO = log only · NOTICE = toast · HIGH = toast + repeating sound + push. Each channel has a test button."
+    subtitle = "INFO logs, NOTICE toasts, HIGH toasts with sound and push."
     icon = "notifications"
 
     def __init__(self, engine: Engine, window: Any) -> None:
@@ -65,7 +65,7 @@ class NotificationsPage(Page):
         channels.add(note)
         self.content.addWidget(channels)
 
-        levels = Card("Minimum level per channel")
+        levels = Card("Levels")
         form2 = QFormLayout()
         for attr, label in (
             ("toast", "Toast"),

@@ -90,6 +90,12 @@ a measured threshold, as `paw_marker.png`, `courage.png` and `count_digits.png` 
    each button, so the opening never clicks blind again.
 4. **Unknown dialogs**: whatever pops up, crop its X and its header for the watchdog.
 
+## Keeping the account alive between sessions
+
+`scripts/pilot_keepalive.ps1` sends a cancelling left/right pair through the pilot every
+few minutes, so a parked animal is never logged out while Claude works on something else.
+It needs the switch on and a started session; `data/pilot/keepalive.stop` stops it.
+
 ## What it is not
 
 Not a bot: it never loops, never decides on its own, and it stops when William touches the

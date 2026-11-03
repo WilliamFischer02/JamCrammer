@@ -59,14 +59,7 @@ def build_parser() -> argparse.ArgumentParser:
             help="farm: which arcade game",
         )
 
-    p = sub.add_parser("learn", help="record a Learn session while you play manually")
-    p.add_argument("--target", choices=LEARN_TARGETS, required=True)
-    p.add_argument("--name", default=None, help="optional session name suffix")
-    p.add_argument("--video", action="store_true", help="also record continuous low-fps video")
-    p.add_argument("--stop-file", default=None, help="stop when this file appears (pilot)")
-    p.add_argument(
-        "--duration", type=float, default=None, help="stop automatically after this many seconds"
-    )
+    _learn_parser(sub)
 
     sub.add_parser("ingest", help="import inbox/ PNG and MP4 files into Learn sessions")
 
@@ -118,6 +111,19 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--backend", choices=("wgc", "mss"), required=True)
     p.add_argument("--frames", type=int, required=True)
     return parser
+
+
+def _learn_parser(sub: Any) -> None:
+    """``learn``: the live recorder."""
+    p = sub.add_parser("learn", help="record a Learn session while you play manually")
+    p.add_argument("--target", choices=LEARN_TARGETS, required=True)
+    p.add_argument("--name", default=None, help="optional session name suffix")
+    p.add_argument("--video", action="store_true", help="also record continuous low-fps video")
+    p.add_argument("--stop-file", default=None, help="stop when this file appears (pilot)")
+    p.add_argument("--session-dir", default=None, help="record into exactly this folder name")
+    p.add_argument(
+        "--duration", type=float, default=None, help="stop automatically after this many seconds"
+    )
 
 
 def _pilot_parser(sub: Any) -> None:

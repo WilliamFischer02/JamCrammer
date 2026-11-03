@@ -111,6 +111,96 @@ DIRECTION_KEYS: dict[str, set[str]] = {
 }
 
 
+TILE_PX = 512  # full-resolution mosaic tiles on disk (the Mapping tab's picture)
+
+
+class TileStore:
+    """The full-resolution mosaic, as PNG tiles under ``<world>/tiles/<area>/<tx>_<ty>.png``,
+    written only where something was observed, so the map fills in like an explored chart.
+    The low-resolution mosaic in memory is for reading the whole area and for matching;
+    these tiles are the picture William looks at and can edit."""
+
+    def __init__(self, folder: Path | None, tile_px: int = TILE_PX) -> None:
+        self.folder = folder
+        self.tile_px = tile_px
+        self._cache: dict[tuple[str, int, int], BgrImage] = {}
+        self._dirty: set[tuple[str, int, int]] = set()
+
+    def path(self, area: str, tx: int, ty: int) -> Path | None:
+        if self.folder is None:
+            return None
+        return self.folder / area / f"{tx}_{ty}.png"
+
+    def get(self, area: str, tx: int, ty: int) -> BgrImage:
+        key = (area, tx, ty)
+        img = self._cache.get(key)
+        if img is None:
+            path = self.path(area, tx, ty)
+            raw = cv2.imread(str(path)) if path is not None and path.exists() else None
+            img = (
+                np.asarray(raw, np.uint8)
+                if raw is not None and raw.shape[:2] == (self.tile_px, self.tile_px)
+                else np.zeros((self.tile_px, self.tile_px, 3), np.uint8)
+            )
+            self._cache[key] = img
+        return img
+
+    def mark(self, area: str, tx: int, ty: int) -> None:
+        self._dirty.add((area, tx, ty))
+
+    def flush(self) -> int:
+        """Write the changed tiles. Returns how many."""
+        n = 0
+        for key in sorted(self._dirty):
+            path = self.path(*key)
+            if path is None:
+                continue
+            path.parent.mkdir(parents=True, exist_ok=True)
+            cv2.imwrite(str(path), self._cache[key])
+            n += 1
+        self._dirty.clear()
+        return n
+
+    def tiles(self, area: str) -> list[tuple[int, int]]:
+        """Every tile of the area on disk or in memory."""
+        out = {k[1:] for k in self._cache if k[0] == area}
+        if self.folder is not None and (self.folder / area).exists():
+            for f in (self.folder / area).glob("*_*.png"):
+                tx, ty = f.stem.split("_")
+                out.add((int(tx), int(ty)))
+        return sorted(out)
+
+    def bounds(self, area: str) -> tuple[int, int, int, int] | None:
+        """(x0, y0, x1, y1) world px covered by the area's tiles, None when there are none."""
+        ts = self.tiles(area)
+        if not ts:
+            return None
+        g = self.tile_px
+        return (
+            min(t[0] for t in ts) * g,
+            min(t[1] for t in ts) * g,
+            (max(t[0] for t in ts) + 1) * g,
+            (max(t[1] for t in ts) + 1) * g,
+        )
+
+    def export(self, area: str, path: Path) -> tuple[int, int, int, int] | None:
+        """Stitch the area's tiles into one full-resolution PNG (the observed bounding box).
+        Returns the box in world px, or None when nothing has been observed."""
+        box = self.bounds(area)
+        if box is None:
+            return None
+        x0, y0, x1, y1 = box
+        img = np.zeros((y1 - y0, x1 - x0, 3), np.uint8)
+        g = self.tile_px
+        for tx, ty in self.tiles(area):
+            img[ty * g - y0 : (ty + 1) * g - y0, tx * g - x0 : (tx + 1) * g - x0] = self.get(
+                area, tx, ty
+            )
+        path.parent.mkdir(parents=True, exist_ok=True)
+        cv2.imwrite(str(path), img)
+        return box
+
+
 @dataclass
 class Obj:
     """A thing in the world: where it is, what it is, how sure we are."""
@@ -204,6 +294,12 @@ class World:
         self.notes: list[dict[str, Any]] = []
         self.sessions: list[str] = []
         self.dirty = False
+        self.tiles = TileStore(None)
+
+    def attach_tiles(self, folder: Path) -> None:
+        """Keep the full-resolution tiles under ``folder`` (``<world>/tiles``)."""
+        if self.tiles.folder != folder:
+            self.tiles = TileStore(folder, self.tiles.tile_px)
 
     @classmethod
     def from_level(cls, lvl: Level, cfg: WorldConfig | None = None) -> World:
@@ -327,8 +423,9 @@ class World:
 
     def observe(self, area: str, pos: Point, frame: BgrImage, hud_rois: list[Any]) -> int:
         """Paste the lit disc around the animal into the mosaic at ``pos``. Bright pixels win
-        over what was there; dark ones (the vignette's edge) never overwrite. Returns the
-        number of mosaic pixels written."""
+        over what was there; dark ones (the vignette's edge) never overwrite. ``hud_rois``
+        are left out: pass the HUD and the animal's own box (it is in every frame and would
+        be smeared over the map). Returns the number of mosaic pixels written."""
         a = self.area(area)
         s = self.cfg.mosaic_scale
         small = np.asarray(
@@ -362,7 +459,42 @@ class World:
         n = int(np.count_nonzero(write))
         if n:
             self.dirty = True
+            self._observe_tiles(area, pos, frame, hud_rois)
         return n
+
+    def _observe_tiles(self, area: str, pos: Point, frame: BgrImage, hud_rois: list[Any]) -> None:
+        """The same disc at full resolution into the on-disk tiles (when attached)."""
+        if self.tiles.folder is None:
+            return
+        fh, fw = frame.shape[:2]
+        keep = np.ones((fh, fw), np.uint8)
+        for x, y, w, h in hud_rois:
+            keep[max(0, int(y)) : int(y + h) + 1, max(0, int(x)) : int(x + w) + 1] = 0
+        disc = np.zeros_like(keep)
+        cv2.circle(disc, (self.avatar[0], self.avatar[1]), max(1, self.cfg.vignette_px), 1, -1)
+        keep &= disc
+        v = np.asarray(cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)[:, :, 2], np.int32)
+        ox, oy = round(pos[0] - self.avatar[0]), round(pos[1] - self.avatar[1])  # frame origin
+        g = self.tiles.tile_px
+        aw, ah = self.size
+        for ty in range(max(0, oy // g), min((ah - 1) // g, (oy + fh - 1) // g) + 1):
+            for tx in range(max(0, ox // g), min((aw - 1) // g, (ox + fw - 1) // g) + 1):
+                x0, y0 = max(tx * g, ox), max(ty * g, oy)
+                x1, y1 = min((tx + 1) * g, ox + fw), min((ty + 1) * g, oy + fh)
+                if x1 <= x0 or y1 <= y0:
+                    continue
+                kv = keep[y0 - oy : y1 - oy, x0 - ox : x1 - ox] > 0
+                if not kv.any():
+                    continue
+                tile = self.tiles.get(area, tx, ty)
+                dst = tile[y0 - ty * g : y1 - ty * g, x0 - tx * g : x1 - tx * g]
+                src = frame[y0 - oy : y1 - oy, x0 - ox : x1 - ox]
+                vv = v[y0 - oy : y1 - oy, x0 - ox : x1 - ox]
+                old_v = np.asarray(cv2.cvtColor(dst, cv2.COLOR_BGR2HSV)[:, :, 2], np.int32)
+                write = kv & (vv >= self.cfg.mosaic_min_v) & (vv >= old_v * 0.8)
+                if write.any():
+                    dst[write] = src[write]
+                    self.tiles.mark(area, tx, ty)
 
     # --- things --------------------------------------------------------------------------
 
@@ -527,6 +659,35 @@ class World:
 
     # --- for people ----------------------------------------------------------------------
 
+    def coverage(self, area: str) -> dict[str, Any]:
+        """How much of the area is mapped: of the floor the recordings know (floor + walked
+        cells), the share seen in the mosaic and the share walked; plus the counts."""
+        a = self.area(area)
+        floor = (a.grid == FLOOR) | (a.grid == FREE)
+        gh, gw = a.grid.shape
+        seen_small = (a.weight > 0).astype(np.uint8)
+        seen = cv2.resize(seen_small, (gw, gh), interpolation=cv2.INTER_AREA) > 0
+        n_floor = int(np.count_nonzero(floor))
+        n_seen = int(np.count_nonzero(floor & seen))
+        n_walked = int(np.count_nonzero(a.grid == FREE))
+        things = sum(1 for o in self.objects if o.area == area and not o.gone)
+        sure = sum(1 for o in self.objects if o.area == area and not o.gone and o.confidence >= 0.8)
+        cols = sum(1 for c in self.collisions if c.area == area)
+        return {
+            "area": area,
+            "floor_cells": n_floor,
+            "seen_cells": n_seen,
+            "walked_cells": n_walked,
+            "blocked_cells": int(np.count_nonzero(a.grid == BLOCKED)),
+            "unknown_cells": int(np.count_nonzero(a.grid == UNKNOWN)),
+            "percent_seen": round(100.0 * n_seen / n_floor, 1) if n_floor else 0.0,
+            "percent_walked": round(100.0 * n_walked / n_floor, 1) if n_floor else 0.0,
+            "things": things,
+            "things_sure": sure,
+            "collisions": cols,
+            "tiles": len(self.tiles.tiles(area)),
+        }
+
     def summary(self) -> dict[str, Any]:
         kinds: dict[str, int] = {}
         for o in self.objects:
@@ -682,6 +843,8 @@ class World:
             "sessions": self.sessions,
             "saved": time.strftime("%Y-%m-%d %H:%M:%S"),
         }
+        self.attach_tiles(folder / "tiles")
+        self.tiles.flush()
         tmp = folder / "world.json.tmp"
         tmp.write_text(json.dumps(doc, indent=1), encoding="utf-8")
         tmp.replace(folder / "world.json")
@@ -732,6 +895,7 @@ class World:
             weight = cv2.imread(str(folder / f"{name}_weight.png"), cv2.IMREAD_GRAYSCALE)
             if weight is not None and weight.shape == a.weight.shape:
                 a.weight = np.asarray(weight, np.uint8)
+        w.attach_tiles(folder / "tiles")
         w.dirty = False
         return w
 

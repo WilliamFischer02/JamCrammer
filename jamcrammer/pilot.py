@@ -30,9 +30,11 @@ Guardrails, none of them optional:
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import math
 import os
+import threading
 import time
 import uuid
 from collections.abc import Callable
@@ -68,6 +70,7 @@ ALLOWED_KEYS = frozenset({"up", "down", "left", "right", "space", "escape"})
 CONTACT_WIDTH = 960  # the frame I read, halved
 MAX_OCR_LINES = 40
 SETTLE_S = 0.3  # after an act, before the second look
+DIALOG_GONE_S = 0.6  # a closed dialog takes this long to go
 PROBE_WARMUP_TICKS = 2  # the game takes a moment to start moving: no stuck count yet
 WHERE_RADIUS_PX = 1200  # things this close are listed by `where`
 COLLISION_RADIUS_PX = 300
@@ -75,6 +78,8 @@ SURVEY_DIRS = ("right", "dr", "down", "dl", "left", "ul", "up", "ur")
 CARDINAL_DIRS = ("right", "down", "left", "up")
 SURVEY_BACK_TOL_PX = 40.0
 SERVER_HEARTBEAT_S = 1.0
+WRITE_RETRIES = 8  # a reader may hold the file for an instant (Windows)
+WRITE_RETRY_S = 0.03
 SERVER_STALE_S = 5.0
 WORLD_OBJECT_KINDS = (
     "crystal",
@@ -332,7 +337,7 @@ def load_world(cfg: AppConfig, prof: Profile, lvl: Level | None, profiles_dir: P
 class Hold:
     """What a tracked hold of keys did."""
 
-    reason: str  # done | collision | user
+    reason: str  # done | collision | dialog | user
     travelled: float
     pos_before: Point | None
     pos_after: Point | None
@@ -363,6 +368,7 @@ class Executor:
         out_dir: Path,
         world_dir: Path | None,
         session: PilotSession | None,
+        position_path: Path | None = None,
         clock: Callable[[], float] = time.monotonic,
         wall: Callable[[], float] = time.time,
         sleep: Callable[[float], None] = time.sleep,
@@ -372,10 +378,12 @@ class Executor:
         self._user_age, self._foreground, self._window = user_input_age, foreground, window
         self.digits, self.dialog_x = digits, dialog_x
         self.out_dir, self.world_dir, self.session = out_dir, world_dir, session
+        self.position_path = position_path
         self._clock, self._wall, self._sleep = clock, wall, sleep
         self.loc = Localizer(world, prof, cfg.adventures.world)
         self.area = cfg.pilot.area
         self.last_frame_path = ""
+        self.dialogs_closed = 0
 
     # --- eyes ----------------------------------------------------------------------------
 
@@ -402,8 +410,35 @@ class Executor:
         fix = self.loc.rejoin(frame, self._wall())
         if fix.pos is not None:
             self.world.mark_track(self.area, fix.pos)
-            self.world.observe(self.area, fix.pos, frame, self.prof.items("hud_rois"))
+            self._observe(frame, fix.pos)
+        self._publish(fix)
         return fix
+
+    def _observe(self, frame: BgrImage, pos: Point) -> int:
+        """The frame into the mosaic, unless a dialog covers the scene; the HUD and the
+        animal's own box (``avatar_roi``) are left out."""
+        if self.dialog_x is not None:
+            roi = (
+                self.prof.roi("dialog_x_search_roi")
+                if self.prof.has("dialog_x_search_roi")
+                else None
+            )
+            if sight.find_dialog_x(frame, self.dialog_x, self.prof.number("dialog_x_min"), roi):
+                return 0
+        masks = [*self.prof.items("hud_rois")]
+        if self.prof.has("avatar_roi"):
+            masks.append(list(self.prof.roi("avatar_roi")))
+        return self.world.observe(self.area, pos, frame, masks)
+
+    def _publish(self, fix: Fix) -> None:
+        """The position for the Mapping tab (``data/pilot/position.json``)."""
+        if self.position_path is None:
+            return
+        with contextlib.suppress(OSError):
+            _write_json(
+                self.position_path,
+                {"ts": self._wall(), "area": self.area, "pos": fix.as_dict()["pos"]},
+            )
 
     def _position(self, fix: Fix) -> dict[str, Any]:
         mm = self.world.world_to_dot(fix.pos) if fix.pos else None
@@ -648,6 +683,23 @@ class Executor:
         check_budget(self.session, self._wall())
         check_yield(self.cfg.pilot, self._user_age())
         self._foreground()
+        self.close_dialog()
+
+    def close_dialog(self, frame: BgrImage | None = None) -> bool:
+        """An open game dialog (Cosmo's, the blue X) holds the animal: close it first, as
+        the level runner does. True when one was closed."""
+        if self.dialog_x is None:
+            return False
+        frame = self.grab() if frame is None else frame
+        roi = self.prof.roi("dialog_x_search_roi") if self.prof.has("dialog_x_search_roi") else None
+        pt = sight.find_dialog_x(frame, self.dialog_x, self.prof.number("dialog_x_min"), roi)
+        if pt is None:
+            return False
+        self._in.click(pt[0], pt[1])
+        self._sleep(DIALOG_GONE_S)
+        self.dialogs_closed += 1
+        self._log({"cmd": "dialog_closed", "x": pt[0], "y": pt[1]})
+        return True
 
     def _user_stop(self) -> bool:
         return self._user_age() < self.cfg.pilot.yield_s / 4
@@ -671,12 +723,20 @@ class Executor:
         self._save_world()
         return out
 
-    def _hold(self, keys: set[str], max_s: float, *, stop_on_collision: bool) -> Hold:
+    def _hold(
+        self, keys: set[str], max_s: float, *, stop_on_collision: bool, rejoin: bool = True
+    ) -> Hold:
         """Hold ``keys`` for up to ``max_s`` while tracking the position every tick; with
-        ``stop_on_collision`` let go as soon as the scene stops moving."""
+        ``stop_on_collision`` let go as soon as the scene stops moving. ``rejoin`` False
+        keeps the fused position from the previous command (a survey's legs follow each
+        other without a gap, and the dot lags a second behind a walk)."""
         wc = self.cfg.adventures.world
         frame = self.grab()
-        fix = self.loc.rejoin(frame, self._wall())
+        fix = (
+            self.loc.rejoin(frame, self._wall())
+            if rejoin
+            else self.loc.update(frame, self._wall(), moving=False)
+        )
         pos0 = fix.pos
         travelled = 0.0
         still = ticks = 0
@@ -706,8 +766,10 @@ class Executor:
         finally:
             for k in sorted(keys):
                 self._in.key_up(k)
+        if reason == "collision" and self.close_dialog(frame):
+            reason = "dialog"  # a dialog held the animal: not a wall
         if fix.pos is not None:
-            self.world.observe(self.area, fix.pos, frame, self.prof.items("hud_rois"))
+            self._observe(frame, fix.pos)
         return Hold(reason, travelled, pos0, fix.pos, ticks, fix)
 
     def key(self, name: str, hold_s: float) -> dict[str, Any]:
@@ -766,10 +828,10 @@ class Executor:
         before = self.grab()
         home = self.loc.rejoin(before, self._wall()).pos
         legs: list[dict[str, Any]] = []
-        for d in names:
+        for n, d in enumerate(names):
             keys = check_direction(self.cfg.pilot, d, max_s)
             check_yield(self.cfg.pilot, self._user_age())
-            out = self._hold(keys, max_s, stop_on_collision=True)
+            out = self._hold(keys, max_s, stop_on_collision=True, rejoin=n == 0)
             leg: dict[str, Any] = {"direction": d, **self._hold_doc(out)}
             if out.reason == "collision" and out.pos_after is not None:
                 col = self.world.add_collision(
@@ -1013,9 +1075,18 @@ def server_alive(data_dir: Path, now: float | None = None) -> bool:
 
 
 def _write_json(path: Path, doc: dict[str, Any]) -> None:
+    """Atomic enough for Windows: a reader holding the file for an instant makes the
+    replace fail with a permission error, so it is retried a few times."""
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(json.dumps(doc), encoding="utf-8")
-    tmp.replace(path)
+    for _attempt in range(WRITE_RETRIES):
+        try:
+            tmp.replace(path)
+            return
+        except PermissionError:
+            time.sleep(WRITE_RETRY_S)
+    path.write_text(json.dumps(doc), encoding="utf-8")
+    tmp.unlink(missing_ok=True)
 
 
 def send(
@@ -1040,8 +1111,6 @@ def send(
                 continue
             result.unlink(missing_ok=True)
             return dict(doc)
-        if not server_alive(data_dir):
-            return {"refused": "the pilot server went away"}
         time.sleep(poll_s)
     return {"refused": f"no answer from the pilot server within {timeout_s:.0f} s"}
 
@@ -1062,13 +1131,19 @@ def serve(
         d.mkdir(parents=True, exist_ok=True)
     p["stop"].unlink(missing_ok=True)
     served = 0
-    beat = 0.0
+    done = threading.Event()
+
+    def heartbeat() -> None:
+        while not done.is_set():
+            with contextlib.suppress(OSError):
+                _write_json(
+                    p["server"], {"pid": os.getpid(), "heartbeat": clock(), "served": served}
+                )
+            done.wait(SERVER_HEARTBEAT_S)
+
+    threading.Thread(target=heartbeat, name="pilot-heartbeat", daemon=True).start()
     try:
         while not stop() and not p["stop"].exists():
-            now = clock()
-            if now - beat >= SERVER_HEARTBEAT_S:
-                _write_json(p["server"], {"pid": os.getpid(), "heartbeat": now, "served": served})
-                beat = now
             files = sorted(p["cmd"].glob("*.json"))
             if not files:
                 sleep(poll_s)
@@ -1076,19 +1151,22 @@ def serve(
             for f in files:
                 try:
                     doc = json.loads(f.read_text(encoding="utf-8"))
+                    f.unlink(missing_ok=True)
                 except (OSError, ValueError):
                     sleep(poll_s)
                     continue
-                f.unlink(missing_ok=True)
                 try:
                     answer = run([str(a) for a in doc.get("argv", [])])
                 except PilotRefusedError as exc:
                     answer = {"refused": str(exc)}
                 except Exception as exc:
                     answer = {"error": f"{type(exc).__name__}: {exc}"}
-                _write_json(p["out"] / f.name, answer)
+                with contextlib.suppress(OSError):
+                    _write_json(p["out"] / f.name, answer)
                 served += 1
     finally:
-        p["server"].unlink(missing_ok=True)
-        p["stop"].unlink(missing_ok=True)
+        done.set()
+        with contextlib.suppress(OSError):
+            p["server"].unlink(missing_ok=True)
+            p["stop"].unlink(missing_ok=True)
     return served

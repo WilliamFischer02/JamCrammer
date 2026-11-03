@@ -149,6 +149,8 @@ def run_learn(args: argparse.Namespace) -> int:
 
     stamp = time.strftime("%Y%m%d_%H%M%S")
     name = f"{stamp}_{args.target}" + (f"_{args.name}" if args.name else "")
+    if getattr(args, "session_dir", None):
+        name = str(args.session_dir)  # the pilot names the folder so its log lands beside it
     session_dir = args.paths.sessions / name
     session_id = store.start_session("learn", args.target, session_dir, time.time())
 

@@ -32,7 +32,7 @@ PALETTE_CYCLE = ("#9B6BFF", "#3AA0FF", "#2FD08A", "#F5B941", "#FF5D5D", "#E7EAF0
 class PartiesPage(Page):
     key = "parties"
     title = "Parties"
-    subtitle = "The rotation log built from every My Parties scan, and the banners still waiting for a name."
+    subtitle = "The party rotation from every scan, and banners still waiting for a name."
     icon = "parties"
 
     def __init__(self, engine: Engine, window: Any) -> None:
@@ -56,7 +56,7 @@ class PartiesPage(Page):
             stats.addWidget(c)
         self.content.addLayout(stats)
 
-        tl = Card("Rotation timeline", f"Last {TIMELINE_HOURS} h, one lane per party.")
+        tl = Card("Rotation", f"Last {TIMELINE_HOURS} h, one lane per party.")
         self.plot = pg.PlotWidget(background=None)
         self.plot.setMinimumHeight(240)
         self.plot.setMouseEnabled(False, False)
@@ -97,7 +97,7 @@ class PartiesPage(Page):
                     color=theme.PALETTE.bg,
                     on_click=self.label_selected,
                 ),
-                icon_button("refresh", "Refresh", on_click=self.refresh),
+                icon_button("refresh", "Refresh", kind="ghost", on_click=self.refresh),
             )
         )
         self.content.addWidget(unk)

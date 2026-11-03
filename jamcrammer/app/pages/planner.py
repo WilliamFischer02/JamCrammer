@@ -5,23 +5,46 @@ from __future__ import annotations
 import threading
 
 from PySide6.QtCore import QTimer
-from PySide6.QtWidgets import QFormLayout, QLabel, QSpinBox
+from PySide6.QtWidgets import QLabel, QSpinBox
 
+from jamcrammer.app import theme
 from jamcrammer.app.engine import Engine
-from jamcrammer.app.pages.modes import ModePage
-from jamcrammer.app.widgets import Card, icon_button, row
+from jamcrammer.app.pages.modes import ModePage, _form
+from jamcrammer.app.widgets import Card, Meter, StatTile, icon_button, row
 from jamcrammer.modes.planner import format_eta
+
+PLAN_MAX_S = 2 * 3600.0  # the countdown meter's full scale
 
 
 class PlannerPage(ModePage):
     key = "planner"
     mode = "planner"
     title = "Den Planner"
-    subtitle = (
-        "From the den: Jamaa Derby (PRO) on repeat until Best Guess is due, then leave, "
-        "find Best Guess in My Parties and farm it."
-    )
-    icon = "opportunist"
+    subtitle = "Derby in your den until Best Guess is due, then Best Guess."
+    icon = "home"
+
+    def build_stats(self) -> None:
+        c = theme.PALETTE.planner
+        self.t_eta = StatTile("Best Guess in", c, spark=False, size="md")
+        self.t_phase = StatTile("Phase", c, spark=False, size="md")
+        self.t_gems = StatTile("Gems", theme.PALETTE.arcade, spark=False, size="md")
+        self.panel.add_stats([self.t_eta, self.t_phase, self.t_gems])
+        self.m_eta = Meter("Countdown", "planner")
+        self.panel.add_chart(self.m_eta)
+
+    def update_stats(self) -> None:
+        st = self.engine.state
+        eta = st.bg_eta_s()
+        if eta is None:
+            self.t_eta.set_value("not set")
+            self.m_eta.set_value(0, "–")
+        else:
+            self.t_eta.set_value(format_eta(eta) if eta > 0 else "due now")
+            self.m_eta.set_value(
+                100.0 * (1.0 - min(1.0, max(0.0, eta) / PLAN_MAX_S)), format_eta(max(0.0, eta))
+            )
+        self.t_phase.set_value(st.mode_state.title() if st.mode == self.mode else "idle")
+        self.t_gems.set_value(int(self.engine.ledger.stats.session_delta))
 
     def build_settings(self) -> None:
         eng: Engine = self.engine
@@ -29,7 +52,7 @@ class PlannerPage(ModePage):
         card = Card(
             "Time until Best Guess", "Type what the party tray shows, or read it from the game."
         )
-        form = QFormLayout()
+        form = _form()
         self.hours = QSpinBox()
         self.hours.setRange(0, 12)
         self.minutes = QSpinBox()
@@ -40,9 +63,6 @@ class PlannerPage(ModePage):
             self.minutes.setValue(int(eta % 3600 // 60))
         form.addRow("Hours", self.hours)
         form.addRow("Minutes", self.minutes)
-        self.countdown = QLabel("not set")
-        self.countdown.setObjectName("CardHelp")
-        form.addRow("Countdown", self.countdown)
         self.note = QLabel("")
         self.note.setObjectName("CardHelp")
         self.note.setWordWrap(True)
@@ -50,20 +70,23 @@ class PlannerPage(ModePage):
         card.add_layout(form)
         card.add_layout(
             row(
-                icon_button("play", "Set timer", kind="ok", on_click=self._set_timer),
-                icon_button("parties", "Read from game", on_click=self._read_from_game),
+                icon_button(
+                    "timer", "Set timer", kind="accent", accent="planner", on_click=self._set_timer
+                ),
+                icon_button(
+                    "parties", "Read from game", kind="ghost", on_click=self._read_from_game
+                ),
                 stretch_last=True,
             )
         )
         self.content.addWidget(card)
-        plan = Card("What Start does", "")
+        plan = Card("What Start does")
         plan.add(
             QLabel(
-                "1. Opens My Parties and the Upcoming Parties tray, reads the Best Guess time.\n"
-                "2. Goes to the den if the room name is not your den.\n"
-                "3. Opens the games menu, scrolls halfway, opens Jamaa Derby, clicks PRO.\n"
-                "4. Farms the Derby; leaves at a leaderboard once the timer is within the lead.\n"
-                "5. Re-checks My Parties every few seconds, joins Best Guess, farms it until you stop."
+                "1. Reads the Best Guess time from the party tray.\n"
+                "2. Goes to your den and opens Jamaa Derby (PRO).\n"
+                "3. Races until the timer is within the lead, then leaves at a leaderboard.\n"
+                "4. Watches My Parties, joins Best Guess and farms it until you stop."
             )
         )
         self.content.addWidget(plan)
@@ -94,12 +117,5 @@ class PlannerPage(ModePage):
             if eta is not None:
                 self.hours.setValue(int(eta // 3600))
                 self.minutes.setValue(int(eta % 3600 // 60))
-        eta_s = self.engine.state.bg_eta_s()
-        if eta_s is None:
-            self.countdown.setText("not set")
-        elif eta_s <= 0:
-            self.countdown.setText("Best Guess is due now")
-        else:
-            self.countdown.setText(f"Best Guess in {format_eta(eta_s)}")
         if self.engine.state.bg_eta_note and not self.note.text():
             self.note.setText(self.engine.state.bg_eta_note)

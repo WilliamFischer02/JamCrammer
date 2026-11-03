@@ -341,8 +341,9 @@ class WorldConfig(StrictModel):
     dot_gain: float = Field(0.15, ge=0, le=1)  # pull toward the dot per update
     dot_reset_px: float = Field(250.0, ge=0)  # this far off the dot ...
     dot_reset_n: int = Field(4, ge=1)  # ... this many updates in a row: the dot wins outright
-    dot_rejoin_px: float = Field(100.0, ge=0)  # between commands, a dot this far from the
-    # estimate means someone moved the animal: start from the dot again
+    dot_rejoin_px: float = Field(400.0, ge=0)  # between commands, a dot this far from the
+    # estimate means someone moved the animal: start from the dot again (the dot lags a
+    # walk by up to a second, ~400 px)
     # probing: hold a direction until the scene stops moving
     probe_tick_s: float = Field(0.1, gt=0)
     probe_max_s: float = Field(2.5, gt=0)

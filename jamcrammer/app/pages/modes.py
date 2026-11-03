@@ -1,7 +1,12 @@
-"""Mode pages: every toggle for the mode in titled cards, plus a profile-completeness checklist."""
+"""Bot pages: a run panel at the top (one status line, Start / Stop / Pause, the bot's own
+stat tiles and chart), then its settings in cards, then the profile checklist.
+
+Each bot shows what matters to it: Best Guess its answers and accuracy, the Arcade its
+races and gems, the Adventure its crystals and helps, the Opportunist its checks and hops."""
 
 from __future__ import annotations
 
+import time
 from collections.abc import Callable
 from typing import Any, cast
 
@@ -17,8 +22,8 @@ from PySide6.QtWidgets import (
 )
 
 from jamcrammer.app import theme
-from jamcrammer.app.engine import Engine
-from jamcrammer.app.widgets import Card, Chip, Page, icon_button, row
+from jamcrammer.app.engine import MODE_LABELS, Engine
+from jamcrammer.app.widgets import Card, Chip, Meter, Page, RunPanel, StatTile, icon_button, row
 from jamcrammer.core.gate import gate_status
 
 REQUIRED_FIELDS: dict[str, list[tuple[str, str]]] = {
@@ -36,6 +41,15 @@ REQUIRED_FIELDS: dict[str, list[tuple[str, str]]] = {
         ("double_up", "end_screen_gems_roi"),
     ],
     "opportunist": [("parties", "party_hat_point"), ("double_up", "grid_origin")],
+}
+FIELD_WIDTH = 160
+COMBO_WIDTH = 260
+MODE_ICONS = {
+    "hunt": "bestguess",
+    "farm": "arcade",
+    "adventure": "adventure",
+    "opportunist": "opportunist",
+    "planner": "home",
 }
 
 
@@ -68,22 +82,49 @@ def _spin(  # noqa: PLR0917 - small positional helper
     box.setSingleStep(int(step) if integer else step)  # type: ignore[arg-type]
     box.setValue(int(value) if integer else value)  # type: ignore[arg-type]
     box.setToolTip(tip)
+    box.setMinimumWidth(FIELD_WIDTH)
     box.valueChanged.connect(lambda v: setter(float(v)))
     return box
 
 
+def _form() -> QFormLayout:
+    """A settings form whose fields keep their natural width (no full-width spin boxes)."""
+    form = QFormLayout()
+    form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.FieldsStayAtSizeHint)
+    form.setHorizontalSpacing(theme.PAD_MD)
+    return form
+
+
+def _save_config(engine: Engine) -> str:
+    try:
+        with engine.paths.config_file.open("w", encoding="utf-8") as fh:
+            yaml.safe_dump(engine.cfg.model_dump(mode="json"), fh, sort_keys=False)
+    except OSError as exc:
+        return f"could not save config.yaml: {exc}"
+    return ""
+
+
 class ModePage(Page):
+    """A bot page. Subclasses fill ``build_stats`` (tiles and a chart for the run panel),
+    ``update_stats`` (every tick) and ``build_settings`` (the cards below)."""
+
     mode = "hunt"
+    gate_mode = "hunt"
 
     def __init__(self, engine: Engine, window: Any) -> None:
         super().__init__()
         self.engine = engine
         self.window_ref = window
+        self.panel = RunPanel(MODE_LABELS[self.mode], self.mode, MODE_ICONS.get(self.mode, "bot"))
+        self.panel.start_clicked.connect(self.start)
+        self.panel.stop_clicked.connect(engine.stop_mode)
+        self.panel.pause_clicked.connect(engine.toggle_pause)
+        self.panel.dry.setChecked(engine.state.dry_run)
+        self.panel.dry_toggled.connect(engine.set_dry_run)
+        self.content.addWidget(self.panel)
+        self.build_stats()
         self.build_settings()
-        self.checklist = Card(
-            "Profile completeness",
-            "Fields the live mode needs. Calibrate missing ones in Calibration.",
-        )
+        self.checklist = Card("Profile", "What the live run needs. Missing fields: Calibration.")
         self.check_rows = QFormLayout()
         self.checklist.add_layout(self.check_rows)
         self.gate_line = QLabel("")
@@ -94,7 +135,8 @@ class ModePage(Page):
             row(
                 icon_button(
                     "calibration",
-                    "Go to Calibration",
+                    "Calibrate",
+                    kind="ghost",
                     on_click=lambda: window.show_page_key("calibration"),
                 ),
                 stretch_last=True,
@@ -104,8 +146,36 @@ class ModePage(Page):
         self.finish()
         self.refresh_checklist()
 
+    # --- hooks ---------------------------------------------------------------------------
+
+    def build_stats(self) -> None:
+        pass
+
     def build_settings(self) -> None:
         pass
+
+    def update_stats(self) -> None:
+        pass
+
+    def status_line(self) -> tuple[str, str]:
+        """(one line, detail) for the run panel while this bot runs or rests."""
+        st = self.engine.state
+        if st.mode == self.mode:
+            return (st.mode_state.replace("_", " ").title(), st.mode_detail)
+        if st.mode:
+            return (f"{MODE_LABELS.get(st.mode, st.mode)} is running", "one bot at a time")
+        if st.last_error:
+            return ("Stopped", st.last_error)
+        return ("Ready", "")
+
+    # --- actions -------------------------------------------------------------------------
+
+    def start(self) -> None:
+        self.engine.selected_mode = self.mode
+        if not self.engine.start_mode(self.mode):
+            self.panel.set_status(
+                "Could not start", self.engine.state.last_error or "a bot is running"
+            )
 
     def refresh_checklist(self) -> None:
         while self.check_rows.rowCount():
@@ -122,39 +192,96 @@ class ModePage(Page):
             "hunt": "hunt",
             "farm": self.engine.cfg.arcade_game,
             "opportunist": "double_up",
-        }.get(self.mode, "hunt")
+        }.get(self.mode, self.gate_mode)
         self.gate_line.setText(
-            "Live-mode gate: "
-            + gate_status(gate_mode, self.engine.paths, self.engine._profiles).summary()
+            "Gate: " + gate_status(gate_mode, self.engine.paths, self.engine._profiles).summary()
         )
 
     def on_show(self) -> None:
         self.refresh_checklist()
+        self.on_tick()
 
     def on_tick(self) -> None:
-        pass
+        st = self.engine.state
+        running = st.mode == self.mode
+        self.panel.set_running(running, st.paused, can_start=st.mode is None and not st.killed)
+        self.panel.pill.set_state(
+            st.mode_state if running else ("BUSY" if st.mode else "IDLE"),
+            st.pill_kind if running else "idle",
+        )
+        line, detail = self.status_line()
+        self.panel.set_status(line, detail)
+        if self.panel.dry.isChecked() != st.dry_run:
+            self.panel.dry.setChecked(st.dry_run)
+        self.update_stats()
+
+
+# --- Best Guess ------------------------------------------------------------------------------
 
 
 class BestGuessPage(ModePage):
     key = "hunt"
     mode = "hunt"
     title = "Best Guess"
-    subtitle = "Hunt the Best Guess Game party, join it, farm it with the answer bank."
+    subtitle = "Waits for the Best Guess party, joins it and answers from the bank."
     icon = "bestguess"
+
+    def build_stats(self) -> None:
+        c = theme.PALETTE.bestguess
+        self.t_correct = StatTile("Correct", c, spark=False, size="md")
+        self.t_rounds = StatTile("Rounds", c, spark=False, size="md")
+        self.t_gems = StatTile("Gems", theme.PALETTE.arcade, spark=False, size="md")
+        self.t_bank = StatTile("Facts known", theme.PALETTE.tool, spark=False, size="md")
+        self.panel.add_stats([self.t_correct, self.t_rounds, self.t_gems, self.t_bank])
+        self.m_acc = Meter("Accuracy", "hunt")
+        self.m_streak = Meter("Streak toward 4x", "hunt", unit="", maximum=4)
+        self.panel.add_chart(self.m_acc)
+        self.panel.add_chart(self.m_streak)
+        self._bank_ts = 0.0
+        self._bank_n = 0
+
+    def update_stats(self) -> None:
+        s = self.engine.state.stats.get("bestguess", {})
+        correct, answered = int(s.get("correct", 0)), int(s.get("answered", 0))
+        self.t_correct.set_value(correct)
+        self.t_rounds.set_value(int(s.get("rounds", 0)))
+        self.t_gems.set_value(int(s.get("gems_est", 0)))
+        acc = 100.0 * correct / answered if answered else 0.0
+        self.m_acc.set_value(acc, f"{acc:.0f}%  ({correct} of {answered})")
+        mult = int(s.get("multiplier", 1))
+        self.m_streak.set_value(mult, f"x{mult} · streak {int(s.get('streak', 0))}")
+        if time.time() - self._bank_ts > 10:
+            self._bank_ts = time.time()
+            try:
+                rows = self.engine.store.query("SELECT COUNT(*) AS n FROM bg_facts")
+                self._bank_n = int(rows[0]["n"]) if rows else 0
+            except Exception:
+                pass
+        self.t_bank.set_value(self._bank_n)
+
+    def status_line(self) -> tuple[str, str]:
+        st = self.engine.state
+        if st.mode == self.mode:
+            s = st.stats.get("bestguess", {})
+            fact = str(s.get("last_fact", ""))[:70]
+            decision = str(s.get("last_decision", ""))
+            if fact:
+                return (f"{st.mode_state.title()}: {fact}", decision)
+        return super().status_line()
 
     def build_settings(self) -> None:
         cfg = self.engine.cfg
-        hunt = Card("Hunter (Phases A/B)")
-        form = QFormLayout()
+        hunt = Card("Hunting")
+        form = _form()
         form.addRow(
-            "Scan interval (s)",
+            "Scan every (s)",
             _spin(
                 cfg.hunt_interval_s,
                 30,
                 3600,
                 30,
                 lambda v: setattr(cfg, "hunt_interval_s", v),
-                "How often My Parties is opened and scanned",
+                "How often My Parties is scanned",
             ),
         )
         form.addRow(
@@ -163,8 +290,8 @@ class BestGuessPage(ModePage):
                 self.engine,
                 lambda: cfg.auto_join,
                 lambda v: setattr(cfg, "auto_join", v),
-                "Auto-join when Best Guess appears",
-                "Click GO NOW automatically; otherwise alert only",
+                "Join when it appears",
+                "Click GO NOW; otherwise alert only",
             ),
         )
         form.addRow(
@@ -173,8 +300,8 @@ class BestGuessPage(ModePage):
                 self.engine,
                 lambda: cfg.start_farming_after_join,
                 lambda v: setattr(cfg, "start_farming_after_join", v),
-                "Start farming after join",
-                "Phase C; Learn-only until the replay gate passes",
+                "Answer after joining",
+                "Learn-only until the replay gate passes",
             ),
         )
         form.addRow(
@@ -183,38 +310,38 @@ class BestGuessPage(ModePage):
                 self.engine,
                 lambda: cfg.hunt.antiafk_each_cycle,
                 lambda v: setattr(cfg.hunt, "antiafk_each_cycle", v),
-                "Anti-AFK pair before every scan",
+                "Move before every scan",
                 "A cancelling movement pair keeps the session alive",
             ),
         )
         hunt.add_layout(form)
         self.content.addWidget(hunt)
 
-        brain = Card(
-            "Farmer brain (Phase C)", "Live farming stays locked until the replay gate hits 95%."
-        )
-        form2 = QFormLayout()
+        brain = Card("Answering")
+        form2 = _form()
         policy = QComboBox()
+        policy.setMinimumWidth(COMBO_WIDTH)
         for p in ("crowd", "learned_prior", "fixed_true", "fixed_false", "skip"):
             policy.addItem(p)
         policy.setCurrentText(cfg.unknown_fact_policy)
         policy.currentTextChanged.connect(lambda v: setattr(cfg, "unknown_fact_policy", v))
-        form2.addRow("Unknown-fact policy", policy)
+        form2.addRow("Unknown facts", policy)
         mode = QComboBox()
+        mode.setMinimumWidth(COMBO_WIDTH)
         for m in ("learn_only", "bank_policy", "coin_flip"):
             mode.addItem(m)
         mode.setCurrentText(cfg.answer_mode)
         mode.currentTextChanged.connect(self._set_answer_mode)
         form2.addRow("Answer mode", mode)
         form2.addRow(
-            "Fuzzy threshold",
+            "Match threshold",
             _spin(
                 cfg.fuzzy_threshold,
                 50,
                 100,
                 1,
                 lambda v: setattr(cfg, "fuzzy_threshold", int(v)),
-                "rapidfuzz token_set_ratio minimum",
+                "Fuzzy match of a fact against the bank",
                 integer=True,
             ),
         )
@@ -226,81 +353,151 @@ class BestGuessPage(ModePage):
                 600,
                 10,
                 lambda v: setattr(cfg, "heartbeat_s", v),
-                "Re-click the current side after this long without input",
+                "Re-click the current side after this long idle",
             ),
         )
-        gate = QLabel("Live-mode gate: LOCKED (no recorded session has passed replay ≥95%)")
-        gate.setObjectName("CardHelp")
-        form2.addRow("", gate)
         brain.add_layout(form2)
         self.content.addWidget(brain)
 
     def _set_answer_mode(self, value: str) -> None:
-        """Persist the answer mode: learn_only means the farmer never answers (recording only)."""
         self.engine.cfg.answer_mode = cast(Any, value)
-        try:
-            with self.engine.paths.config_file.open("w", encoding="utf-8") as fh:
-                yaml.safe_dump(self.engine.cfg.model_dump(mode="json"), fh, sort_keys=False)
-        except OSError as exc:
-            self.gate_line.setText(f"could not save config.yaml: {exc}")
+        err = _save_config(self.engine)
+        if err:
+            self.gate_line.setText(err)
             return
         self.refresh_checklist()
+
+
+# --- Arcade ----------------------------------------------------------------------------------
 
 
 class ArcadePage(ModePage):
     key = "farm"
     mode = "farm"
     title = "Arcade"
-    subtitle = "Farm an always-available mini-game: Jamaa Derby (calibrated) or Double Up."
+    subtitle = "Farms a mini-game on repeat: Jamaa Derby or Double Up."
     icon = "arcade"
     GAMES = ("jamaa_derby", "double_up", "gem_ball", "swoopy_eagle")
+    GAME_LABELS = {
+        "jamaa_derby": "Jamaa Derby",
+        "double_up": "Double Up",
+        "gem_ball": "Gem Ball (experimental)",
+        "swoopy_eagle": "Swoopy Eagle (experimental)",
+    }
+
+    def build_stats(self) -> None:
+        c = theme.PALETTE.arcade
+        self.t_gems = StatTile("Gems", c, spark=False, size="md")
+        self.t_rounds = StatTile("Races", c, spark=False, size="md")
+        self.t_wins = StatTile("Wins", theme.PALETTE.ok, spark=False, size="md")
+        self.t_hits = StatTile("Stumbles", theme.PALETTE.danger, spark=False, size="md")
+        self.panel.add_stats([self.t_gems, self.t_rounds, self.t_wins, self.t_hits])
+        self.m_win = Meter("Win rate", "farm")
+        self.m_clean = Meter("Clean jumps", "farm")
+        self.panel.add_chart(self.m_win)
+        self.panel.add_chart(self.m_clean)
+
+    def update_stats(self) -> None:
+        s = self.engine.state.stats.get("farm", {})
+        game = self.engine.cfg.arcade_game
+        if game == "jamaa_derby":
+            races, wins = int(s.get("races", 0)), int(s.get("first_places", 0))
+            jumps, hits = int(s.get("jumps", 0)), int(s.get("hits", 0))
+            self.t_rounds.caption.setText("RACES")
+            self.t_wins.caption.setText("WINS")
+            self.t_hits.caption.setText("STUMBLES")
+            self.t_rounds.set_value(races)
+            self.t_wins.set_value(wins)
+            self.t_hits.set_value(hits)
+            rate = 100.0 * wins / races if races else 0.0
+            self.m_win.label.setText("WIN RATE")
+            self.m_win.set_value(rate, f"{rate:.0f}%  ({wins} of {races})")
+            clean = 100.0 * (jumps - hits) / jumps if jumps else 0.0
+            self.m_clean.label.setText("CLEAN JUMPS")
+            self.m_clean.set_value(clean, f"{clean:.0f}%  ({jumps} jumps)")
+        else:
+            rounds, perfect = int(s.get("rounds", 0)), int(s.get("perfect", 0))
+            self.t_rounds.caption.setText("ROUNDS")
+            self.t_wins.caption.setText("PERFECT")
+            self.t_hits.caption.setText("MISMATCHES")
+            self.t_rounds.set_value(rounds)
+            self.t_wins.set_value(perfect)
+            self.t_hits.set_value(int(s.get("mismatches", 0)))
+            rate = 100.0 * perfect / rounds if rounds else 0.0
+            self.m_win.label.setText("PERFECT ROUNDS")
+            self.m_win.set_value(rate, f"{rate:.0f}%")
+            self.m_clean.label.setText("PAIRING CONFIDENCE")
+            conf = float(s.get("confidence", 0.0)) * 100.0
+            self.m_clean.set_value(conf, f"{conf:.0f}%")
+        self.t_gems.set_value(int(s.get("gems", s.get("gems_reported", 0)) or 0))
+
+    def status_line(self) -> tuple[str, str]:
+        st = self.engine.state
+        if st.mode == self.mode:
+            game = self.GAME_LABELS.get(self.engine.cfg.arcade_game, self.engine.cfg.arcade_game)
+            return (f"{game}: {st.mode_state.title()}", st.mode_detail)
+        return super().status_line()
 
     def build_settings(self) -> None:
-        card = Card("Game", "The game Start farms; saved to config.yaml (arcade_game).")
-        form = QFormLayout()
+        card = Card("Game")
+        form = _form()
         game = QComboBox()
+        game.setMinimumWidth(COMBO_WIDTH)
         for g in self.GAMES:
-            game.addItem(g if g in ("jamaa_derby", "double_up") else f"{g} (experimental)", g)
+            game.addItem(self.GAME_LABELS[g], g)
         current = self.engine.cfg.arcade_game
         game.setCurrentIndex(max(0, self.GAMES.index(current)) if current in self.GAMES else 0)
         game.currentIndexChanged.connect(lambda i: self._set_game(str(game.itemData(i))))
         form.addRow("Game", game)
-        form.addRow("Target perfect rounds", QLabel("≥ 98% (8/8, no mismatches)"))
-        form.addRow("Preview burst capture", QLabel("≥ 10 fps during the 3 s preview"))
         card.add_layout(form)
         self.content.addWidget(card)
-        act = Card("Activity", "Set from the Activity Test result (KICKOFF 7.3).")
-        act.add(
-            QLabel(
-                "Insert a lobby movement pair every N rounds if in-game clicks don't count as activity."
-            )
-        )
-        self.content.addWidget(act)
 
     def _set_game(self, game: str) -> None:
         self.engine.cfg.arcade_game = cast(Any, game)
-        try:
-            with self.engine.paths.config_file.open("w", encoding="utf-8") as fh:
-                yaml.safe_dump(self.engine.cfg.model_dump(mode="json"), fh, sort_keys=False)
-        except OSError as exc:
-            self.gate_line.setText(f"could not save config.yaml: {exc}")
+        err = _save_config(self.engine)
+        if err:
+            self.gate_line.setText(err)
             return
         self.refresh_checklist()
+        self.update_stats()
+
+
+# --- Opportunist -----------------------------------------------------------------------------
 
 
 class OpportunistPage(ModePage):
     key = "opportunist"
     mode = "opportunist"
     title = "Opportunist"
-    subtitle = "Farm the arcade, peek at My Parties every few minutes, hop to Best Guess the moment it appears."
+    subtitle = "Farms the arcade and hops to Best Guess the moment it appears."
     icon = "opportunist"
+
+    def build_stats(self) -> None:
+        c = theme.PALETTE.opportunist
+        self.t_rounds = StatTile("Arcade rounds", theme.PALETTE.arcade, spark=False, size="md")
+        self.t_checks = StatTile("Party checks", c, spark=False, size="md")
+        self.t_overhead = StatTile("Overhead", c, unit=" s", spark=False, size="md")
+        self.t_hopped = StatTile("Hopped", theme.PALETTE.bestguess, spark=False, size="md")
+        self.panel.add_stats([self.t_rounds, self.t_checks, self.t_overhead, self.t_hopped])
+        self.m_next = Meter("Next party check", "opportunist")
+        self.panel.add_chart(self.m_next)
+
+    def update_stats(self) -> None:
+        s = self.engine.state.stats.get("opportunist", {})
+        self.t_rounds.set_value(int(s.get("rounds", 0)))
+        self.t_checks.set_value(int(s.get("checks", 0)))
+        self.t_overhead.set_value(float(s.get("mean_overhead_s", 0.0)))
+        self.t_hopped.set_value("yes" if s.get("hopped") else "no")
+        period = max(1.0, float(self.engine.cfg.opportunist_check_s))
+        since = float(s.get("since_check_s", 0.0))
+        self.m_next.set_value(100.0 * min(1.0, since / period), f"{max(0.0, period - since):.0f} s")
 
     def build_settings(self) -> None:
         cfg = self.engine.cfg
-        card = Card("Orchestrator")
-        form = QFormLayout()
+        card = Card("Checks")
+        form = _form()
         form.addRow(
-            "Check interval (s)",
+            "Check every (s)",
             _spin(
                 cfg.opportunist_check_s,
                 60,
@@ -310,8 +507,6 @@ class OpportunistPage(ModePage):
                 "Checked at the next round boundary, never mid-round",
             ),
         )
-        form.addRow("Overhead", QLabel("Measured per check and shown in Profit Lab."))
-        form.addRow("Fallback", QLabel("If re-entry fails twice → plain Hunt mode + alert."))
         card.add_layout(form)
         self.content.addWidget(card)
 
