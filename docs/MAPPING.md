@@ -130,18 +130,31 @@ compositing mixed every misplaced copy; the HUD masks were too small.
      0.03 once held two walks 18 px apart and the outlier cut severed their bridge: the
      picture was two offset copies. Origins are rounded to the pixel; `build.json` keeps
      the pairs and reports the connected components (one is the goal).
-  3. *Composite.* Per 512 px tile, per pixel: the 5 samples nearest the animal's light are
-     kept and the one with the median brightness of the 3 nearest is the pixel. No two
-     samples are blended, so the picture is as crisp as a frame; a moth, another player or
-     a dropped blossom in one frame never wins. Samples are divided by the light's gain at
-     their radius (`light_gain`, measured on 3,702 registered pairs: flat to 110 px, 0.77 at
-     200, 0.52 at 300) so the picture has one exposure; below `build_min_gain` (0.3) a
-     sample is not used.
+  3. *Composite.* Only the largest connected group of frames is composited: a frame no
+     pair links sits at its kept pose, up to 200 px off, and would win a share of the
+     pixels (that shredded trials 2-4). Per 512 px tile, per pixel: the 5 samples nearest
+     the animal's light are kept; the pixel is the nearest one, unless its brightness is
+     more than `build_outlier_v` (40) from the median of the three nearest (a moth, another
+     player, Cosmo walking by): then the median one. No two samples are blended, so the
+     picture is as crisp as a frame, and each neighbourhood comes from one frame. Samples
+     are divided by the light's gain at their radius (`light_gain`, measured on 3,702
+     registered pairs: flat to 110 px, 0.77 at 200, 0.52 at 300), capped at 1/0.6 so the
+     rim is left dim rather than blown out (a lit crystal lights its surroundings in every
+     frame too); below `build_min_gain` (0.3) a sample is not used.
+  *Registration guards.* The refinement patch must have texture (`build_min_std` 10 grey
+  levels: a flat dark patch correlates 1.0 with anything, which placed the start's dark
+  frames 30 px off), the overlap must be lit in both frames over 15% of its crop, and the
+  patch is tried at 320, 200 and 128 px (a fresh instance's light is a 200 px disc). The
+  scene is a pure translation: two frames 518 px apart overlaid at their registered shift
+  coincide everywhere but the animal, the HUD and Cosmo, who walks about (checked
+  2026-11-03, so no parallax layer to model).
   The tiles, the low-resolution mosaic and the weight layer are replaced; things,
   collisions and the grid stay. `build.json` keeps the solved origin of every frame.
-- **Measured on the first 718 frames** of the second pass: 7,065 of 7,969 candidate pairs
-  accepted, median residual 0.01 px, max 1.2 px, 652 of 718 frames linked; the kept poses
-  were off by 3 px (median) to 210 px (max).
+- **Measured on the 1,513 dot-bearing frames** of the second pass's first hour: 14,605 of
+  19,533 candidate pairs accepted, median residual 0.0 px, max 1.8 px, 1,278 frames in the
+  largest group (the 235 others are the dark frames right after each entry, before any
+  crystal was lit); the kept poses were off by 109 px (median) to 211 px (max), mostly the
+  dot's lag along the walk. Registration ~450 s, the composite ~300 s on this PC.
 - **Synthetic check** (`tests/test_world_build.py`): frames cut from a known texture under a
   moving lamp with the animal, a HUD and a passing moth painted in and the poses perturbed
   by +-45 px come back registered to the pixel (every pair within 1 px of the truth), with

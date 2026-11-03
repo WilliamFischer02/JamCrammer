@@ -17,11 +17,19 @@ the next session reads it first).
   is exact where pairs agree and stays pinned to the minimap where they do not. Phase
   correlation at half scale gets the coarse shift; a full-resolution patch match gets the
   integer pixel. Measured: median residual 0.01 px on 7,065 pairs.
-- **Composite by "median of the nearest-to-the-light samples", never blended.** Blending
-  misaligned or dimmed samples is what made the blobs; picking one real sample per pixel
-  keeps the picture as crisp as a frame, the median among the three best-lit drops a moth
-  or another player, and dividing by the measured light gain (`light_gain`) gives one
-  exposure across stops.
+- **Composite by "the nearest-to-the-light sample unless it is an outlier", never
+  blended, and only the largest group of frames.** Blending misaligned or dimmed samples
+  is what made the blobs; one real sample per pixel keeps the picture as crisp as a frame.
+  A plain median of the three nearest mixed three frames per pixel and shredded wherever
+  two of them disagreed; the nearest sample with the median as a fallback (when the
+  nearest is 40+ grey levels off it: a moth, another player, Cosmo walking) keeps each
+  neighbourhood from one frame. Frames outside the largest connected group are left out:
+  at their kept pose they are up to 200 px off and won a third of the pixels. Dividing by
+  the measured light gain (`light_gain`, capped at 1/0.6) gives one exposure across stops.
+- **No parallax to model.** Two frames 518 px apart overlaid at their registered shift
+  coincide everywhere but the animal, the HUD and Cosmo; a shredded foreground rock in
+  trial 8 was dark start frames placed 30 px off by flat-patch pairs (now guarded by a
+  texture minimum), not a second layer.
 - **The animal is located by its name tag per frame.** `avatar_xy` was a median over
   frames; the camera lags a walk and stops at the area's edge, so the animal is up to 200 px
   from it in moving frames, and the first map pasted the animal and its tag everywhere.
