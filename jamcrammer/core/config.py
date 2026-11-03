@@ -350,6 +350,11 @@ class WorldConfig(StrictModel):
     stuck_px: float = Field(12.0, ge=0)  # moved less than this in a tick while a key is held
     stuck_ticks: int = Field(3, ge=1)  # ... this many ticks running: a collision
     unknown_cost: float = Field(3.0, ge=1)  # A* cost of an unknown cell (floor 1, walked 0.8)
+    # aligning a new observation to what the mosaic already holds (phase correlation)
+    align_min_overlap: float = Field(0.2, ge=0, le=1)  # share of the disc already seen
+    align_min_response: float = Field(0.12, ge=0)  # a weaker peak is no alignment
+    align_max_px: float = Field(160.0, ge=0)  # a larger shift is a bad peak, not a drift
+    align_sigma: float = Field(3.0, gt=0)  # high-pass at mosaic scale (the vignette)
 
 
 class AdventureConfig(StrictModel):

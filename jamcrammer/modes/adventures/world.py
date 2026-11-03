@@ -421,12 +421,9 @@ class World:
 
     # --- the mosaic ----------------------------------------------------------------------
 
-    def observe(self, area: str, pos: Point, frame: BgrImage, hud_rois: list[Any]) -> int:
-        """Paste the lit disc around the animal into the mosaic at ``pos``. Bright pixels win
-        over what was there; dark ones (the vignette's edge) never overwrite. ``hud_rois``
-        are left out: pass the HUD and the animal's own box (it is in every frame and would
-        be smeared over the map). Returns the number of mosaic pixels written."""
-        a = self.area(area)
+    def _prep(self, frame: BgrImage, hud_rois: list[Any]) -> tuple[BgrImage, npt.NDArray[np.uint8]]:
+        """The frame at mosaic scale and the mask of what goes in: the lit disc around the
+        animal without the HUD (and the animal's own box, when passed)."""
         s = self.cfg.mosaic_scale
         small = np.asarray(
             cv2.resize(frame, None, fx=s, fy=s, interpolation=cv2.INTER_AREA), np.uint8
@@ -438,6 +435,58 @@ class World:
         disc = np.zeros_like(keep)
         cv2.circle(disc, (ax, ay), max(1, int(self.cfg.vignette_px * s)), 1, -1)
         keep &= disc
+        return small, keep
+
+    def align(
+        self, area: str, pos: Point, frame: BgrImage, hud_rois: list[Any]
+    ) -> tuple[Point, float, float]:
+        """Where this frame really belongs, by phase correlation against the part of the
+        mosaic it overlaps: (corrected pos, overlap share, response). The estimate from the
+        dot and the odometry is good to a few tens of px; the mosaic says the rest. Without
+        enough overlap, or with a weak or implausible peak, ``pos`` comes back unchanged
+        with response 0."""
+        a = self.area(area)
+        s = self.cfg.mosaic_scale
+        small, keep = self._prep(frame, hud_rois)
+        ox, oy = round((pos[0] - self.avatar[0]) * s), round((pos[1] - self.avatar[1]) * s)
+        mh, mw = a.mosaic.shape[:2]
+        fh, fw = small.shape[:2]
+        x0, y0 = max(0, ox), max(0, oy)
+        x1, y1 = min(mw, ox + fw), min(mh, oy + fh)
+        if x1 <= x0 or y1 <= y0:
+            return pos, 0.0, 0.0
+        kv = keep[y0 - oy : y1 - oy, x0 - ox : x1 - ox] > 0
+        seen = a.weight[y0:y1, x0:x1] > 0
+        both = kv & seen
+        disc_px = int(np.count_nonzero(keep))
+        overlap = float(np.count_nonzero(both)) / disc_px if disc_px else 0.0
+        if overlap < self.cfg.align_min_overlap:
+            return pos, overlap, 0.0
+        live = cv2.cvtColor(small[y0 - oy : y1 - oy, x0 - ox : x1 - ox], cv2.COLOR_BGR2GRAY)
+        ref = cv2.cvtColor(a.mosaic[y0:y1, x0:x1], cv2.COLOR_BGR2GRAY)
+        sig = self.cfg.align_sigma
+        live_f = live.astype(np.float32)
+        ref_f = ref.astype(np.float32)
+        live_f = live_f - cv2.GaussianBlur(live_f, (0, 0), sig)
+        ref_f = ref_f - cv2.GaussianBlur(ref_f, (0, 0), sig)
+        live_f[~both] = 0.0
+        ref_f[~both] = 0.0
+        win = cv2.createHanningWindow((live_f.shape[1], live_f.shape[0]), cv2.CV_32F)
+        (dx, dy), resp = cv2.phaseCorrelate(ref_f, live_f, win)
+        shift = (dx / s, dy / s)  # the live content is the mosaic's moved by this (scene px)
+        if resp < self.cfg.align_min_response or math.hypot(*shift) > self.cfg.align_max_px:
+            return pos, overlap, float(resp)
+        # content that appears moved right means the frame was placed too far left
+        return (pos[0] - shift[0], pos[1] - shift[1]), overlap, float(resp)
+
+    def observe(self, area: str, pos: Point, frame: BgrImage, hud_rois: list[Any]) -> int:
+        """Paste the lit disc around the animal into the mosaic at ``pos``. Bright pixels win
+        over what was there; dark ones (the vignette's edge) never overwrite. ``hud_rois``
+        are left out: pass the HUD and the animal's own box (it is in every frame and would
+        be smeared over the map). Returns the number of mosaic pixels written."""
+        a = self.area(area)
+        s = self.cfg.mosaic_scale
+        small, keep = self._prep(frame, hud_rois)
         v = np.asarray(cv2.cvtColor(small, cv2.COLOR_BGR2HSV)[:, :, 2], np.int32)
         # where it lands on the mosaic: the frame's origin is pos - avatar
         ox, oy = round((pos[0] - self.avatar[0]) * s), round((pos[1] - self.avatar[1]) * s)

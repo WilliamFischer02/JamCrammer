@@ -141,6 +141,10 @@ adventures:
     stuck_px: 12                             # moved less than this in a tick while a key is held ...
     stuck_ticks: 3                           # ... this many ticks running: a collision
     unknown_cost: 3.0                        # A* cost of an unknown cell (floor 1, walked 0.8)
+    align_min_overlap: 0.2                   # a new observation is aligned to the mosaic when this share of it was seen before
+    align_min_response: 0.12                 # ... and the correlation peak is at least this
+    align_max_px: 160                        # ... and the shift is at most this (scene px)
+    align_sigma: 3.0                         # high-pass at mosaic scale before correlating
 
 # --- Opportunist (KICKOFF 10) ---
 opportunist:

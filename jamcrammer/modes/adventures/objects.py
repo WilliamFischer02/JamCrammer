@@ -20,6 +20,7 @@ CRYSTAL_KINDS = {
     "lit": "crystal_lit_hsv",
     "decoy": "crystal_decoy_hsv",
 }
+DECOY_EXTRA = "crystal_decoy_red_hsv"  # the red decoys (the purple range is the older guess)
 
 
 @dataclass(frozen=True)
@@ -64,6 +65,8 @@ def crystals(frame: BgrImage, prof: Profile) -> list[Blob]:
     out: list[Blob] = []
     for kind, key in CRYSTAL_KINDS.items():
         out.extend(find_blobs(frame, prof, key, kind))
+    if prof.has(DECOY_EXTRA):
+        out.extend(find_blobs(frame, prof, DECOY_EXTRA, "decoy"))
     return out
 
 

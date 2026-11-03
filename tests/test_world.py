@@ -415,3 +415,24 @@ def test_tiles_fill_in_where_observed_and_export_stitches_them(tmp_path: Path) -
     assert 0 < cov["percent_seen"] <= 100 and cov["tiles"] == len(tiles)
     back = World.load(tmp_path, WCFG)
     assert back is not None and back.tiles.tiles("moths") == tiles
+
+
+def test_a_new_observation_is_aligned_to_the_mosaic() -> None:
+    world = synth.World(PROF)
+    synth.layout(world)
+    w = _world(world)
+    hud = PROF.items("hud_rois")
+    pos0 = truth(world, w)
+    w.observe("moths", pos0, world.image(), hud)
+    # the animal walks a little; the frame is observed with a position 40 px off the truth
+    world.px += 120.0
+    world.py += 30.0
+    pos1 = truth(world, w)
+    wrong = (pos1[0] + 40.0, pos1[1] - 25.0)
+    fixed, overlap, resp = w.align("moths", wrong, world.image(), hud)
+    assert overlap >= 0.2 and resp > 0.1, (overlap, resp)
+    assert math.dist(fixed, pos1) < 12, (fixed, pos1, wrong)
+    # nothing seen there yet: no correction
+    far = (pos1[0] + 3000.0, pos1[1])
+    same, _overlap2, resp2 = w.align("moths", far, world.image(), hud)
+    assert same == far and resp2 == 0.0

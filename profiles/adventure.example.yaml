@@ -91,6 +91,21 @@ fields:
     value: [[130, 90, 80], [165, 255, 255]]
     status: proposed
     note: purple decoy / destroyable crystals
+  crystal_decoy_red_hsv:
+    type: color
+    value: [[165, 110, 120], [180, 255, 255]]
+    status: calibrated
+    note: the red decoy crystals the moths are drawn to (measured 2026-11-02 live, H 170-174 S 123-182 V 137-201); their base is navy and reads as an unlit crystal
+  scan_fungus_base_px:
+    type: number
+    value: 50
+    status: calibrated
+    note: an unlit-crystal blob this close to a fungus is the fungus's dark stem, not a crystal (pilot scans)
+  scan_glow_px:
+    type: number
+    value: 50
+    status: calibrated
+    note: a lit-crystal blob this close to a fungus is the fungus's glow, not a crystal
   fungus_hsv:
     type: color
     value: [[50, 90, 140], [90, 255, 255]]

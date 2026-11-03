@@ -384,6 +384,8 @@ class Executor:
         self.area = cfg.pilot.area
         self.last_frame_path = ""
         self.dialogs_closed = 0
+        self.align_log: list[tuple[int, int, float]] = []  # corrections (dx, dy, resp)
+        self.last_align: tuple[float, float] = (0.0, 0.0)
 
     # --- eyes ----------------------------------------------------------------------------
 
@@ -428,6 +430,14 @@ class Executor:
         masks = [*self.prof.items("hud_rois")]
         if self.prof.has("avatar_roi"):
             masks.append(list(self.prof.roi("avatar_roi")))
+        fixed, overlap, resp = self.world.align(self.area, pos, frame, masks)
+        if resp > 0 and fixed != pos:
+            self.loc.pos = fixed  # the mosaic knows better than the dot
+            self.align_log.append(
+                (round(pos[0] - fixed[0]), round(pos[1] - fixed[1]), round(resp, 2))
+            )
+            pos = fixed
+        self.last_align = (round(overlap, 2), round(resp, 2))
         return self.world.observe(self.area, pos, frame, masks)
 
     def _publish(self, fix: Fix) -> None:
@@ -446,6 +456,11 @@ class Executor:
             "area": self.area,
             "pos": fix.as_dict(),
             "mm": [round(mm[0], 1), round(mm[1], 1)] if mm else None,
+            "align": {
+                "overlap": self.last_align[0],
+                "response": self.last_align[1],
+                "corrections": self.align_log[-3:],
+            },
         }
 
     def look(self, tag: str = "look", frame: BgrImage | None = None) -> dict[str, Any]:
@@ -517,10 +532,21 @@ class Executor:
             out["note"] = "no position: nothing placed"
             return out
         found: list[dict[str, Any]] = []
+        fungi = objects.fungi(frame, self.prof)
+        base_px = (
+            self.prof.number("scan_fungus_base_px") if self.prof.has("scan_fungus_base_px") else 0
+        )
+        glow_px = self.prof.number("scan_glow_px") if self.prof.has("scan_glow_px") else 0
         for b in objects.crystals(frame, self.prof):
-            kind, status = ("decoy", "") if b.kind == "decoy" else ("crystal", b.kind)
+            near_fungus = objects.nearest(fungi, (b.x, b.y))
+            at_fungus = near_fungus is not None and near_fungus.dist((b.x, b.y)) <= (
+                base_px if b.kind == "unlit" else glow_px if b.kind == "lit" else 0
+            )
+            if at_fungus:
+                continue  # the fungus's navy stem or its glow, not a crystal
+            kind, status = ("decoy", "red") if b.kind == "decoy" else ("crystal", b.kind)
             found.append(self._place(kind, fix.pos, (b.x, b.y), status=status, shot=frame_path))
-        for b in objects.fungi(frame, self.prof):
+        for b in fungi:
             found.append(self._place("fungus", fix.pos, (b.x, b.y), shot=frame_path))
         for inner in ("paw", "flame", "bang"):
             m = objects.find_marker(frame, self.prof, inner=inner)
