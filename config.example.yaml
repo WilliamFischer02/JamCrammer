@@ -154,7 +154,9 @@ adventures:
     probe_max_s: 2.5                         # ... and walks at most this long
     stuck_px: 12                             # moved less than this in a tick while a key is held ...
     stuck_ticks: 3                           # ... this many ticks running: a collision
+    dot_stuck_ticks: 12                      # ... and the dot still for this many ticks too
     unknown_cost: 3.0                        # A* cost of an unknown cell (floor 1, walked 0.8)
+    collision_span: 1                       # a bump blocks the cell ahead and this many to each side
     align_min_overlap: 0.2                   # a new observation is aligned to the mosaic when this share of it was seen before
     align_min_response: 0.12                 # ... and the correlation peak is at least this
     align_max_px: 160                        # ... and the shift is at most this (scene px)

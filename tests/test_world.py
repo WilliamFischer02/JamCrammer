@@ -436,3 +436,25 @@ def test_a_new_observation_is_aligned_to_the_mosaic() -> None:
     far = (pos1[0] + 3000.0, pos1[1])
     same, _overlap2, resp2 = w.align("moths", far, world.image(), hud)
     assert same == far and resp2 == 0.0
+
+
+def test_goto_plans_on_the_grid_and_learns_the_walls_it_hits(tmp_path: Path) -> None:
+    """A wall with a gap between the animal and its goal: the first goto bumps into it,
+    maps the hits, plans around them and arrives; the way back needs no bump."""
+    world = synth.World(PROF)
+    ex, w = _executor(world, tmp_path)
+    x0, y0 = world.px, world.py
+    # a vertical wall 400 px to the right, from far above to 60 px below the animal: the gap
+    # is below it
+    world.walls = [(int(x0 + 400), int(y0 - 900), 40, 960)]
+    goal = truth_at(x0 + 800, y0, w)
+    out = ex.goto(goal[0], goal[1], 40.0, in_world=True, tol=1.0)
+    assert out["ok"], out
+    assert out["replans"] >= 1, out
+    hits = [c for c in w.collisions if c.note.startswith("stuck on a goto")]
+    assert hits and all(c.dx == 1 for c in hits), hits  # it hit the wall heading right
+    tx, ty = truth(world, w)
+    assert math.dist((tx, ty), goal) < 1.5 * w.scale, (tx, ty, goal)
+    back = truth_at(x0, y0, w)
+    out = ex.goto(back[0], back[1], 40.0, in_world=True, tol=1.0)
+    assert out["ok"] and out["replans"] == 0, out

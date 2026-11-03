@@ -52,10 +52,10 @@ from jamcrammer.modes.adventures import objects, sight
 from jamcrammer.modes.adventures.inventory import DigitBank, read_counts
 from jamcrammer.modes.adventures.level import Level, level_dir
 from jamcrammer.modes.adventures.localize import Fix, Localizer
-from jamcrammer.modes.adventures.nav import Floor, Navigator
 from jamcrammer.modes.adventures.opening import Opening, classify
 from jamcrammer.modes.adventures.replay import Input
 from jamcrammer.modes.adventures.world import (
+    BLOCKED,
     DIRECTION_KEYS,
     DIRECTIONS,
     STATE_NAMES,
@@ -81,6 +81,10 @@ COLLISION_RADIUS_PX = 300
 SURVEY_DIRS = ("right", "dr", "down", "dl", "left", "ul", "up", "ur")
 CARDINAL_DIRS = ("right", "down", "left", "up")
 SURVEY_BACK_TOL_PX = 40.0
+GOTO_TOL_MM = 3.0  # arrived within this many minimap px (210 scene px)
+GOTO_LEG_PX = 600.0  # one straight leg of a goto at most (then the path is looked at again)
+GOTO_WAYPOINT_TOL_CELLS = 0.8  # a waypoint counts as reached within this many cells
+GOTO_MAX_REPLANS = 40  # collisions (each a wall on the map) before a goto gives up
 SERVER_HEARTBEAT_S = 1.0
 WATCHDOG_EVERY_S = 1.0  # while a key is held, the popup watchdog looks this often
 WIGGLE_PX = 12  # the keepalive cursor move alternates this far left and right
@@ -880,6 +884,8 @@ class Executor:
         pos0 = fix.pos
         travelled = 0.0
         still = ticks = 0
+        dot_still = 0
+        last_dot: Point | None = None
         reason = "done"
         for k in sorted(keys):
             self._in.key_down(k)
@@ -902,7 +908,12 @@ class Executor:
                 if ticks <= PROBE_WARMUP_TICKS:
                     continue
                 still = still + 1 if d < wc.stuck_px else 0
-                if stop_on_collision and still >= wc.stuck_ticks:
+                dot_still, last_dot = _dot_still(dot_still, last_dot, fix.dot)
+                if (
+                    stop_on_collision
+                    and still >= wc.stuck_ticks
+                    and dot_still >= wc.dot_stuck_ticks
+                ):
                     reason = "collision"
                     break
         finally:
@@ -991,20 +1002,34 @@ class Executor:
 
     def _walk_back(self, home: Point | None, max_s: float) -> dict[str, Any]:
         """Toward ``home`` by the fused position until within SURVEY_BACK_TOL_PX."""
+        if home is None:
+            return {"reason": "no_position"}
+        return self._walk_to(home, max_s, SURVEY_BACK_TOL_PX, tag="back")
+
+    def _walk_to(self, target: Point, max_s: float, tol: float, *, tag: str) -> dict[str, Any]:
+        """Hold keys toward ``target`` (world px) by the fused position until within ``tol``,
+        the time is up, William touches the controls, or the animal is stuck: then the stop
+        is a collision on the map, heading the way the keys pointed (a dialog that held the
+        animal is closed instead and is no collision)."""
         wc = self.cfg.adventures.world
-        if home is None or self.loc.pos is None:
+        if self.loc.pos is None:
             return {"reason": "no_position"}
         end = self._clock() + max_s
         held: set[str] = set()
         reason = "arrived"
+        still = ticks = 0
+        dot_still = 0
+        last_dot: Point | None = None
+        frame = self.grab()
+        fix = self.loc.last
         try:
             while True:
                 pos = self.loc.pos
                 if pos is None:
                     reason = "no_position"
                     break
-                dx, dy = home[0] - pos[0], home[1] - pos[1]
-                if math.hypot(dx, dy) <= SURVEY_BACK_TOL_PX:
+                dx, dy = target[0] - pos[0], target[1] - pos[1]
+                if math.hypot(dx, dy) <= tol:
                     break
                 if self._clock() >= end:
                     reason = "timeout"
@@ -1012,25 +1037,32 @@ class Executor:
                 if self._user_stop():
                     reason = "user"
                     break
-                keys = _keys_toward(dx, dy)
-                for k in sorted(held - keys):
-                    self._in.key_up(k)
-                for k in sorted(keys - held):
-                    self._in.key_down(k)
-                held = keys
+                held = self._switch_keys(held, _keys_toward(dx, dy))
                 self._sleep(wc.probe_tick_s)
                 frame = self.grab()
+                self._guard(frame)
                 fix = self.loc.update(frame, self._wall(), moving=True)
+                ticks += 1
                 if fix.pos is not None:
                     self.world.mark_track(self.area, fix.pos)
-                    self._record(frame, fix, "back")
+                    self._record(frame, fix, tag)
+                if ticks <= PROBE_WARMUP_TICKS:
+                    continue
+                still = still + 1 if math.hypot(*fix.moved) < wc.stuck_px else 0
+                dot_still, last_dot = _dot_still(dot_still, last_dot, fix.dot)
+                if still >= wc.stuck_ticks and dot_still >= wc.dot_stuck_ticks:
+                    reason = "collision"
+                    break
         finally:
             for k in sorted(held):
                 self._in.key_up(k)
+        if reason == "collision":
+            reason = self._stuck(frame, fix, held, tag)
         pos = self.loc.pos
         return {
             "reason": reason,
-            "residual": round(math.dist(pos, home)) if pos else None,
+            "residual": round(math.dist(pos, target)) if pos else None,
+            "ticks": ticks,
         }
 
     def click(self, x: int, y: int) -> dict[str, Any]:
@@ -1048,6 +1080,49 @@ class Executor:
         ok = self._in.drag(x0, y0, x1, y1)
         return self._after({"cmd": "drag", "from": [x0, y0], "to": [x1, y1], "ok": ok}, before)
 
+    def _switch_keys(self, held: set[str], keys: set[str]) -> set[str]:
+        for k in sorted(held - keys):
+            self._in.key_up(k)
+        for k in sorted(keys - held):
+            self._in.key_down(k)
+        return keys
+
+    def _stuck(self, frame: BgrImage, fix: Fix, held: set[str], tag: str) -> str:
+        """A walk stopped moving: a dialog (closed, no collision) or a wall on the map."""
+        if self.close_dialog(frame):
+            return "dialog"
+        heading = (
+            (1 if "right" in held else -1 if "left" in held else 0),
+            (1 if "down" in held else -1 if "up" in held else 0),
+        )
+        if fix.pos is not None and heading != (0, 0):
+            self.world.add_collision(
+                self.area, fix.pos, heading, ts=self._wall(), note=f"stuck on a {tag}"
+            )
+        return "collision"
+
+    def _visible(self, a: Point, b: Point) -> bool:
+        """No blocked cell on the straight line from ``a`` to ``b`` (sampled every half cell)."""
+        area = self.world.area(self.area)
+        g = self.cfg.adventures.world.grid_px
+        n = max(1, int(math.dist(a, b) / (g / 2)))
+        for k in range(1, n + 1):
+            t = k / n
+            if area.state((a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)) == BLOCKED:
+                return False
+        return True
+
+    def _waypoint(self, path: list[Point], pos: Point) -> Point:
+        """The farthest point of the planned path the animal can walk straight to, at most
+        GOTO_LEG_PX away (string-pulling on the grid)."""
+        best = path[0]
+        for pt in path:
+            if math.dist(pos, pt) > GOTO_LEG_PX:
+                break
+            if self._visible(pos, pt):
+                best = pt
+        return best
+
     def goto(
         self,
         x: float,
@@ -1057,43 +1132,57 @@ class Executor:
         in_world: bool = False,
         tol: float | None = None,
     ) -> dict[str, Any]:
-        """Walk to a minimap point (or a world point with ``in_world``) by the level's floor
-        mask (all floor when there is none), tracking the position on the way."""
+        """Walk to a minimap point (or a world point with ``in_world``) on the world grid:
+        A* around every wall the map knows, the legs walked by the fused position, every
+        stuck recorded as a collision and the path planned again. ``tol`` is in minimap px."""
         self._arm()
-        target = self.world.world_to_dot((x, y)) if in_world else (x, y)
-        roi = self.prof.roi("minimap_roi")
-        mask = (
-            self.lvl.floors[self.area]
-            if self.lvl is not None and self.area in self.lvl.floors
-            else np.ones((roi[3], roi[2]), np.bool_)
-        )
+        target = (x, y) if in_world else self.world.dot_to_world((x, y))
+        tol_px = (GOTO_TOL_MM if tol is None else tol) * self.world.scale
+        g = self.cfg.adventures.world.grid_px
         before = self.grab()
         self.loc.rejoin(before, self._wall())
-        nav = Navigator(
-            Floor(mask, (roi[0], roi[1])),
-            self.prof,
-            self.cfg.adventures.level,
-            key_down=self._in.key_down,
-            key_up=self._in.key_up,
-            grab=self._tracked_grab(lambda: bool(nav.held)),
-            clock=self._clock,
-            sleep=self._sleep,
-        )
         limit = min(timeout_s, self.cfg.pilot.max_goto_s)
         deadline = self._clock() + limit
-
-        def stop() -> bool:
-            return self._clock() > deadline or self._user_stop()
-
-        res = nav.go_to(target, stop=stop, tol=tol, timeout=limit)
+        replans = 0
+        trace: list[dict[str, Any]] = []
+        reason = "timeout"
+        while self._clock() < deadline:
+            pos = self.loc.pos
+            if pos is None:
+                reason = "no_dot"
+                break
+            if math.dist(pos, target) <= tol_px:
+                reason = "arrived"
+                break
+            path = self.world.plan(self.area, pos, target)
+            if path is None:
+                reason = "no_plan"
+                break
+            wp = self._waypoint(path, pos)
+            last = math.dist(wp, target) <= g
+            leg_tol = tol_px if last else g * GOTO_WAYPOINT_TOL_CELLS
+            leg = self._walk_to(
+                target if last else wp, deadline - self._clock(), leg_tol, tag="goto"
+            )
+            trace.append({"to": [round(wp[0]), round(wp[1])], **leg})
+            if leg["reason"] in ("user", "no_position"):
+                reason = "user" if leg["reason"] == "user" else "no_dot"
+                break
+            if leg["reason"] == "collision":
+                replans += 1
+                if replans > GOTO_MAX_REPLANS:
+                    reason = "blocked"
+                    break
+        pos = self.loc.pos
+        dist_mm = math.dist(pos, target) / self.world.scale if pos else -1.0
         cmd = {
             "cmd": "goto",
-            "target_mm": [round(target[0], 1), round(target[1], 1)],
-            "ok": res.ok,
-            "reason": res.reason,
-            "dist_mm": round(res.dist, 1),
-            "blocks": res.blocks,
-            "trace": nav.trace[-20:],
+            "target_mm": [round(v, 1) for v in self.world.world_to_dot(target)],
+            "ok": reason == "arrived",
+            "reason": reason,
+            "dist_mm": round(dist_mm, 1),
+            "replans": replans,
+            "trace": trace[-20:],
         }
         return self._after(cmd, before)
 
@@ -1224,6 +1313,14 @@ class Executor:
     def _log(self, record: dict[str, Any]) -> None:
         if self.session is not None:
             self.session.log(record)
+
+
+def _dot_still(count: int, last: Point | None, dot: Point | None) -> tuple[int, Point | None]:
+    """How many ticks running the minimap dot has stayed put (a missing dot counts as
+    still: it is not evidence of movement)."""
+    if dot is None or last is None:
+        return (count + 1 if dot is None else 0), (dot if dot is not None else last)
+    return (count + 1 if math.dist(dot, last) < 1.0 else 0), dot
 
 
 def _keys_toward(dx: float, dy: float, dead: float = 0.35) -> set[str]:

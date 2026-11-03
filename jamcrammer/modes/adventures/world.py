@@ -369,8 +369,12 @@ class World:
         here = a.cell(pos)
         g = self.cfg.grid_px
         ahead = a.cell((pos[0] + heading[0] * g, pos[1] + heading[1] * g))
-        if ahead != here:
-            a.set_state(ahead, BLOCKED)
+        # across the heading: (-dy, dx); a diagonal heading blocks along both axes
+        side = (-heading[1], heading[0]) if heading[0] == 0 or heading[1] == 0 else (1, 0)
+        for k in range(-self.cfg.collision_span, self.cfg.collision_span + 1):
+            cell = (ahead[0] + side[0] * k, ahead[1] + side[1] * k)
+            if cell != here and a.inside(cell) and a.grid[cell[1], cell[0]] != FREE:
+                a.set_state(cell, BLOCKED)
         self.mark_track(area, pos)
         self.dirty = True
         return col
