@@ -171,7 +171,9 @@ adventures:
     build_patch_px: 320                     # full-resolution refinement patch
     build_search_px: 6                      # searched this far around the coarse shift
     build_min_ncc: 0.45                     # the patch must correlate this well
-    build_prior_weight: 0.03                # the kept pose's weight vs a pair's (1.0)
+    build_prior_weight: 0.002               # the kept pose's weight vs a pair's (1.0): the gauge only
+    build_huber_px: 2.0                     # a pair's weight falls off past this residual
+    build_solve_rounds: 4                   # reweighting rounds
     build_residual_px: 8                    # pairs off by more after a solve are dropped
     build_stack: 5                          # best-lit samples kept per tile pixel
     build_k: 3                              # the median of the k best-lit is the pixel

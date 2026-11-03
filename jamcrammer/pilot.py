@@ -467,8 +467,8 @@ class Executor:
     def _record(self, frame: BgrImage, fix: Fix, tag: str, *, force: bool = False) -> None:
         """Keep the frame with its pose for the offline rebuild (throttled while walking)."""
         store = self._store()
-        if store is None or fix.pos is None:
-            return
+        if store is None or fix.pos is None or fix.dot is None:
+            return  # no dot in this frame: a menu, a dialog, the login screen, a stale position
         now = self._clock()
         if not force and now - self._obs_last < self.cfg.adventures.world.obs_every_s:
             return

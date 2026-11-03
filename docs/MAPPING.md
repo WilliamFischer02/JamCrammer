@@ -124,9 +124,12 @@ compositing mixed every misplaced copy; the HUD masks were too small.
      full resolution within +-6 px (normalised correlation >= 0.45). A pair whose shift is
      more than 150 px from the poses is refused.
   2. *Pose graph.* Frame origins solved by least squares: every pair an equation
-     `o_i - o_j = s_ij` (weight 1), every kept pose a weak prior (0.03) that pins the map to
-     the minimap; pairs off by more than 8 px after the first solve are dropped and it is
-     solved again. Origins are rounded to the pixel.
+     `o_i - o_j = s_ij` (weight 1), every kept pose a prior so weak (0.002) that it only
+     fixes where the map sits on the minimap; four robust rounds (a pair's weight falls off
+     past 2 px of residual), then pairs still off by more than 8 px are dropped. A prior of
+     0.03 once held two walks 18 px apart and the outlier cut severed their bridge: the
+     picture was two offset copies. Origins are rounded to the pixel; `build.json` keeps
+     the pairs and reports the connected components (one is the goal).
   3. *Composite.* Per 512 px tile, per pixel: the 5 samples nearest the animal's light are
      kept and the one with the median brightness of the 3 nearest is the pixel. No two
      samples are blended, so the picture is as crisp as a frame; a moth, another player or

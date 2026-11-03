@@ -24,7 +24,7 @@ from jamcrammer.core.logging import attach_bus, get_logger
 from jamcrammer.core.paths import Paths
 from jamcrammer.core.profiles import load_profile
 from jamcrammer.core.safety import last_user_input_time
-from jamcrammer.modes.adventures import sight
+from jamcrammer.modes.adventures import objects, sight
 from jamcrammer.modes.adventures.inventory import DigitBank
 from jamcrammer.modes.adventures.objects import CourageText
 from jamcrammer.modes.adventures.world import world_dir
@@ -318,6 +318,15 @@ def _rebuild(args: argparse.Namespace) -> int:
         hud_rois=[*prof.items("hud_rois")],
         dialog=dialog,
         register_pairs=not args.no_register,
+        detect=None
+        if args.no_things
+        else lambda img: (
+            objects.crystals(img, prof, hud=False) + objects.fungi(img, prof, hud=False)
+        ),
+        fungus_px=(
+            prof.number("scan_fungus_base_px") if prof.has("scan_fungus_base_px") else 0.0,
+            prof.number("scan_glow_px") if prof.has("scan_glow_px") else 0.0,
+        ),
         log=lambda m: print(m, flush=True),
     )
     print(json.dumps(out, indent=1))

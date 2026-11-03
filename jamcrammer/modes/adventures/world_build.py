@@ -44,6 +44,7 @@ from scipy.sparse.linalg import lsqr
 
 from jamcrammer.core.config import WorldConfig
 from jamcrammer.modes.adventures import sight
+from jamcrammer.modes.adventures.objects import Blob
 from jamcrammer.modes.adventures.world import TILE_PX, Obs, ObsStore, TileStore, World
 
 BgrImage = npt.NDArray[np.uint8]
@@ -60,6 +61,10 @@ PATCH_MIN_VALID = 0.85  # share of a refinement patch that must be lit and unmas
 MIN_OVERLAP_PX = 64  # a thinner overlap is not registered
 MIN_BOTH_SHARE = 0.05  # of the overlap, lit and unmasked in both frames
 PROGRESS_EVERY = 100
+THING_MARGIN = 96  # a tile is looked at with this much of its neighbours, for cut blobs
+THING_SOURCE = "picture"  # things found on the rebuilt picture
+THING_CONFIDENCE = 0.7  # above a live scan (0.5), below Claude's word (0.9)
+Detect = Callable[[BgrImage], list[Blob]]
 
 
 @dataclass
@@ -539,15 +544,69 @@ def composite(
     return {"tiles": written, "tiles_touched": len(by_tile), "composite_s": took}
 
 
+# --- things on the picture ---------------------------------------------------------------
+
+
+def place_things(
+    world: World, area: str, detect: Detect, *, fungus_base_px: float = 0.0, glow_px: float = 0.0
+) -> dict[str, int]:
+    """Run the blob detectors over the rebuilt tiles (each with a margin of its neighbours,
+    so a blob cut by a tile edge is whole) and put what they find on the map as things of
+    source ``picture``: crystals with their status, decoys, fungi. Exact to the pixel, since
+    the picture is. A crystal read within ``fungus_base_px`` (unlit) / ``glow_px`` (lit) of a
+    fungus is the fungus's stem or glow, as in a live scan."""
+    g = TILE_PX
+    m = THING_MARGIN
+    counts: dict[str, int] = {}
+    for tx, ty in world.tiles.tiles(area):
+        big = np.zeros((g + 2 * m, g + 2 * m, 3), np.uint8)
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                if (tx + dx, ty + dy) not in world.tiles.tiles(area) and (dx or dy):
+                    continue
+                t = world.tiles.get(area, tx + dx, ty + dy)
+                sy, sx = m + dy * g, m + dx * g
+                y0, x0 = max(0, sy), max(0, sx)
+                y1, x1 = min(big.shape[0], sy + g), min(big.shape[1], sx + g)
+                big[y0:y1, x0:x1] = t[y0 - sy : y1 - sy, x0 - sx : x1 - sx]
+        blobs = [b for b in detect(big) if m <= b.x < m + g and m <= b.y < m + g]
+        fungi = [b for b in blobs if b.kind == "fungus"]
+        for b in blobs:
+            if b.kind != "fungus":
+                near = min((math.dist((f.x, f.y), (b.x, b.y)) for f in fungi), default=1e9)
+                limit = fungus_base_px if b.kind == "unlit" else glow_px if b.kind == "lit" else 0
+                if near <= limit:
+                    continue
+            kind, status = (
+                ("decoy", "red")
+                if b.kind == "decoy"
+                else (("fungus", "") if b.kind == "fungus" else ("crystal", b.kind))
+            )
+            pos = (tx * g + b.x - m, ty * g + b.y - m)
+            world.add_object(
+                kind,
+                area,
+                pos,
+                source=THING_SOURCE,
+                confidence=THING_CONFIDENCE,
+                status=status,
+                note="from the rebuilt picture",
+            )
+            counts[kind] = counts.get(kind, 0) + 1
+    return counts
+
+
 # --- the whole thing ---------------------------------------------------------------------
 
 
 def load_frames(obs_dirs: list[Path], area: str) -> list[Frame]:
+    """The kept frames of ``area`` that saw the minimap dot (no dot: a menu, a dialog, the
+    login screen, or a stale position), in time order."""
     frames: list[Frame] = []
     for d in obs_dirs:
         for o in ObsStore.load(d):
             path = d / o.file
-            if o.area != area or not path.exists():
+            if o.area != area or o.dot is None or not path.exists():
                 continue
             origin = (o.pos[0] - o.anchor[0], o.pos[1] - o.anchor[1])
             frames.append(Frame(len(frames), o, path, origin))
@@ -555,6 +614,26 @@ def load_frames(obs_dirs: list[Path], area: str) -> list[Frame]:
     for k, f in enumerate(frames):
         f.idx = k
     return frames
+
+
+def _components(n: int, pairs: list[Pair]) -> list[set[int]]:
+    """The connected groups of frames (a group placed only by its priors floats)."""
+    parent = list(range(n))
+
+    def find(a: int) -> int:
+        while parent[a] != a:
+            parent[a] = parent[parent[a]]
+            a = parent[a]
+        return a
+
+    for p in pairs:
+        ra, rb = find(p.i), find(p.j)
+        if ra != rb:
+            parent[ra] = rb
+    groups: dict[int, set[int]] = {}
+    for k in range(n):
+        groups.setdefault(find(k), set()).add(k)
+    return sorted(groups.values(), key=len, reverse=True)
 
 
 def _register_all(frames: list[Frame], cache: _Cache, cfg: WorldConfig, log: Log) -> dict[str, Any]:
@@ -571,17 +650,29 @@ def _register_all(frames: list[Frame], cache: _Cache, cfg: WorldConfig, log: Log
             log(
                 f"  registered {tried}/{len(cands)}: {len(pairs)} ok, {time.monotonic() - t0:.0f} s"
             )
+    # robust rounds: a pair's weight falls off past build_huber_px of residual, so a few
+    # wrong pairs lose their say without a hard cut that could sever two walks' bridge
     origins = solve(frames, pairs, cfg.build_prior_weight)
+    for _round in range(cfg.build_solve_rounds - 1):
+        res = residuals(origins, pairs)
+        for p, r in zip(pairs, res, strict=True):
+            p.weight = 1.0 if r <= cfg.build_huber_px else cfg.build_huber_px / r
+        origins = solve(frames, pairs, cfg.build_prior_weight)
     res = residuals(origins, pairs)
     kept = [p for p, r in zip(pairs, res, strict=True) if r <= cfg.build_residual_px]
     if len(kept) < len(pairs):
         origins = solve(frames, kept, cfg.build_prior_weight)
         res = residuals(origins, kept)
+    for p in kept:
+        p.weight = 1.0
     linked = {p.i for p in kept} | {p.j for p in kept}
     moved = [math.dist(o, f.origin) for o, f in zip(origins, frames, strict=True)]
     for f, o in zip(frames, origins, strict=True):
         f.origin = (round(o[0]), round(o[1]))
-    stats = {
+    comps = _components(len(frames), kept)
+    stats: dict[str, Any] = {
+        "components": len(comps),
+        "largest_component": max((len(c) for c in comps), default=0),
         "pairs_candidates": len(cands),
         "pairs_accepted": len(pairs),
         "pairs_dropped": len(pairs) - len(kept),
@@ -593,6 +684,7 @@ def _register_all(frames: list[Frame], cache: _Cache, cfg: WorldConfig, log: Log
         "register_s": round(time.monotonic() - t0, 1),
     }
     log(f"  solved: {stats}")
+    stats["_pairs"] = [[p.i, p.j, p.shift[0], p.shift[1], round(p.ncc, 2)] for p in kept]
     return stats
 
 
@@ -605,6 +697,8 @@ def rebuild(
     hud_rois: list[Any],
     dialog: Dialog | None = None,
     register_pairs: bool = True,
+    detect: Detect | None = None,
+    fungus_px: tuple[float, float] = (0.0, 0.0),
     log: Log = lambda _m: None,
 ) -> dict[str, Any]:
     """Register, solve and composite every kept frame of ``area`` from ``obs_dirs`` into the
@@ -626,12 +720,21 @@ def rebuild(
         for f in frames:
             f.origin = (round(f.origin[0]), round(f.origin[1]))
     stats.update(composite(frames, cache, world, area=area, log=log))
+    if detect is not None:
+        world.attach_tiles(world_folder / "tiles")
+        placed = place_things(
+            world, area, detect, fungus_base_px=fungus_px[0], glow_px=fungus_px[1]
+        )
+        stats["things_placed"] = placed
+        log(f"  things from the picture: {placed}")
     world.save(world_folder)
     stats["frame_reads"] = cache.reads
     stats["frames_with_dialog"] = cache.dialogs()
+    pairs_doc = stats.pop("_pairs", [])
     doc = {
         "saved": time.strftime("%Y-%m-%d %H:%M:%S"),
         "stats": stats,
+        "pairs": pairs_doc,
         "origins": [
             {"file": str(f.path), "origin": list(f.origin), "anchor": list(f.obs.anchor)}
             for f in frames

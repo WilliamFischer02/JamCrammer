@@ -55,7 +55,8 @@ def _frame(tex: np.ndarray, origin: tuple[int, int], moth: tuple[int, int] | Non
 
 
 def _walk() -> list[tuple[int, int]]:
-    """Frame origins: a lawnmower over the texture with revisits (loop closures)."""
+    """Frame origins: a lawnmower over the texture with revisits (loop closures), then a
+    second walk over the middle rows (a later session: its kept poses carry their own bias)."""
     xs = list(range(0, 1500, 260))
     ys = list(range(0, 1100, 240))
     path = []
@@ -63,7 +64,12 @@ def _walk() -> list[tuple[int, int]]:
         row = xs if k % 2 == 0 else xs[::-1]
         path += [(x, y) for x in row]
     path += [(xs[2], ys[1]), (xs[1], ys[2])]  # back over the middle
+    path += [(x + 130, ys[2] + 120) for x in xs]  # the second walk
     return path
+
+
+SECOND_WALK_FROM = 26  # frames from here on are the second walk
+SECOND_WALK_BIAS = (18, 14)  # px: how far the second walk's kept poses are off together
 
 
 def _build(tmp: Path) -> tuple[World, Path, np.ndarray, list[tuple[int, int]]]:
@@ -79,6 +85,8 @@ def _build(tmp: Path) -> tuple[World, Path, np.ndarray, list[tuple[int, int]]]:
         moth = (int(rng.integers(300, W - 300)), int(rng.integers(200, 700))) if k % 2 else None
         frame = _frame(tex, (ox, oy), moth)
         nx, ny = rng.uniform(-POSE_NOISE, POSE_NOISE, 2)
+        if k >= SECOND_WALK_FROM:
+            nx, ny = nx + SECOND_WALK_BIAS[0], ny + SECOND_WALK_BIAS[1]
         pos = (ox + ANCHOR[0] + float(nx), oy + ANCHOR[1] + float(ny))
         store.add("moths", 1000.0 + k, frame, pos=pos, anchor=ANCHOR, box=BOX, tag="hold", dot=pos)
     store.flush()
@@ -93,6 +101,7 @@ def test_rebuild_registers_to_the_pixel_and_drops_transients(tmp_path: Path) -> 
     stats = rebuild(folder, [tmp_path / "obs"], cfg, area="moths", hud_rois=HUD)
     assert stats["frames"] == len(truth)
     assert stats["frames_linked"] == len(truth)
+    assert stats["components"] == 1  # the two walks are one map, not two offset copies
     assert stats["residual_px_median"] is not None and stats["residual_px_median"] <= 1.0
     # the solved origins: every pair of frames agrees with the truth to a px
     frames = load_frames([tmp_path / "obs"], "moths")

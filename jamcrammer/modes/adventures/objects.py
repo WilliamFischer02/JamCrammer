@@ -44,12 +44,16 @@ def _hud_mask(prof: Profile, shape: tuple[int, ...]) -> npt.NDArray[np.uint8]:
     return keep
 
 
-def find_blobs(frame: BgrImage, prof: Profile, color_key: str, kind: str) -> list[Blob]:
-    """Connected blobs of the profile colour range within ``blob_area``, biggest first."""
+def find_blobs(
+    frame: BgrImage, prof: Profile, color_key: str, kind: str, *, hud: bool = True
+) -> list[Blob]:
+    """Connected blobs of the profile colour range within ``blob_area``, biggest first.
+    ``hud`` False: the image is not a screen (a piece of the map), nothing is masked."""
     lo, hi = prof.color(color_key)
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     mask = cv2.inRange(hsv, np.array(lo), np.array(hi))
-    mask = cv2.bitwise_and(mask, _hud_mask(prof, frame.shape))
+    if hud:
+        mask = cv2.bitwise_and(mask, _hud_mask(prof, frame.shape))
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
     n, _lab, stats, cents = cv2.connectedComponentsWithStats(mask)
     a_min, a_max = (int(v) for v in prof.items("blob_area"))
@@ -61,17 +65,17 @@ def find_blobs(frame: BgrImage, prof: Profile, color_key: str, kind: str) -> lis
     return sorted(out, key=lambda b: -b.area)
 
 
-def crystals(frame: BgrImage, prof: Profile) -> list[Blob]:
+def crystals(frame: BgrImage, prof: Profile, *, hud: bool = True) -> list[Blob]:
     out: list[Blob] = []
     for kind, key in CRYSTAL_KINDS.items():
-        out.extend(find_blobs(frame, prof, key, kind))
+        out.extend(find_blobs(frame, prof, key, kind, hud=hud))
     if prof.has(DECOY_EXTRA):
-        out.extend(find_blobs(frame, prof, DECOY_EXTRA, "decoy"))
+        out.extend(find_blobs(frame, prof, DECOY_EXTRA, "decoy", hud=hud))
     return out
 
 
-def fungi(frame: BgrImage, prof: Profile) -> list[Blob]:
-    return find_blobs(frame, prof, "fungus_hsv", "fungus")
+def fungi(frame: BgrImage, prof: Profile, *, hud: bool = True) -> list[Blob]:
+    return find_blobs(frame, prof, "fungus_hsv", "fungus", hud=hud)
 
 
 def nearest(blobs: list[Blob], pt: tuple[float, float], kind: str | None = None) -> Blob | None:
