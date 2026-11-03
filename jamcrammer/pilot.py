@@ -84,6 +84,7 @@ SURVEY_BACK_TOL_PX = 40.0
 GOTO_TOL_MM = 3.0  # arrived within this many minimap px (210 scene px)
 GOTO_LEG_PX = 600.0  # one straight leg of a goto at most (then the path is looked at again)
 GOTO_WAYPOINT_TOL_CELLS = 0.8  # a waypoint counts as reached within this many cells
+WAYPOINT_MIN_TOL_PX = 45.0  # ... and never tighter than a tick's travel (400 px/s, 0.1 s)
 GOTO_MAX_REPLANS = 40  # collisions (each a wall on the map) before a goto gives up
 CLICK_SCENE = (100, 60, 1820, 920)  # clicks for a walk land inside this box (the scene)
 CLICK_MIN_PX = 160  # a click closer to the animal than this would hit its tag / itself
@@ -1123,14 +1124,16 @@ class Executor:
                 return False
         return True
 
-    def _waypoint(self, path: list[Point], pos: Point) -> Point:
+    def _waypoint(self, path: list[Point], pos: Point, min_dist: float) -> Point:
         """The farthest point of the planned path the animal can go straight to along the
-        path, at most GOTO_LEG_PX away (string-pulling on the grid)."""
-        best = path[1] if len(path) > 1 else path[0]  # at least the next cell
+        path, at most GOTO_LEG_PX away (string-pulling on the grid) and never one already
+        within ``min_dist`` (a leg that is over before it starts)."""
+        ahead = [pt for pt in path if math.dist(pos, pt) > min_dist]
+        best = ahead[0] if ahead else path[-1]
         for k, pt in enumerate(path):
             if math.dist(pos, pt) > GOTO_LEG_PX:
                 break
-            if self._along(pos, pt, path, k):
+            if math.dist(pos, pt) > min_dist and self._along(pos, pt, path, k):
                 best = pt
         return best
 
@@ -1221,6 +1224,21 @@ class Executor:
             )
         leg["reason"] = "collision"
 
+    def _leg(self, pos: Point, wp: Point, leg_tol: float, deadline: float) -> dict[str, Any]:
+        """One leg of a goto: a click on the floor toward ``wp`` followed by the fused
+        position, or keys for a stretch too short to click."""
+        pt = self._click_toward(pos, wp)
+        if pt is None or math.dist(pos, wp) < CLICK_MIN_PX:
+            leg = self._walk_to(wp, min(WALK_LEG_S, deadline - self._clock()), leg_tol, tag="goto")
+            leg["how"] = "keys"
+            return leg
+        self._in.click(*pt)
+        leg = self._track(wp, min(CLICK_LEG_S, deadline - self._clock()), leg_tol, tag="goto")
+        leg["how"] = "click"
+        leg["at"] = list(pt)
+        self._click_went_nowhere(leg, pos, wp)
+        return leg
+
     def goto(
         self,
         x: float,
@@ -1257,23 +1275,14 @@ class Executor:
             if path is None:
                 reason = "no_plan"
                 break
-            wp = self._waypoint(path, pos)
-            pt = self._click_toward(pos, wp)
-            if pt is None or math.dist(pos, wp) < CLICK_MIN_PX:
-                # too close for a click: the last stretch by keys
-                leg = self._walk_to(
-                    wp, min(WALK_LEG_S, deadline - self._clock()), tol_px, tag="goto"
-                )
-                leg["how"] = "keys"
-            else:
-                self._in.click(*pt)
-                leg = self._track(
-                    wp, min(CLICK_LEG_S, deadline - self._clock()), tol_px, tag="goto"
-                )
-                leg["how"] = "click"
-                leg["at"] = list(pt)
-                self._click_went_nowhere(leg, pos, wp)
+            g = self.cfg.adventures.world.grid_px
+            wp_tol = max(g * GOTO_WAYPOINT_TOL_CELLS, WAYPOINT_MIN_TOL_PX)
+            wp = self._waypoint(path, pos, wp_tol)
+            leg_tol = tol_px if math.dist(wp, target) <= g else wp_tol
+            leg = self._leg(pos, wp, leg_tol, deadline)
             trace.append({"to": [round(wp[0]), round(wp[1])], **leg})
+            if leg.get("ticks", 0) == 0:
+                self._sleep(self.cfg.adventures.world.probe_tick_s)  # time must pass
             if leg["reason"] in ("user", "no_position"):
                 reason = "user" if leg["reason"] == "user" else "no_dot"
                 break
