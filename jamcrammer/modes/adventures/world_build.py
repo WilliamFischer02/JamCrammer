@@ -242,7 +242,11 @@ class _Overlap:
 
 
 def _crop_overlap(
-    feats_i: tuple[Gray, Mask], feats_j: tuple[Gray, Mask], pred: tuple[float, float], s: float
+    feats_i: tuple[Gray, Mask],
+    feats_j: tuple[Gray, Mask],
+    pred: tuple[float, float],
+    s: float,
+    min_both: float = MIN_BOTH_SHARE,
 ) -> _Overlap | None:
     """A world point at frame-i px ``p`` is at ``p + pred`` in frame j."""
     feat_i, val_i = feats_i
@@ -254,7 +258,7 @@ def _crop_overlap(
     if x1 - x0 < MIN_OVERLAP_PX or y1 - y0 < MIN_OVERLAP_PX:
         return None
     both = val_i[y0:y1, x0:x1] & val_j[y0 + sy : y1 + sy, x0 + sx : x1 + sx]
-    if np.count_nonzero(both) < MIN_BOTH_SHARE * both.size:
+    if np.count_nonzero(both) < min_both * both.size:
         return None
     a = np.where(both, feat_i[y0:y1, x0:x1], 0.0).astype(np.float32)
     b = np.where(both, feat_j[y0 + sy : y1 + sy, x0 + sx : x1 + sx], 0.0).astype(np.float32)
@@ -269,7 +273,7 @@ def register(fi: Frame, fj: Frame, cache: _Cache, cfg: WorldConfig) -> Pair | No
         return None
     s = cfg.build_scale
     pred = (fi.origin[0] - fj.origin[0], fi.origin[1] - fj.origin[1])  # o_i - o_j
-    ov = _crop_overlap(got_i, got_j, pred, s)
+    ov = _crop_overlap(got_i, got_j, pred, s, cfg.build_min_both)
     if ov is None:
         return None
     win = cv2.createHanningWindow((ov.a.shape[1], ov.a.shape[0]), cv2.CV_32F)
@@ -355,6 +359,8 @@ def _match_patch(
     if not inside:
         return None
     tmpl = gi[ty0 : ty0 + p, tx0 : tx0 + p]
+    if float(tmpl.std()) < cfg.build_min_std:
+        return None  # a flat patch correlates with anything
     res = cv2.matchTemplate(gj[jy0:jy1, jx0:jx1], tmpl, cv2.TM_CCOEFF_NORMED)
     _mn, ncc, _mnl, loc = cv2.minMaxLoc(res)
     if ncc < cfg.build_min_ncc:
@@ -429,9 +435,11 @@ class _Tile:
                 vals[k][sel] = src[sel]
                 rad[k][sel] = radius[sel]
 
-    def finish(self, k_median: int) -> tuple[BgrImage, npt.NDArray[np.uint8]]:
-        """The pixel of each cell: of the k nearest-to-the-light samples, the one with the
-        median brightness (the nearest when there are fewer than three)."""
+    def finish(self, k_median: int, outlier_v: int) -> tuple[BgrImage, npt.NDArray[np.uint8]]:
+        """The pixel of each cell: the nearest-to-the-light of the k best-lit samples,
+        unless its brightness is more than ``outlier_v`` from the median of the three (a
+        moth, another player); then the median one. One frame per neighbourhood keeps
+        static things whole; the median still drops the transients."""
         order = np.argsort(self.rad, axis=0)
         rad = np.take_along_axis(self.rad, order, axis=0)
         vals = np.take_along_axis(self.vals, order[..., None], axis=0)
@@ -440,11 +448,12 @@ class _Tile:
         top = vals[:k]
         v = top.max(axis=3).astype(np.int32)
         v[~np.isfinite(rad[:k])] = -1
-        # with n >= 3 the middle of the three brightnesses; with fewer, the nearest sample
         idx = np.zeros(n.shape, np.int64)
         if k >= 3:
-            three = np.argsort(v[:3], axis=0)[1]
-            idx = np.where(n >= 3, three, 0)
+            three = np.argsort(v[:3], axis=0)[1]  # the index of the median brightness
+            med_v = np.take_along_axis(v[:3], three[None], axis=0)[0]
+            odd = np.abs(v[0] - med_v) > outlier_v
+            idx = np.where((n >= 3) & odd, three, 0)
         out = np.take_along_axis(top, idx[None, ..., None], axis=0)[0]
         out[n == 0] = 0
         return np.asarray(out, np.uint8), n
@@ -505,8 +514,10 @@ def _row(
     keys: list[tuple[int, int]],
     by_tile: dict[tuple[int, int], list[Frame]],
     cache: _Cache,
+    *,
     stack: int,
     k_median: int,
+    outlier_v: int,
 ) -> list[tuple[tuple[int, int], tuple[BgrImage, Any]]]:
     """One row of tiles at a time, so each frame is decoded once per row it touches."""
     tiles = {k: _Tile(stack, TILE_PX) for k in keys}
@@ -526,7 +537,7 @@ def _row(
                 _paste(tiles[k], k, f, cache, valid_all)
     out = []
     for k in keys:
-        img_t, n = tiles[k].finish(k_median)
+        img_t, n = tiles[k].finish(k_median, outlier_v)
         if n.any():
             out.append((k, (img_t, n)))
     return out
@@ -557,7 +568,15 @@ def composite(
     rows = sorted({ty for _tx, ty in by_tile})
     for n_row, ty in enumerate(rows):
         keys = sorted(k for k in by_tile if k[1] == ty)
-        for k, (img_t, n) in _row(keys, by_tile, cache, cfg.build_stack, cfg.build_k):
+        rows_out = _row(
+            keys,
+            by_tile,
+            cache,
+            stack=cfg.build_stack,
+            k_median=cfg.build_k,
+            outlier_v=cfg.build_outlier_v,
+        )
+        for k, (img_t, n) in rows_out:
             cv2.imwrite(str(area_dir / f"{k[0]}_{k[1]}.png"), img_t)
             written += 1
             _lowres(world, area, k, img_t, n)
@@ -782,6 +801,7 @@ def rebuild(
             f.origin = solved[str(f.path)]
         stats["frames_composited"] = len(used)
         stats["reused"] = str(previous)
+        stats["_pairs"] = doc.get("pairs", [])  # carried forward unchanged
         log(f"  reusing {len(used)} solved origins from {previous.name}")
     elif register_pairs:
         stats.update(_register_all(frames, cache, cfg, log))

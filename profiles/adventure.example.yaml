@@ -50,7 +50,7 @@ fields:
     type: list
     label: Screen-fixed HUD parts
     help: Boxes masked out of scene alignment because they do not move with the world (bottom bar, side tabs, minimap, banner, items).
-    value: [[0, 935, 1920, 145], [1830, 0, 90, 1080], [0, 0, 90, 1080], [1460, 715, 340, 230], [440, 0, 1040, 40], [120, 50, 280, 130]]
+    value: [[0, 935, 1920, 145], [1830, 0, 90, 1080], [0, 0, 90, 1080], [1460, 715, 340, 230], [440, 0, 1040, 52], [120, 50, 280, 130]]
     status: calibrated
     note: screen-fixed parts (bottom bar with the chat tab and the portrait, the room frame left and right, minimap, banner, items) masked out of scene alignment and the map (widened 2026-11-03 after the bar's top showed in the map)
   nametag_template:

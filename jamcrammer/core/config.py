@@ -404,7 +404,11 @@ class WorldConfig(StrictModel):
     # a ~200 px disc (nothing lit yet) and a 320 px patch is never lit enough there
     build_patch_px: list[int] = [320, 200, 128]
     build_search_px: int = Field(6, ge=1)  # ... searched this far around the coarse shift
-    build_min_ncc: float = Field(0.45, ge=-1, le=1)  # ... must correlate this well
+    build_min_ncc: float = Field(0.6, ge=-1, le=1)  # ... must correlate this well
+    build_min_std: float = Field(10.0, ge=0)  # ... and the patch must have this much texture
+    # (a flat dark patch correlates 1.0 with anything: the start's dark frames were placed
+    # 30 px off by such pairs, 2026-11-03)
+    build_min_both: float = Field(0.15, ge=0, le=1)  # of the overlap crop, lit in both frames
     # the kept pose's weight vs a pair's (1.0): only the gauge (where the map sits on the
     # minimap). 0.03 let two walks sit 18 px apart with their bridging pairs dropped
     build_prior_weight: float = Field(0.002, ge=0)
@@ -412,7 +416,11 @@ class WorldConfig(StrictModel):
     build_solve_rounds: int = Field(4, ge=1)  # reweighting rounds
     build_residual_px: float = Field(8.0, ge=0)  # pairs off by more after the rounds are dropped
     build_stack: int = Field(5, ge=1)  # best-lit samples kept per tile pixel
-    build_k: int = Field(3, ge=1)  # ... the median of the k best-lit is the pixel
+    build_k: int = Field(3, ge=1)  # ... the pixel is the nearest of the k best-lit samples
+    # ... unless it differs from the median of the k by more than this (a moth, another
+    # player: a transient); then the median one. Static areas come from one frame in
+    # coherent pieces instead of a per-pixel mix, which shreds the parallax rock layer
+    build_outlier_v: int = Field(40, ge=0, le=255)
     build_min_v: int = Field(28, ge=0, le=255)  # darker samples are not samples
     # the animal's light as a gain by radius (px, gain), piecewise linear: measured on
     # 3702 registered frame pairs (2026-11-03): flat to 110 px, half at 300 px. Samples are
