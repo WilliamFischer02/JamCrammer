@@ -143,6 +143,16 @@ fields:
     status: proposed
     note: green race-progress bar at the very bottom (y 1028-1048 live); present on
       the track and the leaderboard
+  leave_confirm_point:
+    type: point
+    value: [740, 704]
+    status: calibrated
+    note: the green LEAVE button of the "Leave game?" dialog that the X opens (measured 2026-11-02 live)
+  results_close_x_point:
+    type: point
+    value: [1676, 80]
+    status: calibrated
+    note: the leaderboard's blue X (it sits further left than the race screen's); measured 2026-11-02 live
   close_x_point:
     type: point
     value:

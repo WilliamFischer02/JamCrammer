@@ -549,10 +549,7 @@ class Engine:
             return
 
         # 4. leave the Derby and hunt Best Guess in My Parties every hunt_interval_s
-        self._status("PLANNER · leaving the Derby")
-        x, y = self.profile("jamaa_derby").point("close_x_point")
-        self.input.click(x, y)
-        nav._wait(lambda im: not track_visible(im), pc.derby_timeout_s)
+        self._leave_derby(nav, track_visible)
         self.emit("planner.left_derby", Level.NOTICE, message="Best Guess is due; hunting it now")
         saved = self.cfg.hunt_interval_s
         self.cfg.hunt_interval_s = pc.hunt_interval_s
@@ -560,6 +557,26 @@ class Engine:
             self._hunt_then_farm(presence=False)
         finally:
             self.cfg.hunt_interval_s = saved
+
+    def _leave_derby(self, nav: Any, track_visible: Callable[[Any], bool]) -> bool:
+        """The Derby's X opens "Leave game?" and LEAVE confirms it; the leaderboard has its
+        own X further left. Both are tried (measured 2026-11-02 live)."""
+        pc = self.cfg.planner
+        self._status("PLANNER · leaving the Derby")
+        prof = self.profile("jamaa_derby")
+        xs = [prof.point("close_x_point")]
+        if prof.has("results_close_x_point"):
+            xs.append(prof.point("results_close_x_point"))
+        for x, y in xs * 2:
+            self.input.click(x, y)
+            time.sleep(pc.panel_settle_s)
+            if prof.has("leave_confirm_point"):
+                lx, ly = prof.point("leave_confirm_point")
+                self.input.click(lx, ly)
+            if nav._wait(lambda im: not track_visible(im), pc.panel_settle_s * 3) is not None:
+                return True
+        self.emit("planner.leave_failed", Level.HIGH, message="the Derby did not close")
+        return False
 
     def _on_derby_track(self) -> bool:
         """The Derby track, start line or leaderboard is on screen and its gate is open."""

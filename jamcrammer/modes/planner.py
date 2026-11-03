@@ -32,6 +32,8 @@ BgrImage = npt.NDArray[np.uint8]
 GrabFn = Callable[[], BgrImage]
 GREEN_HSV = ((35, 90, 70), (75, 255, 255))
 BLUE_HSV = ((95, 100, 120), (125, 255, 255))  # the games menu's scrollbar arrow
+PRO_SEARCH_PX = 120  # look this far left and right of the guessed PRO point for green
+PRO_MAX_WIDTH_PX = 260  # a green run wider than this is the PLAY! button
 _HRS = re.compile(r"(\d+)\s*(?:hrs?|hours?)", re.IGNORECASE)
 _MINS = re.compile(r"(\d+)\s*(?:mins?|minutes?)", re.IGNORECASE)
 
@@ -254,7 +256,32 @@ class Navigator:
                 if lo[0] <= hh <= hi[0] and ss >= lo[1]:
                     return (px, py)
                 self._emit("planner.pro_not_green", Level.NOTICE, x=px, y=py, h=hh, s=ss)
-                return (px, py)  # still the best guess at where PRO is
+                return self._nearest_green(np.asarray(hsv, dtype=np.uint8), px, py) or (px, py)
+        return None
+
+    def _nearest_green(self, hsv: BgrImage, px: int, py: int) -> tuple[int, int] | None:
+        """The centre of the green run nearest to (px, py) along its row, looking right
+        first (PRO sits right of PLAY!): the button's place differs a little with the
+        window's geometry."""
+        lo, hi = GREEN_HSV
+        h, w = hsv.shape[:2]
+        if not (0 <= py < h):
+            return None
+        row = np.asarray(hsv[py], dtype=np.int32)
+        green = (row[:, 0] >= lo[0]) & (row[:, 0] <= hi[0]) & (row[:, 1] >= lo[1])
+        for x in [
+            *range(px, min(w, px + PRO_SEARCH_PX)),
+            *range(px - 1, max(-1, px - PRO_SEARCH_PX), -1),
+        ]:
+            if 0 <= x < w and green[x]:
+                a = b = x
+                while a > 0 and green[a - 1]:
+                    a -= 1
+                while b < w - 1 and green[b + 1]:
+                    b += 1
+                if b - a > PRO_MAX_WIDTH_PX:  # the PLAY! button, not PRO
+                    continue
+                return ((a + b) // 2, py)
         return None
 
     def _emit(self, event_type: str, level: Level = Level.INFO, **p: object) -> None:

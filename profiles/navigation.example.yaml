@@ -85,9 +85,9 @@ fields:
     note: where the tile sits after the half scroll, if the template is not found
   pro_offset:
     type: list
-    value: [285, 127]
+    value: [206, 133]
     status: proposed
-    note: PRO button centre relative to the "Play to earn Gems" text centre on the Derby dialog
+    note: PRO button centre relative to the "Play to earn Gems" text centre on the Derby dialog (re-measured 2026-11-02 live on the 1920x1009 client; the old 285 landed past the button's edge)
   play_offset:
     type: list
     value: [9, 138]
