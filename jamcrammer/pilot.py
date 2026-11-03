@@ -1272,6 +1272,8 @@ class Executor:
                 reason = "arrived"
                 break
             path = self.world.plan(self.area, pos, target)
+            if path is None and self.world.unblock(self.area, pos):
+                path = self.world.plan(self.area, pos, target)  # walled in by its own bumps
             if path is None:
                 reason = "no_plan"
                 break
