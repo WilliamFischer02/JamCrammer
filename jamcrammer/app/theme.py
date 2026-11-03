@@ -77,7 +77,6 @@ PAGE_KINDS: dict[str, str] = {
     "farm": "bot",
     "adventure": "bot",
     "opportunist": "bot",
-    "planner": "bot",
     "mapping": "tool",
     "learn": "tool",
     "calibration": "tool",
@@ -90,7 +89,7 @@ PAGE_KINDS: dict[str, str] = {
 }
 NAV_GROUPS: list[tuple[str, tuple[str, ...]]] = [
     ("", ("dashboard",)),
-    ("Bots", ("hunt", "farm", "adventure", "opportunist", "planner")),
+    ("Bots", ("hunt", "farm", "adventure", "opportunist")),
     ("Tools", ("mapping", "learn", "calibration", "answerbank", "parties", "profitlab")),
     ("System", ("notifications", "settings", "logs")),
 ]
@@ -282,3 +281,18 @@ def build_qss(p: Palette = PALETTE) -> str:
     #HudGems {{ font-size: {FONT_SIZES["lg"]}px; font-weight: 600; }}
     {_accent_rules(p)}
     """
+
+
+# --- calibration wizard: the glowing "this is the box you are editing" outline ------------------
+# The edited field pulses a soft halo in the page accent (tool cyan) over its crisp outline;
+# the other fields of the same screen are drawn dim. Widths are in view pixels (zoom-corrected).
+GLOW_PERIOD_MS = 1600  # one breath of the halo
+GLOW_RINGS = 3  # concentric soft strokes outside the outline
+GLOW_WIDTH_PX = 5.0  # width of each ring at full glow
+GLOW_ALPHA_MAX = 0.55  # halo opacity at the top of the breath ...
+GLOW_ALPHA_MIN = 0.18  # ... and at the bottom
+OUTLINE_PX = 2.0  # the crisp outline of the edited field
+DIM_ALPHA = 0.35  # the other fields of the same screen
+DIM_PX = 1.0
+CAPTURE_PREVIEW_W = 240  # thumbnail of a captured screen in the wizard
+WIZARD_PANEL_MIN_W = 400

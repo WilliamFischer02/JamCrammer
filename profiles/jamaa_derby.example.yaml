@@ -6,6 +6,8 @@ name: jamaa_derby
 fields:
   strip_roi:
     type: roi
+    label: Track strip
+    help: A horizontal band of the track below your lane. Obstacle bands span its whole height, so the jump timer sees every band here before it reaches the hooves.
     value:
     - 96
     - 380
@@ -16,17 +18,23 @@ fields:
       its full height
   horse_front_x:
     type: number
+    label: Horse nose x
+    help: The x position of your horse's nose; it never moves horizontally. The jump timer measures band distances from here.
     value: 925
     status: proposed
     note: x of our horse's nose (it never moves horizontally)
   jump_trigger_x:
     type: number
+    label: Hooves x
+    help: The x position where the game judges a collision (the hooves). William pressed Space when a band's edge reached here.
     value: 785
     status: proposed
     note: the hooves; William pressed Space when a band's edge was ~140 px past the
       nose (median of 43 jumps)
   horse_box_roi:
     type: roi
+    label: Your horse
+    help: 'A box around your horse. Its non-grass, non-band pixels rise while airborne, which is how landings are timed. Tick ''Can be a range'' and stretch the box over all the lanes if the game puts you in a different lane each race: the detector then finds your horse inside the range by its glow.'
     value:
     - 676
     - 110
@@ -37,37 +45,51 @@ fields:
       while airborne'
   jump_lead_s:
     type: number
+    label: Jump lead (s)
+    help: 'Input latency: the press is timed to land when the band''s edge reaches the hooves. Raise it if jumps are late, lower it if they are early.'
     value: 0.05
     status: proposed
     note: input latency - the press is timed to land when the edge reaches the hooves; raise if jumps are late, lower if early
       latency)
   jump_lead_px:
     type: number
+    label: Jump lead (px)
+    help: Extra fixed lead in pixels.
     value: 0
     status: proposed
     note: extra fixed lead in pixels
   jump_lead_px_narrow:
     type: number
+    label: Narrow band lead (px)
+    help: Extra early pixels for one- and two-column bands; three-column bands are jumped at the edge.
     value: 40
     status: proposed
     note: extra early pixels for one- and two-column bands (landed before the next one); three-column bands are jumped at the edge
   boost_lead_s:
     type: number
+    label: Boost lead (s)
+    help: Extra lead while boosted (scrolling faster than normal, or a carrot just used).
     value: 0.03
     status: proposed
     note: extra lead while boosted (speed above boost_speed_ratio x scroll_px_s or a carrot just used)
   jump_cooldown_s:
     type: number
+    label: Jump cooldown (s)
+    help: Minimum time between two presses.
     value: 0.5
     status: proposed
   scroll_px_s:
     type: number
+    label: Scroll speed (px/s)
+    help: Initial track scroll speed; re-estimated live from band motion.
     value: 800
     status: proposed
     note: initial scroll speed; measured ~810 px/s on a hay band, re-estimated live
       from band motion
   boost_button_point:
     type: point
+    label: Carrot boost button
+    help: The three-carrot button in the HUD, bottom centre. Clicked on clear stretches to use a boost.
     value:
     - 956
     - 959
@@ -75,6 +97,8 @@ fields:
     note: the three-carrot button in the HUD, bottom centre
   boost_box_roi:
     type: roi
+    label: Carrot box
+    help: 'A box around the three carrots: orange while available, grey once used. Tells the farmer how many boosts are left.'
     value:
     - 836
     - 928
@@ -84,11 +108,15 @@ fields:
     note: carrots are orange while available, grey once used
   boost_clear_px:
     type: number
+    label: Boost clear distance (px)
+    help: Use a carrot only when no band is within this distance of the nose.
     value: 500
     status: proposed
     note: use a carrot only when no band is within this distance of the nose
   results_box_roi:
     type: roi
+    label: Leaderboard parchment
+    help: The 'Next Race In N' leaderboard; its beige fill tells the farmer a race ended.
     value:
     - 296
     - 96
@@ -98,6 +126,8 @@ fields:
     note: the Next Race In N leaderboard parchment
   results_rows_roi:
     type: roi
+    label: Leaderboard rows
+    help: The left part of the six result rows; yours has a yellow frame. Place and gems are read here.
     value:
     - 396
     - 137
@@ -107,25 +137,35 @@ fields:
     note: left part of the six result rows; ours has a yellow frame
   results_row_h:
     type: number
+    label: Result row height (px)
+    help: Height of one leaderboard row.
     value: 70
     status: proposed
   results_gems_w:
     type: number
+    label: Gems column width (px)
+    help: OCR width of the gems column to the right of the rows box.
     value: 300
     status: proposed
     note: OCR width of the gems column, right of the rows ROI
   results_first_row_cy:
     type: number
+    label: First row centre (px)
+    help: Centre y of the first row inside the rows box.
     value: 43
     status: proposed
     note: centre y of the first row within results_rows_roi
   results_row_pitch:
     type: number
+    label: Row pitch (px)
+    help: Vertical distance between rows; the row index gives the place when OCR fails.
     value: 87
     status: proposed
     note: vertical distance between rows; row index -> place when OCR fails
   startline_roi:
     type: roi
+    label: Start line
+    help: Where the white start line sits while waiting for the other horses. Seeing it means the race has not started.
     value:
     - 856
     - 380
@@ -135,6 +175,8 @@ fields:
     note: the white start line sits here while waiting for the other horses
   progress_bar_roi:
     type: roi
+    label: Race progress bar
+    help: The green race-progress bar at the very bottom, present on the track and the leaderboard. It proves we are in the Derby.
     value:
     - 296
     - 1030
@@ -145,16 +187,22 @@ fields:
       the track and the leaderboard
   leave_confirm_point:
     type: point
+    label: LEAVE button
+    help: The green LEAVE button of the 'Leave game?' dialog that the X opens.
     value: [740, 704]
     status: calibrated
     note: the green LEAVE button of the "Leave game?" dialog that the X opens (measured 2026-11-02 live)
   results_close_x_point:
     type: point
+    label: Leaderboard close X
+    help: The leaderboard's blue X (it sits further left than the race screen's X).
     value: [1676, 80]
     status: calibrated
     note: the leaderboard's blue X (it sits further left than the race screen's); measured 2026-11-02 live
   close_x_point:
     type: point
+    label: Race screen close X
+    help: The X at the top right of the race screen; it opens the 'Leave game?' dialog.
     value:
     - 1766
     - 22
@@ -162,6 +210,22 @@ fields:
     note: leaves the game (not used by the farmer; races restart by themselves)
   pro_unlocked:
     type: number
+    label: Pro unlocked
+    help: 1 once ten first-place Normal wins are logged; Pro races pay more.
     value: 0
     status: proposed
     note: 1 once 10 first-place Normal wins are logged
+  player_marker_hsv:
+    type: color
+    label: Your horse's glow
+    help: The colour of the glowing horseshoe under your own horse (the other horses have none). When the horse box is a range, the detector finds your lane by this colour. Sample a pixel on the glow.
+    value: [[18, 110, 150], [35, 255, 255]]
+    status: proposed
+    note: the yellow glow of the horseshoe under our horse (starts as the hay range; sample it live)
+  horse_lane_h:
+    type: number
+    label: Lane height (px)
+    help: Height of one lane. When the horse box is a range, a window this tall inside it becomes the horse box once your horse is found.
+    value: 250
+    status: proposed
+    note: the height of the single-lane horse box (the range box is stretched over all lanes)

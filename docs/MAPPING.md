@@ -95,6 +95,64 @@ sessions) plus `<area>_grid.png`, `<area>_mosaic.png`, `<area>_weight.png`. Comm
 the level: the map is a product of the sessions, like `level.json`. Loading without a
 saved world seeds one from the level; without a level, an empty one from the profile.
 
+## 2b. The picture: kept frames and the offline rebuild (`world_build.py`, 2026-11-03)
+
+William's review of the first map (2026-11-03): tiles offset by a few px to a few tens of px
+(the same rock texture repeated at a shift), the animal, its name tag and the top of the
+bottom bar pasted over ~70% of the mapped area, crystals and rocks smeared into blobs. The
+causes: the live pass placed each frame by the fused position of the moment (the dot is
+quantised to 70 px and a second behind, the camera lags the animal and stops at the area's
+edge, so "the animal is at `avatar_xy`" was false in most moving frames); "bright pixel wins"
+compositing mixed every misplaced copy; the HUD masks were too small.
+
+**What changed.**
+
+- **The animal is found, not assumed.** `sight.player_on_screen` matches the name tag
+  (`nametag_template`, score 0.9-1.0 in the cave) and gives the animal's screen point and a
+  box over the animal and the tag (`nametag_box`); every observation, scan and mark uses that
+  point (`player_from_tag` keeps `avatar_xy`'s convention) and masks that box. The HUD masks
+  were widened (`hud_rois`: the bottom bar with the chat tab, the room frame).
+- **Every frame is kept** (`ObsStore`, `captures/sessions/<pilot session>/obs/`): at every
+  stop and every `obs_every_s` (0.4 s) while a key is held, the full frame as PNG with its
+  pose (the fused position, the animal's screen point, its box, the dot), written by a
+  thread. Frames with a dialog open are not kept (and are dropped at rebuild time too).
+- **`pilot rebuild`** (its own process, minutes; then `pilot reload` for a running server)
+  rebuilds an area's picture from all kept frames:
+  1. *Registration.* For each frame, its recent overlapping predecessors and the most
+     overlapping older frames (loop closures) are registered pairwise: phase correlation of
+     the high-passed, masked overlap at half scale, then a 320 px textured patch matched at
+     full resolution within +-6 px (normalised correlation >= 0.45). A pair whose shift is
+     more than 150 px from the poses is refused.
+  2. *Pose graph.* Frame origins solved by least squares: every pair an equation
+     `o_i - o_j = s_ij` (weight 1), every kept pose a weak prior (0.03) that pins the map to
+     the minimap; pairs off by more than 8 px after the first solve are dropped and it is
+     solved again. Origins are rounded to the pixel.
+  3. *Composite.* Per 512 px tile, per pixel: the 5 samples nearest the animal's light are
+     kept and the one with the median brightness of the 3 nearest is the pixel. No two
+     samples are blended, so the picture is as crisp as a frame; a moth, another player or
+     a dropped blossom in one frame never wins. Samples are divided by the light's gain at
+     their radius (`light_gain`, measured on 3,702 registered pairs: flat to 110 px, 0.77 at
+     200, 0.52 at 300) so the picture has one exposure; below `build_min_gain` (0.3) a
+     sample is not used.
+  The tiles, the low-resolution mosaic and the weight layer are replaced; things,
+  collisions and the grid stay. `build.json` keeps the solved origin of every frame.
+- **Measured on the first 718 frames** of the second pass: 7,065 of 7,969 candidate pairs
+  accepted, median residual 0.01 px, max 1.2 px, 652 of 718 frames linked; the kept poses
+  were off by 3 px (median) to 210 px (max).
+- **Synthetic check** (`tests/test_world_build.py`): frames cut from a known texture under a
+  moving lamp with the animal, a HUD and a passing moth painted in and the poses perturbed
+  by +-45 px come back registered to the pixel (every pair within 1 px of the truth), with
+  the animal box and the HUD gone and at most one moth surviving at the coverage's edge.
+
+**Also new in the pilot.** `enter` (den -> the adventure by the menu driver, with a
+template for The Mystery Below's list banner, OCR in halves, a three-look rule before the
+globe is clicked and the "land animal" dialog recognised), `smash x y` (click a rock or a
+purple crystal until the Courage pop stops), `reload`, the popup watchdog on every input
+path (a logged-out or Play Now screen stops all input until William logs in), and a mouse
+keepalive (`pilot.mouse_keepalive_s`: a 12 px cursor move over the floor every 40 s while
+input runs: the game logged the pilot out 8.5 min into a walk twice with no idle popup
+first, so key input alone may not count as activity).
+
 ## 3. The localiser (`localize.py`)
 
 - `rejoin(frame)` between commands: no odometry (the frames are not consecutive); a dot
@@ -120,7 +178,8 @@ come from the first session.
 Same guardrails as before plus a **time budget**: input needs a started session
 (`pilot start --budget 30 --goal map the start room`) and stops when the budget is spent.
 New commands: `probe`, `survey`, `scan`, `mark`, `where`, `map`, `unblock`, `forget`,
-`save`, `status`, `serve`, `quit`; `goto --world`, `key` tracked on the map.
+`save`, `status`, `serve`, `quit`; `goto --world`, `key` tracked on the map; since
+2026-11-03 `enter`, `smash`, `rebuild`, `reload` (section 2b).
 
 **The server.** `pilot serve` builds one executor and answers `data/pilot/cmd/*.json`
 with `data/pilot/out/*.json`; every other `pilot` command sends itself there when the

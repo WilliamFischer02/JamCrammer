@@ -4,59 +4,85 @@ name: double_up
 fields:
   grid_origin:
     type: point
+    label: Top-left tile centre
+    help: The centre of the first tile of the board; every other tile is found from here plus the tile spacing.
     value: null
     status: uncalibrated
     note: center of the top-left tile
   grid_pitch:
     type: point
+    label: Tile spacing
+    help: The horizontal and vertical distance between tile centres (dx, dy).
     value: null
     status: uncalibrated
     note: "dx, dy between tile centers"
   grid_shape:
     type: list
+    label: Board columns and rows
+    help: The number of tiles across and down (8 pairs = 4 x 4).
     value: [4, 4]
     status: proposed
     note: "columns, rows (8 pairs = 16 tiles)"
   tile_size:
     type: point
+    label: Tile size
+    help: Width and height of one tile; the farmer samples the tile face inside it.
     value: null
     status: uncalibrated
   board_roi:
     type: roi
+    label: The board
+    help: The whole 16-tile board. Frame changes here mark the preview ending and flips landing.
     value: null
     status: uncalibrated
   play_again_point:
     type: point
+    label: Play Again button
+    help: The button on the end screen that starts the next round.
     value: null
     status: uncalibrated
   end_screen_gems_roi:
     type: roi
+    label: Gems earned (end screen)
+    help: The gems-earned number on the end screen, read for the ledger.
     value: null
     status: uncalibrated
   exit_point:
     type: point
+    label: Exit button
+    help: The button that leaves the mini-game back into the room.
     value: null
     status: uncalibrated
     note: button that leaves the mini-game back to the room
   games_menu_point:
     type: point
+    label: Games icon
+    help: The controller icon in the top HUD that opens the games menu (entry route, step 1).
     value: null
     status: uncalibrated
     note: HUD Games icon (entry route step 1)
   game_tile_point:
     type: point
+    label: Double Up tile
+    help: The Double Up tile inside the games menu (entry route, step 2).
     value: null
     status: uncalibrated
     note: Double Up tile inside the Games menu (entry route step 2)
   preview_s:
     type: number
+    label: Preview time (s)
+    help: How long the board is shown face-up at the start of a round.
     value: 3
     status: proposed
   round_limit_s:
     type: number
+    label: Round limit (s)
+    help: Seconds before the round ends by itself.
     value: 60
     status: proposed
   flip_animation_ms:
     type: number
+    label: Flip animation (ms)
+    help: How long a tile takes to flip; the farmer waits this long before reading it.
     value: 400
     status: proposed

@@ -16,6 +16,7 @@ from jamcrammer.core.paths import Paths
 
 FieldType = Literal["point", "roi", "color", "template", "number", "fraction_box", "list", "text"]
 FieldStatus = Literal["calibrated", "proposed", "uncalibrated"]
+VISUAL_TYPES: frozenset[str] = frozenset({"point", "roi", "color", "template", "fraction_box"})
 
 PROFILE_VERSION = 1
 
@@ -32,10 +33,23 @@ class ProfileField(BaseModel):
     status: FieldStatus = "uncalibrated"
     note: str = ""
     confidence: float | None = Field(None, ge=0.0, le=1.0)
+    label: str = ""  # plain-English name shown by the calibration wizard
+    help: str = ""  # what the region captures and why it matters
+    # An ROI that is a *range* of positions rather than one spot (e.g. the Derby horse box
+    # stretched over every lane): the detector searches inside it instead of assuming the spot.
+    range: bool = False
 
     @property
     def usable(self) -> bool:
         return self.status != "uncalibrated" and self.value is not None
+
+    @property
+    def visual(self) -> bool:
+        """Drawn on a screenshot (as opposed to a number, list or text)."""
+        return self.type in VISUAL_TYPES
+
+    def display_label(self, key: str) -> str:
+        return self.label or key.replace("_", " ")
 
 
 class Profile(BaseModel):
@@ -60,6 +74,17 @@ class Profile(BaseModel):
 
     def status(self, key: str) -> FieldStatus:
         return self.fields[key].status if key in self.fields else "uncalibrated"
+
+    def is_range(self, key: str) -> bool:
+        """True when an ROI field is a range of positions (see ``ProfileField.range``)."""
+        return key in self.fields and self.fields[key].range
+
+    def set_range(self, key: str, flag: bool) -> None:
+        f = self.field(key)
+        if f.type != "roi":
+            msg = f"profile {self.name!r} field {key!r} is {f.type}; only an roi can be a range"
+            raise ProfileError(msg)
+        f.range = flag
 
     def point(self, key: str) -> tuple[int, int]:
         v = self._value(key, "point")

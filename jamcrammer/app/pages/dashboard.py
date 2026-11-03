@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 from jamcrammer.app import theme
-from jamcrammer.app.engine import MODE_LABELS, MODES, Engine
+from jamcrammer.app.engine import BESTGUESS_STATS, MODE_LABELS, MODES, Engine
 from jamcrammer.app.widgets import Card, Chip, Page, StatTile, grid_of, icon_button, row
 from jamcrammer.core.events import Event
 
@@ -138,9 +138,9 @@ class DashboardPage(Page):
         hours = max(1e-6, (time.time() - self.engine.started_ts) / 3600.0)
         self.tiles["gems"].set_value(int(st.session_delta))
         self.tiles["rate"].set_value(float(st.session_delta / hours))
-        hs = self.engine.state.stats.get("hunt", {})
-        self.tiles["accuracy"].set_value(float(hs.get("accuracy", 0.0)))
-        self.tiles["streak"].set_value(int(hs.get("streak", 0)))
+        bg = self.engine.state.stats.get(BESTGUESS_STATS, {})  # the farmer's rounds, live
+        self.tiles["accuracy"].set_value(round(100.0 * float(bg.get("accuracy", 0.0)), 1))
+        self.tiles["streak"].set_value(int(bg.get("streak", 0)))
         self.tiles["popups"].set_value(int(self.engine.watchdog.stats.cleared))
 
     def _refresh_preview(self) -> None:
@@ -217,11 +217,10 @@ class DashboardPage(Page):
         while self.timeline.count() > TIMELINE_MAX:
             self.timeline.takeItem(self.timeline.count() - 1)
         for c in self.cards:
-            if event.source in (
-                c.mode,
-                "hunter" if c.mode == "hunt" else "",
-                "parties" if c.mode == "hunt" else "",
-            ):
+            sources = {c.mode}
+            if c.mode == "hunt":
+                sources |= {"hunter", "parties", "bestguess", "planner"}
+            if event.source in sources:
                 c.note(f"{stamp} {event.type}")
 
 

@@ -26,6 +26,7 @@ from jamcrammer.app import theme
 from jamcrammer.app.engine import MODE_LABELS, Engine
 from jamcrammer.app.widgets import Card, Chip, Meter, Page, RunPanel, StatTile, icon_button, row
 from jamcrammer.core.gate import gate_status
+from jamcrammer.modes.situation import FARMER_MODES
 
 REQUIRED_FIELDS: dict[str, list[tuple[str, str]]] = {
     "hunt": [
@@ -50,7 +51,6 @@ MODE_ICONS = {
     "farm": "arcade",
     "adventure": "adventure",
     "opportunist": "opportunist",
-    "planner": "home",
 }
 
 
@@ -122,6 +122,11 @@ class ModePage(Page):
         self.panel.pause_clicked.connect(engine.toggle_pause)
         self.panel.dry.setChecked(engine.state.dry_run)
         self.panel.dry_toggled.connect(engine.set_dry_run)
+        if self.mode in FARMER_MODES:
+            # "Hunt Best Guess" (William, 2026-11-03): persisted per bot in config.yaml
+            self.panel.hunt.setVisible(True)
+            self.panel.hunt.setChecked(engine.cfg.hunt_best_guess.for_mode(self.mode))
+            self.panel.hunt_toggled.connect(self._set_hunt_best_guess)
         self.content.addWidget(self.panel)
         self.build_stats()
         self.build_settings()
@@ -162,12 +167,21 @@ class ModePage(Page):
         """(one line, detail) for the run panel while this bot runs or rests."""
         st = self.engine.state
         if st.mode == self.mode:
-            return (st.mode_state.replace("_", " ").title(), st.mode_detail)
+            detail = st.mode_detail
+            if st.handoff:
+                detail = f"{st.handoff} · {detail}" if detail else st.handoff
+            return (st.mode_state.replace("_", " ").title(), detail)
         if st.mode:
             return (f"{MODE_LABELS.get(st.mode, st.mode)} is running", "one bot at a time")
+        allowed, why = self.engine.start_allowed(self.mode)
+        if not allowed:
+            # "Return to Den to enable this Farmer (where you are)"
+            line, _, rest = why.partition(" (")
+            return (line, rest.rstrip(")"))
         if st.last_error:
             return ("Stopped", st.last_error)
-        return ("Ready", "")
+        where = f"in {st.situation_room}" if st.situation_room else st.situation
+        return ("Ready", where or "")
 
     # --- actions -------------------------------------------------------------------------
 
@@ -177,6 +191,13 @@ class ModePage(Page):
             self.panel.set_status(
                 "Could not start", self.engine.state.last_error or "a bot is running"
             )
+
+    def _set_hunt_best_guess(self, on: bool) -> None:
+        self.engine.cfg.hunt_best_guess.set_mode(self.mode, on)
+        self.engine.emit("config.changed", key=f"hunt_best_guess.{self.mode}", value=on)
+        err = _save_config(self.engine)
+        if err:
+            self.gate_line.setText(err)
 
     def refresh_checklist(self) -> None:
         while self.check_rows.rowCount():
@@ -189,7 +210,6 @@ class ModePage(Page):
                 status = "uncalibrated"
             self.check_rows.addRow(QLabel(f"{profile_name}.{field}"), Chip(status, status))
         gate_mode = {
-            "planner": "jamaa_derby",
             "hunt": "hunt",
             "farm": self.engine.cfg.arcade_game,
             "opportunist": "double_up",
@@ -200,12 +220,18 @@ class ModePage(Page):
 
     def on_show(self) -> None:
         self.refresh_checklist()
+        if not self.engine.state.capture_running:
+            # the den gate needs live frames (read-only); quiet when the game is not running
+            self.engine.start_capture(quiet=True)
         self.on_tick()
 
     def on_tick(self) -> None:
         st = self.engine.state
         running = st.mode == self.mode
-        self.panel.set_running(running, st.paused, can_start=st.mode is None and not st.killed)
+        allowed, _why = self.engine.start_allowed(self.mode)
+        self.panel.set_running(
+            running, st.paused, can_start=st.mode is None and not st.killed and allowed
+        )
         self.panel.pill.set_state(
             st.mode_state if running else ("BUSY" if st.mode else "IDLE"),
             st.pill_kind if running else "idle",
@@ -225,7 +251,8 @@ class BestGuessPage(ModePage):
     mode = "hunt"
     title = "Best Guess"
     subtitle = (
-        "Reads when Best Guess is due, races until then, joins on time, answers from the bank."
+        "Farms the Best Guess arena with the answer bank. From the den: reads when it is due, "
+        "waits (or races the Derby), joins on time."
     )
     icon = "bestguess"
 
@@ -315,7 +342,7 @@ class BestGuessPage(ModePage):
             eta, note = self._read_result
             return ("Best Guess time read" if eta is not None else "Could not read the time", note)
         if st.mode == self.mode and st.mode_state == "PLANNER":
-            return (f"Planner: {st.mode_detail}", "tray, den, Derby until due, then Best Guess")
+            return (f"Plan: {st.mode_detail}", "tray, den, farm until due, then Best Guess")
         if st.mode == self.mode:
             s = st.stats.get("bestguess", {})
             fact = str(s.get("last_fact", ""))[:70]
@@ -330,12 +357,6 @@ class BestGuessPage(ModePage):
         hunt.add_layout(
             row(
                 icon_button("timer", "Read time", kind="ghost", on_click=self.read_time),
-                icon_button(
-                    "home",
-                    "Den Planner",
-                    kind="ghost",
-                    on_click=lambda: self.window_ref.show_page_key("planner"),
-                ),
                 stretch_last=True,
             )
         )
@@ -388,7 +409,8 @@ class BestGuessPage(ModePage):
                 lambda: cfg.hunt.derby_while_waiting,
                 lambda v: setattr(cfg.hunt, "derby_while_waiting", v),
                 "Race in the Derby until Best Guess is due",
-                "Start from a room: read the party tray, race in your den, come back and join",
+                "Start in your den: read the party tray, race the Derby (PRO), come back and "
+                "join on time; unchecked, wait in the den with the keepalive instead",
             ),
         )
         hunt.add_layout(form)
@@ -452,7 +474,10 @@ class ArcadePage(ModePage):
     key = "farm"
     mode = "farm"
     title = "Arcade"
-    subtitle = "Farms a mini-game on repeat: Jamaa Derby or Double Up."
+    subtitle = (
+        "Farms a mini-game on repeat from your den: Jamaa Derby or Double Up. "
+        "Hunt Best Guess: joins Best Guess on time and hands over."
+    )
     icon = "arcade"
     GAMES = ("jamaa_derby", "double_up", "gem_ball", "swoopy_eagle")
     GAME_LABELS = {
@@ -510,9 +535,11 @@ class ArcadePage(ModePage):
 
     def status_line(self) -> tuple[str, str]:
         st = self.engine.state
-        if st.mode == self.mode:
+        if st.mode == self.mode and st.mode_state != "PLANNER":
             game = self.GAME_LABELS.get(self.engine.cfg.arcade_game, self.engine.cfg.arcade_game)
             return (f"{game}: {st.mode_state.title()}", st.mode_detail)
+        if st.mode == self.mode:
+            return (f"Plan: {st.mode_detail}", "tray, den, farm until due, then Best Guess")
         return super().status_line()
 
     def build_settings(self) -> None:

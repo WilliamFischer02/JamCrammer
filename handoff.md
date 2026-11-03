@@ -1,6 +1,161 @@
 # Handoff
 
-_Last updated: 2026-11-02 evening (interface overhaul, the Mapping tab, the first live pilot steps)_
+_Last updated: 2026-11-03 (the map's second pass; live stats, start classification, "Hunt Best Guess" on every farmer, the den gate; the guided calibration wizard)_
+## The map's second pass (2026-11-03, PC): kept frames, offline rebuild, the animal by its tag
+William's review of the first map: tiles offset (textures repeating at a shift), the animal,
+its name tag and the top of the bottom bar over ~70% of it, objects smeared into blobs. He
+wants a crisp picture of the level alone, every object crisp and exactly placed, and the
+pilot to open the level itself (glow seeds on the mushroom bridges, cracked rocks smashed).
+Design and numbers: **`docs/MAPPING.md` section 2b**; rationale in `decisions.md`.
+- **Built:** `sight.player_on_screen` (name tag template -> the animal's screen point and
+  box, used by every observation / scan / mark; `nametag_*`, `player_from_tag` in the
+  adventure profile; `hud_rois` widened); `ObsStore` (every frame + pose kept under the pilot
+  session's `obs/`, dialog frames skipped); `modes/adventures/world_build.py` (pairwise
+  registration + pose graph + median-of-best-lit composite with the measured light gain:
+  `pilot rebuild`, then `pilot reload`); pilot `enter` / `smash` / `reload`; the popup
+  watchdog and a mouse keepalive on every pilot input path; the menu driver fixed (list
+  entry by template, OCR in halves, three looks before the globe, the "land animal" dialog).
+  Tests: `tests/test_world_build.py` (synthetic cave: registered to the pixel, animal / HUD /
+  moths gone), `tests/test_adventure_menus.py` (the two live frames that broke the driver).
+- **Live today:** a new pilot session `captures/sessions/20261103_110159_mystery_below_pilot`
+  (budget 360 min). The animal entered the level through `pilot enter` twice; a lattice
+  batch (scratch driver: nearest pending stop by the world grid's plan, `goto` + `scan`,
+  every frame kept) walked the start area. **Twice the game logged the account out 8.5 min
+  after entering, mid-walk, with no "still playing?" popup in the kept frames** (11:17 and
+  11:40; last night's Derby logout at 20:39 looked the same). The mouse keepalive is the
+  first answer to test; a server-side kick (a second login elsewhere? the laptop, a browser
+  tab) is the other reading: ask William. One more mishap: the old menu driver misread the
+  scrolled list as a room, clicked the globe over the open world map, landed on a sea stage
+  and the game swapped the animal for a water one ("You must be a land animal"); William
+  swapped it back. Fixed in the driver.
+- **Kept so far:** ~1,730 frames (first batch), trial rebuilds in the scratchpad: 7,065 of
+  7,969 pairs, residual median 0.01 px. The real world folder still holds the first pass's
+  tiles until `pilot rebuild` runs on the finished session (then commit
+  `profiles/levels/mystery_below/world/`).
+- **Next:** William logs in (land animal, in the den); `pilot enter`; the batch driver
+  (scratch `map_batch.py`, resumable from `batch_progress.json`) over the pending stops;
+  watch whether the keepalive holds the session past 9 min; then the hand work: the mushroom
+  bridges (a blossom dragged onto the glowing cluster at mm 1582,796 opened the ledge
+  yesterday; restock at a glowing fungus), the cracked rocks (`pilot smash`), the decoys and
+  crystals walked around and marked; `pilot rebuild`; objects re-placed from the clean
+  tiles; the Mapping tab's Export for William's review.
+
+## William's 2026-11-02 evening report: what the logs say, what changed (2026-11-03, PC)
+**The night, from `data/logs/jamcrammer.jsonl`:** 19:34:56 Start (Best Guess page, from the
+den) ran the planner correctly: tray read "1 hr 26 mins" (due 21:01), already in the den, Derby
+PRO opened at 19:35:18, 48 races, Pro unlocked 20:10. At 20:39:49 the track vanished and two
+seconds later the watchdog saw **"You were gone for too long and got logged out"** (the fatal
+kills the app's modes; the kill switch needs an app restart). So the plan never reached the
+hunt. 21:00:34 the restarted app's first Start went down the planner path **although William
+was already in the arena**: "My Parties did not open" (the hat clicked twice in the arena), ETA
+fell back to the 45-min default, then "den button did not bring us home" while the cursor
+fought William (`input.move_failed`). The second Start at 21:01:28 saw the arena at once and
+farmed 1091 questions until 21:47. **Root cause of 2 and 3:** `_already_in_arena` /
+`_on_derby_track` read `snapshot()`, the preview loop's last frame, which is `None` right after
+the first `start_capture()`, so the first Start after an app start could never see the arena.
+**Stats at 0 (1):** `state.stats[...]` was written only after `farmer.run()` returned; the
+tiles had nothing to read while the bots farmed (the modes did count: `derby.race` x48,
+`bestguess.reveal` x1090 are in the log).
+
+**Built (all unit-tested, none seen live yet):**
+- **Live stats.** `Engine._attach(obj, key)` + `_publish_stats()` on every status tick:
+  `state.stats["bestguess"|"farm"|"hunt"|"opportunist"|"adventure"]` move while the bot runs,
+  whichever way it was started (page, dashboard, tray, F9, hand-off). The dashboard's
+  accuracy / streak tiles read `bestguess` (they read the wrong key before). Double Up's
+  `FarmerStats.as_dict()` added. Test: `tests/test_engine_live.py` drives a
+  `BestGuessFarmer` with a scripted detector through `engine._status` and watches the snapshot.
+- **Start classifies a fresh frame** (`modes/situation.py`, `Engine.classify_now()`): arena /
+  derby / parties_open / games_menu / den / room / unknown, logged as `engine.situation`
+  (NOTICE). Best Guess Farmer in the arena -> farms at once (gate open) or records
+  (learn-only); on the Derby track -> races; else the plan. `presence.mark()` stays in
+  `start_mode` for every mode (test asserts it per mode).
+- **"Hunt Best Guess" checkbox** on the Arcade, Adventure and Opportunist run panels
+  (`config.yaml: hunt_best_guess: {farm, adventure, opportunist}`, saved on toggle). Checked:
+  `BestGuessPlan` (`modes/planner.py`) = read the tray -> (unread: scan My Parties, join now if
+  the banner is there, else the default ETA with a NOTICE) -> go to the den -> `plugin.enter()`
+  -> `plugin.farm(due and can_pause_now)` -> at the lead `plugin.leave()` (postcondition: in
+  the den) -> Hunter every `planner.hunt_interval_s` -> joined -> **hand-off**
+  (`Engine._handoff`: lease farm -> hunt, `state.mode = "hunt"`, `engine.handoff` NOTICE, the
+  run strip shows "input: hunt (Arcade Farmer -> Best Guess Farmer)", the Best Guess page
+  opens) -> Best Guess farmer until stopped. Plugins live in the engine: Derby
+  (`_derby_plugin`: `open_derby`, pause only at RESULTS / WAITING / UNKNOWN, X + LEAVE),
+  Double Up (`ArcadeEntry` route, needs `double_up.exit_point / games_menu_point /
+  game_tile_point`), Adventure (its own menus; leave = HUD den button, **not seen live in an
+  adventure**), and a "wait in the den" plugin (keepalive every `heartbeat_s`) for the Best
+  Guess Farmer when `hunt.derby_while_waiting` is off. Gem Ball / Swoopy: farming only, NOTICE.
+- **Den Planner page removed** (nav, `pages/planner.py`, screenshots); its flow is the shared
+  plan above. The Best Guess page keeps "Read time" and the "Race in the Derby until Best
+  Guess is due" checkbox (= the old planner from the Best Guess page).
+- **Rename:** Best Guess Hunter -> **Best Guess Farmer** (MODE_LABELS, tray, HUD, run strip,
+  README, CLI help; the `hunt` subcommand stays).
+- **Den gate.** The preview loop classifies the live frame every `planner.gate_poll_s` (2 s)
+  while no bot runs (read-only; the bot pages start the capture quietly on show). Start and
+  Dry run are disabled with "Return to Den to enable this Farmer (you are in ...)" unless the
+  screen is the den (the arena also passes for the Best Guess Farmer, the Derby track for the
+  Arcade). `Engine.start_mode` applies the same `start_gate` to tray / F9 / dashboard starts,
+  after a fresh look so a stale poll never refuses; `internal=True` (hand-offs) skips it;
+  unknown screens and no capture never block. Den = room title ends with "'s den"
+  (`navigation.den_title_keywords`, fuzz 80); the live frame of 2026-11-03 10:53 is
+  `tests/fixtures/navigation/den_live_2026-11-03.jpg`. The games-menu check now needs both
+  scrollbar arrows blue (`games_arrow_min_fill`): the arena floor and a join dialog painted
+  the lower one.
+
+**Not verified live (needs William or the live game):** the whole plan end to end (tray ->
+Derby -> leave at the lead -> hunt -> GO NOW -> hand-off -> farming); the Double Up and
+Adventure plugins' enter / leave; the den gate's 2 s poll against real room changes; the
+"wait in the den" keepalive keeping the account alive for an hour-plus wait.
+**UI screenshots:** `scripts/ui_qa.py` ran offscreen (`QT_QPA_PLATFORM=offscreen`, dry-run,
+hotkeys off) but that platform has no fonts (text renders as boxes), so `docs/ui/100` was
+restored to HEAD; regenerate on screen when the game is not being driven. Layout seen: the
+checkbox sits on the controls row next to Dry run, nothing clipped at 1360x860.
+**Tests:** `tests/test_situation.py`, `tests/test_plan.py`, `tests/test_engine_live.py`.
+`tests/test_derby_range.py` (untracked, another agent's in-progress Derby work) fails on
+its own; the suite was run with it ignored.
+
+## Guided Calibration wizard (2026-11-03, PC, subagent; not committed)
+William asked for the Calibration tab to become an interactive, guided experience. Built,
+unit-tested and screenshotted offscreen; **not run against the live game** (another agent
+was driving the AJC window).
+- **Guided view is the default** (`app/pages/calibration.py`, `calibration_wizard.py`); the old
+  power-user canvas is the **Advanced** view (same canvas; the Fields table now shows labels,
+  with key / type / help in the tooltip). Switch with the Guided / Advanced control.
+- **Per profile** (`calibration_flow.py`, pure, no Qt): screens in plain words ("Open My
+  Parties from the party hat", "Enter a Jamaa Derby race and capture at the start line",
+  "Stand in your den" ...), each with its fields; a `screen` step (Capture / Retake, the
+  capture kept at `captures/calibration/<profile>/<screen>.png` with its timestamp and
+  reused next time; a cheap check where one exists: My Parties title template, den OCR,
+  Derby WAITING / RACING / RESULTS, Best Guess arena, adventure minimap dot / dialog X;
+  otherwise "confirm by eye"), then **one field per step** (label, help, value, status chip
+  calibrated / proposed / missing, hint, "Can be a range" for ROIs, Adjust / Type value,
+  Confirm / Skip / Back / Next, "Step k of n"), then one **numbers** step (table, double-click
+  edits). Confirm marks the field calibrated and saves the profile. Drawn fields no screen
+  claims land on an "other" screen (`test_calibration_flow` fails if that happens for a
+  committed profile: put every new drawn field on a screen in `PROFILE_SCREENS`).
+- **The edited box glows** (breathing halo in tool cyan, `theme.GLOW_*`, a QVariantAnimation
+  that only runs while a glow is shown); the other fields of the same screen are dim.
+  `*_x` numbers (horse nose, hooves) are drawn as vertical lines; a template field draws
+  where its crop matches on the screenshot (>= 0.6, advisory).
+- **Every field of every profile has `label` + `help`** (example and live yamls, inserted
+  textually: no calibrated value changed; `tests/test_calibration_flow.py` enforces it).
+  `ProfileField` gained `label`, `help`, `range` (default false, round-trips).
+- **Jamaa Derby range lanes**: `horse_box_roi` flagged `range: true` spans every lane;
+  `DerbyDetector.horse_box()` finds the player's lane inside it by the glow under the
+  player's horse (`player_marker_hsv`, new, proposed = the hay yellow until sampled live),
+  else by the rider pixels ending nearest `horse_front_x`; the lane is learned at the start
+  line, kept for the race, dropped on the leaderboard. `horse_lane_h` (new, 250) is the
+  single-lane height. The flag is off in the live profile: **William turns it on in the
+  wizard and samples the glow**; `tests/test_derby_range.py` covers it on synthetic frames.
+- **UI QA**: `scripts/ui_qa.py` shows the window on screen, so it was not run. Offscreen Qt
+  renders text as boxes unless `QT_QPA_FONTDIR=C:/Windows/Fonts` is set; with it, the
+  Calibration page was shot at 100% and 150% (`docs/ui/{100,150}/calibration.png` guided,
+  `calibration_advanced.png` advanced) and read: crisp, nothing clipped. Worth adding the
+  font dir to `ui_qa.py` so it can run offscreen while a bot drives the game.
+- **Not verified live**: Capture on the real screens, the checks on real captures, dragging
+  the glowing box, the Derby lane detection on a real multi-lane race (the glow colour is a
+  guess), what NPC horses crossing `strip_roi` do to band detection when our lane is low.
+- Open for William: is the horseshoe glow yellow (sample it in the wizard)? Should Confirm
+  save the profile at once (it does) or only on Finish? Which screens are worth a check
+  that does not exist yet (Double Up board, Gem Ball)?
 
 ## Den Planner from the den (2026-11-02 19:00-19:30, PC): the Hunter's "trouble starting"
 William: the Best Guess Hunter would not get going; he wants, from his den: read when Best

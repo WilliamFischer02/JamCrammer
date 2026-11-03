@@ -70,6 +70,18 @@ class FarmerStats:
         d = sorted(self.round_times)
         return d[len(d) // 2] if d else 0.0
 
+    def as_dict(self) -> dict[str, Any]:
+        """What the Arcade page's tiles read (published live by the engine)."""
+        return {
+            "rounds": self.rounds,
+            "perfect": self.perfect,
+            "gems": self.gems,
+            "mismatches": self.mismatches,
+            "fallbacks": self.fallbacks,
+            "median_round_s": round(self.median_round_s, 2),
+            "confidence": self.last_round.confidence if self.last_round is not None else 0.0,
+        }
+
 
 def geometry_from_profile(profile: Profile) -> GridGeometry:
     ox, oy = profile.point("grid_origin")

@@ -28,7 +28,7 @@ answer_mode: learn_only                      # learn_only | bank_policy | coin_f
 fuzzy_threshold: 90
 hunt:
   antiafk_each_cycle: true                   # a cancelling movement pair before every My Parties scan
-  derby_while_waiting: true                  # Best Guess Start from a room: read the tray, race in the den until due, join on time
+  derby_while_waiting: true                  # Best Guess Farmer started in the den: race the Derby until Best Guess is due, else wait there
 
 # --- Notifications ---
 notify:
@@ -116,6 +116,15 @@ planner:
   max_attempts: 2
   ad_wait_s: 120                             # an advert between races hides the track: wait this long for it to return
   reentries_max: 20                          # the Derby is re-entered from the den at most this often per run
+  scan_when_unread: true                     # tray unreadable: look in My Parties for the Best Guess banner before the default
+  wait_poll_s: 5                             # Best Guess Farmer waiting in the den: countdown check cadence (keepalive between)
+  gate_poll_s: 2                             # den gate: classify the live screen this often while no bot runs (read-only)
+
+# --- "Hunt Best Guess" checkbox per farmer bot (run panel): read the tray, farm until due, join, hand over ---
+hunt_best_guess:
+  farm: true
+  adventure: false
+  opportunist: false
 
 # --- Adventures (The Forgotten Desert / The Mystery Below, docs/ADVENTURES.md) ---
 adventures:
@@ -150,6 +159,25 @@ adventures:
     align_min_response: 0.12                 # ... and the correlation peak is at least this
     align_max_px: 160                        # ... and the shift is at most this (scene px)
     align_sigma: 3.0                         # high-pass at mosaic scale before correlating
+    light_px: 260                           # radius of the animal's light (V falls below 40 past it)
+    obs_keep: true                          # keep every observed frame + pose for the offline rebuild
+    obs_every_s: 0.4                        # while a key is held, a frame is kept this often
+    build_scale: 0.5                        # offline rebuild: phase correlation at this downscale
+    build_sigma: 8.0                        # high-pass at build scale
+    build_pairs: 6                          # earlier overlapping frames registered per frame
+    build_min_overlap: 0.3                  # of the lit disc, by the poses
+    build_max_err_px: 150                   # a shift this far from the poses is wrong
+    build_min_response: 0.08                # phase correlation peak
+    build_patch_px: 320                     # full-resolution refinement patch
+    build_search_px: 6                      # searched this far around the coarse shift
+    build_min_ncc: 0.45                     # the patch must correlate this well
+    build_prior_weight: 0.03                # the kept pose's weight vs a pair's (1.0)
+    build_residual_px: 8                    # pairs off by more after a solve are dropped
+    build_stack: 5                          # best-lit samples kept per tile pixel
+    build_k: 3                              # the median of the k best-lit is the pixel
+    build_min_v: 28                         # darker samples are not samples
+    light_gain: [[110, 1.0], [200, 0.77], [300, 0.52], [360, 0.35]]  # the light's gain by radius (measured)
+    build_min_gain: 0.3                     # samples with less light are not used
 
 # --- Opportunist (KICKOFF 10) ---
 opportunist:
@@ -237,3 +265,5 @@ pilot:
   budget_min: 45                             # a pilot session sends input at most this long (time-boxed)
   serve_poll_s: 0.05                         # `pilot serve` looks for a command file this often
   serve_timeout_s: 90                        # a client waits this long for the server's answer
+  mouse_keepalive_s: 40                     # cursor moved a little over the floor this often while input runs (0 = never)
+  mouse_keepalive_offset: [0, 150]          # from the animal's screen point (below its tag)

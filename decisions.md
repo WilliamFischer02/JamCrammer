@@ -1,6 +1,131 @@
 # Decisions log
 
-Non-obvious choices and why. Newest at the bottom.
+Non-obvious choices and why. Newest at the bottom (the 2026-11-03 block sits at the top so
+the next session reads it first).
+
+## 2026-11-03 — The map's second pass: kept frames, an offline rebuild, the animal found by its tag
+
+- **The picture is a derived product, rebuilt offline from kept frames**, not the live
+  paste. The live pass can only place a frame by the position estimate of the moment (dot
+  quantised to 70 px, a second behind; odometry drifting; the camera lagging the animal),
+  and the first map showed it: tiles offset, textures repeated, blobs. Keeping every frame
+  with its pose (1 MB PNG, ~2 frames/s while walking) costs disk, which is cheap, and lets
+  the picture be rebuilt with better alignment any time (`pilot rebuild`). The live mosaic
+  stays for navigation and the quick look.
+- **Registration is pairwise + a pose graph, not sequential odometry.** Chained shifts
+  drift; a least-squares solve over all overlapping pairs with the kept poses as weak priors
+  is exact where pairs agree and stays pinned to the minimap where they do not. Phase
+  correlation at half scale gets the coarse shift; a full-resolution patch match gets the
+  integer pixel. Measured: median residual 0.01 px on 7,065 pairs.
+- **Composite by "median of the nearest-to-the-light samples", never blended.** Blending
+  misaligned or dimmed samples is what made the blobs; picking one real sample per pixel
+  keeps the picture as crisp as a frame, the median among the three best-lit drops a moth
+  or another player, and dividing by the measured light gain (`light_gain`) gives one
+  exposure across stops.
+- **The animal is located by its name tag per frame.** `avatar_xy` was a median over
+  frames; the camera lags a walk and stops at the area's edge, so the animal is up to 200 px
+  from it in moving frames, and the first map pasted the animal and its tag everywhere.
+  The tag template is this account's; the calibration wizard re-crops it for another.
+- **The adventure list entry is found by a template, not OCR.** Windows OCR read nothing
+  at all from the scrolled list frame (and reads it in halves), the driver called it a room,
+  clicked the globe, and on the open world map that is a sea stage: the animal was swapped
+  for a water one, which cannot enter. A banner template is exact; OCR runs in halves as a
+  fallback for the other states; a room must read as one three looks running before the
+  globe is clicked; the "land animal" dialog is a state that stops the run with a HIGH event.
+- **The pilot runs the popup watchdog and a mouse keepalive.** Two logouts 8.5 min into a
+  walk, no "still playing?" popup in the kept frames before either: the game jumped to
+  "gone for too long". Key input alone may not count as activity; the cursor is now moved
+  12 px over the floor near the animal every 40 s while input runs (ordinary OS input, no
+  click). To be confirmed on the next run; a server-side kick is the other reading.
+- **Dialog frames are never observations.** Cosmo's and Graham's bubbles were pasted into
+  the first map; a frame with the blue X is skipped at record time and at rebuild time.
+
+## 2026-11-03 — Live stats, start classification, "Hunt Best Guess" everywhere, the den gate
+
+- **Stats are published on the status tick, not at the end.** Every mode already calls
+  `status(...)` each tick; `Engine._status` now also copies `_mode_obj.stats` (`as_dict()` or
+  the scalar fields) into `state.stats[key]`. One mechanism for every bot and every start path,
+  no per-mode signals. The key comes from `_attach(obj, key)`, so the Best Guess farmer's
+  rounds live under `bestguess` and the Derby's under `farm` whatever mode started them; the
+  previous run's numbers stay on the page until the same key is attached again.
+- **Start looks at a fresh capture, never the preview's last frame.** `snapshot()` is `None`
+  until the preview thread has grabbed once; on the first Start after an app start that made
+  the arena invisible (2026-11-02 21:00: the Best Guess Farmer went to the party tray and the
+  den button while William stood in the arena). `classify_now()` grabs, classifies and logs
+  `engine.situation` so the log always says what the bot thought it saw.
+- **One classifier, ordered overlays first.** My Parties and the games menu sit over a room
+  whose title still reads "'s Den", so panel / menu are checked before the title; the arena and
+  the Derby have no title; the OCR comes last because it costs ~60 ms. The games-menu check
+  needs both scrollbar arrows blue: the Best Guess arena floor (0.61) and the Forgotten Desert
+  join dialog (1.00) paint the lower arrow point blue, the upper never (0.00 everywhere but
+  the open menu, 1.00).
+- **The den is the room title, not the HUD.** The EXPAND / LOG OUT buttons at the right edge
+  looked den-only on the den frames but Jamaa Township shows them too (green 0.57, red 0.43 on
+  every room fixture). The title "<name>'s Den" is matched on the suffix so any account works.
+- **The plan is one class with a plugin, not per-bot copies.** `BestGuessPlan` owns the
+  timing (tray, default, due at `leave_lead_s`, re-entries, the hunt); a bot gives it
+  `enter / in_game / farm / can_pause_now / interrupted / leave`. The Derby plugin is the old
+  Den Planner's code moved behind that interface (open_derby, pause only off the track, X +
+  LEAVE); the old `between_races_only` flag became the plugin's `can_pause_now`.
+- **Tray unread -> look in My Parties before assuming 45 minutes.** Last night's restart read
+  nothing (it was in the arena) and would have raced for 45 minutes past Best Guess. The
+  scan costs one open/close and catches the case where Best Guess is on right now.
+- **The hand-off keeps the thread and moves the lease.** The farmer and the Best Guess farmer
+  run on the same mode thread (nothing to join or race); `_handoff` releases the farmer's
+  lease, acquires `hunt`, sets `state.mode = "hunt"` so the pages, run strip and tray follow,
+  and logs `engine.handoff`. `_mode_wrapper` releases whatever owner is current, so a stop
+  after a hand-off never leaves a stale lease.
+- **The Opportunist with the checkbox is "Double Up under the plan".** Its periodic party
+  checks exist to find Best Guess without knowing when it comes; the tray read makes them
+  redundant, and letting its own hop race the plan's join would need two joiners. Unchecked,
+  the classic loop is untouched.
+- **The den gate fails open on unknown screens.** It is a convenience; a loading screen, a
+  dialog or no capture must not strand William, and the bot's own start classification
+  handles those. A refusal is re-checked with a fresh frame first so the 2 s poll can never
+  refuse on stale data. The gate is applied in `Engine.start_mode` for every user path (page,
+  dashboard, tray, F9) and skipped for `internal=True`.
+- **`hunt.derby_while_waiting` keeps its name.** `StrictModel` forbids unknown keys, so
+  removing it would break every existing config.yaml; it now means "the Best Guess Farmer
+  started in the den races the Derby until due" (off: wait in the den with the keepalive).
+  `planner.demo` is kept for the same reason and is no longer read.
+- **Offscreen UI QA is layout-only.** Qt's offscreen platform renders no fonts on this
+  machine; the run proved the pages build and the new checkbox fits, nothing more, and the
+  committed screenshots were restored rather than replaced with glyph boxes.
+
+## 2026-11-03 — Guided Calibration wizard (entry placed at the top on request)
+
+- **Labels and help live in the profile yamls, not in code.** `ProfileField.label` / `.help`
+  (defaults empty) were inserted textually after each field's `type:` line in both the
+  committed examples and the gitignored live profiles, so comments and calibrated values
+  are untouched; a test fails if a committed field lacks either. The wizard falls back to
+  the key with underscores as spaces, so a profile from an older machine still works.
+- **The flow is a pure module** (`app/pages/calibration_flow.py`): screens, instructions,
+  checks and the step model have no Qt, so the walk is unit-tested; the Qt panel only
+  renders a `WizardModel`. Drawn fields no screen claims fall to an "other" screen rather
+  than vanishing, and the test for committed profiles refuses that so every new field gets
+  a screen deliberately.
+- **Captures are files, not state**: `captures/calibration/<profile>/<screen>.png`, mtime as
+  the timestamp. Reused until Retake; nothing in the profile points at them.
+- **Checks are advisory and never raise**: a missing template or an uncalibrated ROI turns
+  into "confirm by eye", so the wizard works on a blank machine.
+- **The glow is tokens + one animation**: `theme.GLOW_*` (period, rings, width, alpha,
+  dim alpha) drive concentric soft strokes under a crisp outline, in the page accent (tool
+  cyan); the animation runs only while a glowing overlay exists, so the page costs nothing
+  at rest and other pages are unaffected. No QSS was added: the panel reuses the existing
+  object names (CardTitle, SectionLabel, MeterValue, Chip ...), and the amber warning uses
+  the existing `QLabel[accent]` rule (it must not carry `#CardHelp`, whose id selector wins).
+- **`range` is a field flag, not a new type.** `ProfileField.range: bool = False` round-trips
+  through yaml and is only meaningful on ROIs (`Profile.set_range` refuses others). The
+  Derby reads it: a range horse box is searched for the player's lane by the glowing
+  horseshoe under the player's horse (`player_marker_hsv`), with the nose position as the
+  fallback when no glow colour is known. The lane is learned at the start line, where every
+  horse stands still, and kept for the race; the leaderboard clears it. `horse_lane_h` keeps
+  the single-lane height because stretching the box loses it. Both new fields are
+  *proposed*; the flag is off in the live profile until William turns it on.
+- **Offscreen screenshots need a font directory.** The offscreen QPA on Windows has no font
+  database: text renders as boxes. `QT_QPA_FONTDIR=C:/Windows/Fonts` fixes it, which lets
+  the Calibration page be QA'd while another agent drives the game. Only the Calibration
+  shots were regenerated (a scratch script, so the other pages' shots were left alone).
 
 ## 2026-10-26 — M0
 

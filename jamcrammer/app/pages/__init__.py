@@ -22,13 +22,13 @@ def build_pages(engine: Engine, window: MainWindow) -> list[Page]:
     from jamcrammer.app.pages.modes import ArcadePage, BestGuessPage, OpportunistPage
     from jamcrammer.app.pages.notifications import NotificationsPage
     from jamcrammer.app.pages.parties import PartiesPage
-    from jamcrammer.app.pages.planner import PlannerPage
     from jamcrammer.app.pages.profitlab import ProfitLabPage
     from jamcrammer.app.pages.settings import SettingsPage
 
+    # The Den Planner page is gone (2026-11-03): its flow is the "Hunt Best Guess" checkbox
+    # on every farmer bot's run panel (modes/planner.py BestGuessPlan, engine._run_plan).
     return [
         DashboardPage(engine, window),
-        PlannerPage(engine, window),
         BestGuessPage(engine, window),
         ArcadePage(engine, window),
         AdventuresPage(engine, window),

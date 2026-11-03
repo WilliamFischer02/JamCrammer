@@ -140,6 +140,38 @@ def find_dialog_x(
     return (x0 + loc[0] + tmpl.shape[1] // 2, y0 + loc[1] + tmpl.shape[0] // 2)
 
 
+def find_template(
+    image: BgrImage, tmpl: BgrImage, min_score: float, roi: Roi | None = None
+) -> tuple[int, int, float] | None:
+    """Centre and score of the best match of ``tmpl`` (inside ``roi`` when given), or None
+    below ``min_score``: our animal's name tag, a button, a pin."""
+    x0, y0 = (max(0, roi[0]), max(0, roi[1])) if roi else (0, 0)
+    win = _crop(image, roi) if roi else image
+    if win.shape[0] < tmpl.shape[0] or win.shape[1] < tmpl.shape[1]:
+        return None
+    res = cv2.matchTemplate(win, tmpl, cv2.TM_CCOEFF_NORMED)
+    _mn, score, _mnl, loc = cv2.minMaxLoc(res)
+    if score < min_score:
+        return None
+    return (x0 + loc[0] + tmpl.shape[1] // 2, y0 + loc[1] + tmpl.shape[0] // 2, float(score))
+
+
+def player_on_screen(
+    image: BgrImage, prof: Profile, tag: BgrImage | None
+) -> tuple[tuple[int, int], tuple[int, int, int, int], float]:
+    """Where our animal is in this frame: (reference point, the box covering the animal and
+    its tag, the tag's score). Found by the name tag (``nametag_template``); without one, or
+    when the tag is not seen, ``avatar_xy`` and ``avatar_roi`` (score 0)."""
+    if tag is not None and prof.has("nametag_template"):
+        found = find_template(image, tag, prof.number("nametag_min"))
+        if found is not None:
+            tx, ty, score = found
+            ox, oy = prof.point("player_from_tag")
+            bx, by, bw, bh = prof.roi("nametag_box")
+            return (tx + ox, ty + oy), (tx + bx, ty + by, bw, bh), score
+    return prof.point("avatar_xy"), prof.roi("avatar_roi"), 0.0
+
+
 def banner_text(image: BgrImage, prof: Profile, ocr: Callable[[BgrImage], str]) -> str:
     return normalize_text(ocr(_crop(image, prof.roi("banner_roi"))))
 

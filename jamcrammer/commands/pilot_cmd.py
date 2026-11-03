@@ -26,6 +26,7 @@ from jamcrammer.core.profiles import load_profile
 from jamcrammer.core.safety import last_user_input_time
 from jamcrammer.modes.adventures import sight
 from jamcrammer.modes.adventures.inventory import DigitBank
+from jamcrammer.modes.adventures.objects import CourageText
 from jamcrammer.modes.adventures.world import world_dir
 from jamcrammer.pilot import (
     Executor,
@@ -43,6 +44,7 @@ from jamcrammer.pilot import (
 from jamcrammer.platform.capture import open_stage_backend
 from jamcrammer.platform.input import InputController
 from jamcrammer.platform.window import WindowTracker, bring_to_foreground, ensure_dpi_awareness
+from jamcrammer.services.watchdog import PopupDetector, Watchdog
 from jamcrammer.vision.ocr import ocr_image
 
 log = get_logger("cmd.pilot")
@@ -51,7 +53,7 @@ EXIT_NO_WINDOW = 3
 EXIT_REFUSED = 5
 BANNER_UPSCALE = 2.0
 FOREVER_S = 1e9  # no user input since our own
-LOCAL_COMMANDS = ("start", "stop", "serve", "quit", "status")
+LOCAL_COMMANDS = ("start", "stop", "serve", "quit", "status", "rebuild")
 
 
 def _user_input_age(inp: InputController, slack_s: float) -> float:
@@ -83,6 +85,27 @@ def _executor(cfg: AppConfig, paths: Paths) -> tuple[Executor, Any]:
     dialog_x = np.asarray(raw, dtype=np.uint8) if raw is not None else None
     sheet = cv2.imread(str(prof.template_path("count_digits_template", paths)))
     digits = DigitBank(np.asarray(sheet, np.uint8), prof) if sheet is not None else None
+    tag_raw = (
+        cv2.imread(str(prof.template_path("nametag_template", paths)))
+        if prof.has("nametag_template")
+        else None
+    )
+    nametag = np.asarray(tag_raw, dtype=np.uint8) if tag_raw is not None else None
+    courage_raw = cv2.imread(str(prof.template_path("courage_template", paths)))
+    courage = (
+        CourageText(np.asarray(courage_raw, dtype=np.uint8), prof)
+        if courage_raw is not None
+        else None
+    )
+
+    watchdog = Watchdog(
+        cfg.watchdog,
+        PopupDetector(load_profile("shared", paths), paths=paths),
+        inp,
+        bus=bus,
+        screenshot_dir=paths.captures / "watchdog",
+        unknown_dir=paths.unknown_popups,
+    )
 
     def foreground() -> None:
         info = tracker.require()
@@ -108,6 +131,9 @@ def _executor(cfg: AppConfig, paths: Paths) -> tuple[Executor, Any]:
         window=window,
         digits=digits,
         dialog_x=dialog_x,
+        nametag=nametag,
+        courage=courage,
+        watchdog=watchdog,
         out_dir=paths.captures / "pilot",
         world_dir=world_dir(paths.profiles, cfg.adventures.route.target),
         session=PilotSession.load(pointer_path(paths.data)),
@@ -252,8 +278,49 @@ def _serve(args: argparse.Namespace) -> int:
         n = -1
     finally:
         ex.save()
+        ex.flush()
         backend.close()
     print(json.dumps({"served": n}))
+    return 0
+
+
+def _rebuild(args: argparse.Namespace) -> int:
+    """The offline map rebuild (``world_build.py``): every kept frame of the sessions,
+    registered pairwise, solved as a pose graph, composited by the median of the best-lit
+    samples; the tiles and the mosaic under the world folder are replaced. Runs in its
+    own process (minutes); `pilot reload` afterwards tells a running server."""
+    from jamcrammer.modes.adventures.world_build import Dialog, rebuild
+
+    cfg: AppConfig = args.cfg
+    paths: Paths = args.paths
+    target = cfg.adventures.route.target
+    sessions = (
+        [paths.sessions / s for s in args.sessions]
+        if args.sessions
+        else sorted(p for p in paths.sessions.glob(f"*_{target}_pilot") if (p / "obs").exists())
+    )
+    prof = load_profile("adventure", paths)
+    x_raw = cv2.imread(str(prof.template_path("dialog_x_template", paths)))
+    dialog = (
+        Dialog(
+            np.asarray(x_raw, dtype=np.uint8),
+            prof.number("dialog_x_min"),
+            prof.roi("dialog_x_search_roi") if prof.has("dialog_x_search_roi") else None,
+        )
+        if x_raw is not None
+        else None
+    )
+    out = rebuild(
+        world_dir(paths.profiles, target),
+        [s / "obs" for s in sessions],
+        cfg.adventures.world,
+        area=args.area or cfg.pilot.area,
+        hud_rois=[*prof.items("hud_rois")],
+        dialog=dialog,
+        register_pairs=not args.no_register,
+        log=lambda m: print(m, flush=True),
+    )
+    print(json.dumps(out, indent=1))
     return 0
 
 
@@ -267,7 +334,14 @@ def _pilot_argv(args: argparse.Namespace) -> list[str]:
 
 def run_pilot(args: argparse.Namespace) -> int:
     sub = args.pilot_command
-    local = {"start": _start, "stop": _stop, "serve": _serve, "quit": _quit, "status": _status}
+    local = {
+        "start": _start,
+        "stop": _stop,
+        "serve": _serve,
+        "quit": _quit,
+        "status": _status,
+        "rebuild": _rebuild,
+    }
     if sub in local:
         return local[sub](args)
     cfg: AppConfig = args.cfg
@@ -289,6 +363,7 @@ def run_pilot(args: argparse.Namespace) -> int:
     finally:
         try:
             ex.save()
+            ex.flush()
         finally:
             backend.close()
     print(json.dumps(out, indent=1))

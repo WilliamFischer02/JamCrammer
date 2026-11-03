@@ -14,7 +14,7 @@ import re
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Literal, Protocol
 
 import cv2
 import numpy as np
@@ -32,6 +32,8 @@ BgrImage = npt.NDArray[np.uint8]
 GrabFn = Callable[[], BgrImage]
 GREEN_HSV = ((35, 90, 70), (75, 255, 255))
 BLUE_HSV = ((95, 100, 120), (125, 255, 255))  # the games menu's scrollbar arrow
+ARROW_PATCH_PX = 12  # half-size of the patch sampled around each scrollbar arrow point
+ARROW_MIN_FILL = 0.5  # share of that patch that must be blue (menu open: 0.92 / 1.00)
 PRO_SEARCH_PX = 120  # look this far left and right of the guessed PRO point for green
 PRO_MAX_WIDTH_PX = 260  # a green run wider than this is the PLAY! button
 _HRS = re.compile(r"(\d+)\s*(?:hrs?|hours?)", re.IGNORECASE)
@@ -67,6 +69,37 @@ def format_eta(seconds: float | None) -> str:
 class NavResult:
     ok: bool
     note: str = ""
+
+
+def _blue_fill(hsv: BgrImage, x: int, y: int) -> float:
+    h, w = hsv.shape[:2]
+    x0, x1 = max(0, x - ARROW_PATCH_PX), min(w, x + ARROW_PATCH_PX)
+    y0, y1 = max(0, y - ARROW_PATCH_PX), min(h, y + ARROW_PATCH_PX)
+    if x1 <= x0 or y1 <= y0:
+        return 0.0
+    patch = hsv[y0:y1, x0:x1]
+    lo, hi = BLUE_HSV
+    mask = cv2.inRange(patch, np.array(lo, np.uint8), np.array(hi, np.uint8))
+    return float(mask.mean() / 255.0)
+
+
+def games_menu_open(image: BgrImage, profile: Profile) -> bool:
+    """The games menu shows its blue scrollbar arrows: both the down arrow at
+    ``games_scroll_down_point`` and the up arrow at ``games_scroll_up_point`` must be blue
+    (one blue spot is not enough: the arena's floor and a join dialog paint the lower spot
+    blue too, measured on the fixtures 2026-11-03)."""
+    if not profile.has("games_scroll_down_point"):
+        return False
+    points = [profile.point("games_scroll_down_point")]
+    if profile.has("games_scroll_up_point"):
+        points.append(profile.point("games_scroll_up_point"))
+    min_fill = (
+        profile.number("games_arrow_min_fill")
+        if profile.has("games_arrow_min_fill")
+        else ARROW_MIN_FILL
+    )
+    hsv = np.asarray(cv2.cvtColor(image, cv2.COLOR_BGR2HSV), dtype=np.uint8)
+    return all(_blue_fill(hsv, x, y) >= min_fill for x, y in points)
 
 
 class Navigator:
@@ -177,14 +210,7 @@ class Navigator:
 
     def games_menu_open(self, image: BgrImage | None = None) -> bool:
         """The games menu shows its blue scrollbar arrow at ``games_scroll_down_point``."""
-        image = self._grab() if image is None else image
-        x, y = self.profile.point("games_scroll_down_point")
-        h, w = image.shape[:2]
-        if not (0 <= x < w and 0 <= y < h):
-            return False
-        hh, ss, _vv = (int(v) for v in cv2.cvtColor(image, cv2.COLOR_BGR2HSV)[y, x])
-        lo, hi = BLUE_HSV
-        return lo[0] <= hh <= hi[0] and ss >= lo[1]
+        return games_menu_open(self._grab() if image is None else image, self.profile)
 
     def find_derby_tile_scrolling(self) -> tuple[int, int] | None:
         """Scroll the games list by its down arrow a few clicks at a time until the Jamaa
@@ -283,6 +309,169 @@ class Navigator:
                     continue
                 return ((a + b) // 2, py)
         return None
+
+    def _emit(self, event_type: str, level: Level = Level.INFO, **p: object) -> None:
+        if self._bus is not None:
+            self._bus.publish(
+                Event(type=event_type, source="planner", level=level, payload=dict(p))
+            )
+
+
+# --- the shared "Hunt Best Guess" orchestration -------------------------------------------------
+#
+# William (2026-11-03): "Hunt Best Guess" is a checkbox on every farmer bot. Checked, the bot
+# reads when Best Guess is due from the party tray, farms its own game until ``leave_lead_s``
+# before that, leaves to the den at a round boundary, joins Best Guess and hands over to the
+# Best Guess Farmer. This is the old Den Planner, generalised: the bot plugs in through a
+# ``FarmPlugin`` (enter / farm / can_pause_now / leave) and the plan owns the timing.
+
+PlanOutcome = Literal["joined", "stopped", "failed", "farmed"]
+ImagePredicate = Callable[[BgrImage], bool]
+StopFn = Callable[[], bool]
+HUNT_NOW = "hunt_now"
+
+
+@dataclass
+class FarmPlugin:
+    """What a farmer bot gives the plan. Every callable is run on the mode thread."""
+
+    name: str  # "farm", "adventure", "opportunist", "wait"
+    in_game: ImagePredicate  # the game is on this frame (track, board, adventure ...)
+    enter: Callable[[], NavResult]  # from the den: open the game; postcondition in_game
+    farm: Callable[[StopFn], None]  # farm until the predicate says so (or the game vanished)
+    can_pause_now: Callable[[], bool]  # a round boundary: the predicate may fire now
+    interrupted: Callable[[], str]  # why farm() returned early ("" = the predicate)
+    leave: Callable[[], NavResult]  # leave the game to the den; postcondition in_den
+
+
+class BestGuessPlan:
+    def __init__(
+        self,
+        cfg: PlannerConfig,
+        nav: Navigator,
+        *,
+        eta_s: Callable[[], float | None],
+        set_eta: Callable[[float | None, str], None],
+        should_stop: StopFn,
+        hunt: Callable[[], bool],  # scan My Parties until joined or stopped; True = joined
+        status: Callable[[str], None] = lambda _s: None,
+        bus: EventBus | None = None,
+        blocked: StopFn = lambda: False,  # the watchdog or a pause holds the input
+    ) -> None:
+        self.cfg = cfg
+        self.nav = nav
+        self._eta_s = eta_s
+        self._set_eta = set_eta
+        self._should_stop = should_stop
+        self._hunt = hunt
+        self._status = status
+        self._bus = bus
+        self._blocked = blocked
+        self.last_error = ""
+
+    # --- predicates ---------------------------------------------------------------------------
+
+    def due(self) -> bool:
+        eta = self._eta_s()
+        return eta is not None and eta <= self.cfg.leave_lead_s
+
+    def _halt(self) -> bool:
+        return self._should_stop() or self._blocked()
+
+    # --- steps ----------------------------------------------------------------------------------
+
+    def read_eta(self) -> str:
+        """Read the tray. '' = carry on with the countdown (read, kept or defaulted);
+        ``HUNT_NOW`` = Best Guess is already in My Parties."""
+        self._status("PLANNER · reading the party tray")
+        eta, note = self.nav.read_best_guess_eta()
+        if eta is not None:
+            self._set_eta(eta, note)
+            self._emit("planner.eta_read", seconds=eta, note=note)
+            return ""
+        self._emit("planner.eta_unread", Level.NOTICE, message=note)
+        if self.cfg.scan_when_unread and not self._halt():
+            self._status("PLANNER · looking for Best Guess in My Parties")
+            scan = self.nav.watcher.scan()
+            if scan.target is not None:
+                self._emit(
+                    "planner.best_guess_showing",
+                    Level.HIGH,
+                    message="Best Guess is in My Parties now; joining it",
+                )
+                return HUNT_NOW
+        if self._eta_s() is None:
+            default_s = float(self.cfg.eta_default_min * 60)
+            self._set_eta(default_s, "default")
+            self._emit(
+                "planner.eta_default",
+                Level.NOTICE,
+                seconds=default_s,
+                message=f"tray unread; assuming Best Guess in {self.cfg.eta_default_min} min",
+            )
+        return ""
+
+    def _enter(self, plugin: FarmPlugin) -> bool:
+        self._status("PLANNER · going to the den")
+        res = self.nav.go_to_den()
+        self._emit("planner.den", Level.INFO if res.ok else Level.HIGH, message=res.note)
+        if not res.ok:
+            self.last_error = res.note
+            return False
+        if self._halt():
+            return False
+        self._status(f"PLANNER · opening {plugin.name}")
+        res = plugin.enter()
+        self._emit("planner.enter", Level.INFO if res.ok else Level.HIGH, message=res.note)
+        if not res.ok:
+            self.last_error = res.note
+        return res.ok
+
+    def farm_until_due(self, plugin: FarmPlugin) -> PlanOutcome | None:
+        """Farm until ``due`` at a round boundary. None = due now and the game is paused at
+        a boundary; otherwise the outcome that ends the plan."""
+        for _n in range(self.cfg.reentries_max + 1):
+            if not plugin.in_game(self.nav._grab()) and not self._enter(plugin):
+                return "stopped" if self._halt() else "failed"
+            self._status(f"PLANNER · farming {plugin.name} until Best Guess is due")
+            plugin.farm(lambda: self.due() and plugin.can_pause_now())
+            if self._halt():
+                return "stopped"
+            if self.due():
+                return None
+            reason = plugin.interrupted()
+            self._emit("planner.farm_interrupted", Level.NOTICE, reason=reason)
+            self._status("PLANNER · waiting for the game to come back")
+            if self.nav._wait(plugin.in_game, self.cfg.ad_wait_s) is not None:
+                continue  # an advert passed; the game is back
+            self._status("PLANNER · back to the game")
+        self._emit("planner.reentries_exhausted", Level.HIGH, message="the game kept closing")
+        self.last_error = "the game kept closing"
+        return "failed"
+
+    def run(self, plugin: FarmPlugin) -> PlanOutcome:
+        if not plugin.in_game(self.nav._grab()):
+            if self.read_eta() == HUNT_NOW:
+                return self._join()
+            if self._halt():
+                return "stopped"
+        out = self.farm_until_due(plugin)
+        if out is not None:
+            return out
+        self._status("PLANNER · Best Guess is due; leaving to the den")
+        res = plugin.leave()
+        self._emit("planner.leave", Level.INFO if res.ok else Level.HIGH, message=res.note)
+        if not res.ok:
+            self.last_error = res.note
+            return "failed"
+        self._emit("planner.left_game", Level.NOTICE, message="Best Guess is due; hunting it now")
+        return self._join()
+
+    def _join(self) -> PlanOutcome:
+        self._status("PLANNER · hunting Best Guess in My Parties")
+        if self._hunt():
+            return "joined"
+        return "stopped" if self._halt() else "failed"
 
     def _emit(self, event_type: str, level: Level = Level.INFO, **p: object) -> None:
         if self._bus is not None:

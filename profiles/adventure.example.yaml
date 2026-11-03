@@ -6,56 +6,106 @@ name: adventure
 fields:
   banner_roi:
     type: roi
+    label: Objective banner
+    help: The banner at the top ('Find 3 GLOW MOTHS...'). OCR here tells the bot which objective is active.
     value: [440, 0, 1040, 36]
     status: calibrated
     note: objective banner at the top ("Find 3 GLOW MOTHS and LEAD THEM to the door.")
   minimap_roi:
     type: roi
+    label: Minimap
+    help: The inside of the minimap frame (north up, revealed as explored). The player dot is found here; the mapping pilot works in minimap pixels.
     value: [1480, 737, 293, 186]
     status: calibrated
     note: inside of the minimap frame (fixed map, north up, revealed as explored)
   minimap_exclude_roi:
     type: roi
+    label: Minimap zoom button
+    help: The minimap's light-blue '+' button, the same colour as the player dot; excluded so it is never taken for the dot.
     value: [1732, 722, 60, 58]
     status: calibrated
     note: the minimap's light-blue "+" zoom button (same colour as the player dot)
   dot_hsv:
     type: color
+    label: Player dot colour
+    help: The light-blue dot that marks you on the minimap. Sample the dot.
     value: [[90, 30, 190], [120, 210, 255]]
     status: calibrated
     note: the player's light-blue minimap dot (OpenCV HSV; measured p5-p95 H92-107 S69-191 V201-251)
   dot_area:
     type: list
+    label: Player dot size
+    help: Smallest and largest pixel area of the dot blob; other blobs are map features.
     value: [60, 420]
     status: calibrated
     note: pixel area of the dot blob (172 measured); smaller/larger blobs are map features
   items_roi:
     type: roi
+    label: Item slots
+    help: The top-left item slots (light blossoms, boomseeds). A pickup or a use changes this area.
     value: [120, 50, 280, 130]
     status: calibrated
     note: top-left item slots (light blossoms, boomseeds); a pickup or a use changes it
   hud_rois:
     type: list
-    value: [[0, 990, 1920, 90], [1880, 0, 40, 1080], [0, 0, 40, 1080], [1460, 715, 340, 230], [440, 0, 1040, 40], [120, 50, 280, 130]]
+    label: Screen-fixed HUD parts
+    help: Boxes masked out of scene alignment because they do not move with the world (bottom bar, side tabs, minimap, banner, items).
+    value: [[0, 935, 1920, 145], [1830, 0, 90, 1080], [0, 0, 90, 1080], [1460, 715, 340, 230], [440, 0, 1040, 40], [120, 50, 280, 130]]
     status: calibrated
-    note: screen-fixed parts (bottom bar, side tabs, minimap, banner, items) masked out of scene alignment
+    note: screen-fixed parts (bottom bar with the chat tab and the portrait, the room frame left and right, minimap, banner, items) masked out of scene alignment and the map (widened 2026-11-03 after the bar's top showed in the map)
+  nametag_template:
+    type: template
+    label: Your name tag image
+    help: Your animal's name tag (badge, name, icon) as it floats under the animal. Where it is on screen is where the animal is, because the camera lags a walk and stops at an area's edge.
+    value: templates/adventures/nametag.png
+    status: calibrated
+    note: our animal's name tag (badge, name, icon) as it floats under the animal; where it is on screen is where the animal is (the camera lags a walk and stops at the area's edge, so the animal is not always at avatar_xy); score 1.0 / 0.96 in the cave, 0.82 in the den
+  nametag_min:
+    type: number
+    label: Name tag match score
+    help: Template score that counts as the tag.
+    value: 0.7
+    status: calibrated
+    note: template score that counts as the tag
+  nametag_box:
+    type: roi
+    label: Animal around the tag
+    help: The animal and its tag relative to the tag's centre (x, y, w, h); masked out of the map. Relative, so it is not drawn.
+    value: [-130, -165, 260, 200]
+    status: calibrated
+    note: the animal and its tag relative to the tag's centre (x, y, w, h); masked out of the map
+  player_from_tag:
+    type: point
+    label: Animal point from the tag
+    help: The animal's reference point (what the animal centre is when the tag sits at its median) relative to the tag's centre. Relative, so it is not drawn.
+    value: [5, -25]
+    status: calibrated
+    note: the animal's reference point (what avatar_xy is when the tag sits at its median) relative to the tag's centre
   avatar_roi:
     type: roi
+    label: Your animal (box)
+    help: Your animal at the screen centre (the camera follows it); masked so any animal aligns.
     value: [860, 360, 300, 300]
     status: proposed
     note: our animal at the screen centre (the camera follows it); masked so any animal aligns
   dialog_x_template:
     type: template
+    label: Dialog close X image
+    help: The blue X of in-adventure dialogs (Cosmo, Graham); matched to notice and close them.
     value: templates/adventures/dialog_x.png
     status: calibrated
     note: the blue X of in-adventure dialogs (Cosmo, Graham); match 1.00 on six dialogs, <=0.54 elsewhere
   dialog_x_search_roi:
     type: roi
+    label: Where a dialog's X can be
+    help: Dialogs open centred; the X is searched only here.
     value: [1180, 220, 460, 480]
     status: calibrated
     note: where a dialog's X can be (dialogs open centred; X at 1409,454 on all six seen)
   dialog_x_min:
     type: number
+    label: Dialog X match score
+    help: Template score that counts as an open dialog.
     value: 0.8
     status: calibrated
     note: template score that counts as an open dialog
@@ -63,176 +113,260 @@ fields:
   # Measured 2026-10-30 on the two Hard runs 20261029_134501 and 20261030_100745.
   minimap_scale:
     type: number
+    label: Scene px per minimap px
+    help: How many screen pixels one minimap pixel covers (both axes).
     value: 70
     status: calibrated
     note: scene px per minimap px (both axes; walk 400 px/s vs dot 5.9 px/s; windowed fit 66-72)
   avatar_xy:
     type: point
+    label: Your animal (centre)
+    help: The screen point your animal stands on; drags and distances are measured from here.
     value: [1005, 500]
     status: calibrated
     note: our animal's screen centre (name tag median 1000,525 over 3500 adventure frames)
   item_counter_rois:
     type: list
+    label: Item counters
+    help: The 'N/3' counters of the two item slots.
     value: [[180, 36, 80, 44], [180, 176, 80, 44]]
     status: calibrated
     note: the "N/3" counters of the two item slots (light blossoms at y 48, boomseeds at y 188)
   crystal_unlit_hsv:
     type: color
+    label: Unlit crystal colour
+    help: The dark blue of an unlit crystal.
     value: [[85, 130, 60], [115, 255, 215]]
     status: calibrated
     note: a dark-blue unlit crystal (measured at 39 recorded uses H 75-105 S 139-249 V 77-199)
   crystal_lit_hsv:
     type: color
+    label: Lit crystal colour
+    help: The pale cyan glow of a lit crystal.
     value: [[85, 20, 215], [110, 150, 255]]
     status: calibrated
     note: a lit crystal glows pale cyan (bright pixels after a use H 93-101 S 68-127)
   crystal_decoy_hsv:
     type: color
+    label: Purple decoy crystal colour
+    help: Purple decoy / destroyable crystals.
     value: [[130, 90, 80], [165, 255, 255]]
     status: proposed
     note: purple decoy / destroyable crystals
   crystal_decoy_red_hsv:
     type: color
+    label: Red decoy crystal colour
+    help: The red decoy crystals the moths are drawn to.
     value: [[165, 110, 120], [180, 255, 255]]
     status: calibrated
     note: the red decoy crystals the moths are drawn to (measured 2026-11-02 live, H 170-174 S 123-182 V 137-201); their base is navy and reads as an unlit crystal
   scan_fungus_base_px:
     type: number
+    label: Fungus stem exclusion (px)
+    help: An unlit-crystal blob this close to a fungus is the fungus's dark stem, not a crystal.
     value: 50
     status: calibrated
     note: an unlit-crystal blob this close to a fungus is the fungus's dark stem, not a crystal (pilot scans)
   scan_glow_px:
     type: number
+    label: Fungus glow exclusion (px)
+    help: A lit-crystal blob this close to a fungus is its glow, not a crystal.
     value: 50
     status: calibrated
     note: a lit-crystal blob this close to a fungus is the fungus's glow, not a crystal
   fungus_hsv:
     type: color
+    label: Glow fungus colour
+    help: The green cap of a glow fungus (where blossoms are picked).
     value: [[50, 90, 140], [90, 255, 255]]
     status: calibrated
     note: the green glow fungus cap (measured at 15 recorded pickups H 54-87 S 98-176 V 164-255)
   blob_area:
     type: list
+    label: Crystal / fungus blob size
+    help: Smallest and largest pixel area of a crystal or fungus on screen.
     value: [1500, 400000]
     status: proposed
     note: pixel area of a crystal / fungus blob on screen
   menu_globe:
     type: point
+    label: World map globe
+    help: The globe in the bottom bar (den or any room) that opens the WORLD MAP.
     value: [1729, 992]
     status: calibrated
     note: the globe in the bottom bar (den or any room) opens the WORLD MAP
   menu_adventures:
     type: point
+    label: Adventures button
+    help: The Adventures button at the left of the WORLD MAP.
     value: [159, 809]
     status: calibrated
     note: the Adventures button at the left of the WORLD MAP
   menu_list_drag:
     type: list
+    label: Adventure list scroll drag
+    help: Drag the list's scrollbar thumb from (x0, y0) to (x1, y1) to reach the bottom (The Mystery Below is entry 18).
     value: [697, 340, 693, 899]
     status: calibrated
     note: drag the adventure list's scrollbar thumb to the bottom (The Mystery Below is entry 18)
   menu_list_roi:
     type: roi
-    value: [200, 180, 400, 800]
+    label: Adventure list
+    help: The list of adventure names; OCR finds the entry to click.
+    value: [120, 200, 540, 820]
     status: calibrated
     note: the adventure list's entry names
   menu_join:
     type: point
+    label: Join an Adventure
+    help: The Join button in the Adventure dialog.
     value: [826, 592]
     status: calibrated
     note: Join an Adventure in the Adventure dialog (William joins; Host is at 1130,560)
   menu_host:
     type: point
+    label: Host an Adventure
+    help: The Host button in the Adventure dialog.
     value: [1130, 560]
     status: proposed
     note: Host an Adventure
   menu_hard:
     type: point
+    label: Hard difficulty
+    help: Hard in the Difficulty Mode dialog.
     value: [1100, 630]
     status: calibrated
     note: Hard in the Difficulty Mode dialog (Normal at 840,630)
   menu_normal:
     type: point
+    label: Normal difficulty
+    help: Normal in the Difficulty Mode dialog.
     value: [840, 630]
     status: proposed
     note: Normal in the Difficulty Mode dialog
   menu_play:
     type: point
+    label: PLAY (lobby)
+    help: The PLAY button in the adventure lobby panel.
     value: [955, 1010]
     status: calibrated
     note: PLAY in the adventure lobby panel
   item_slot_1:
     type: point
+    label: Light blossom slot
+    help: The first item slot icon; a blossom is dragged from here onto a crystal.
     value: [200, 100]
     status: calibrated
     note: the light blossom slot icon (drag it onto a crystal; William's drags started 198-250, 69-113)
   item_slot_2:
     type: point
+    label: Boomseed slot
+    help: The second item slot icon.
     value: [200, 240]
     status: proposed
     note: the boomseed slot icon
   marker_white_hsv:
     type: color
+    label: Paw pin colour (white)
+    help: The white body of the paw pin that appears over a fungus in reach.
     value: [[0, 0, 220], [180, 60, 255]]
     status: calibrated
     note: the white body of the paw pin over a fungus in reach
   marker_area:
     type: list
+    label: Paw pin size
+    help: Pixel area of the pin body.
     value: [800, 9000]
     status: calibrated
     note: pixel area of the pin body (2200-2500 in the recordings and William's screenshot)
   marker_yellow_hsv:
     type: color
+    label: Paw colour (yellow)
+    help: The paw inside the pin; pale beige before the game is ready, bright yellow after.
     value: [[12, 50, 150], [40, 255, 255]]
     status: calibrated
     note: the paw inside the pin; pale beige just before the game is ready, bright yellow after
   marker_yellow_px:
     type: number
+    label: Paw pixels
+    help: Paw-coloured pixels inside the pin box that mean the pin is live.
     value: 500
     status: calibrated
     note: paw px inside the pin box (recordings 1079-1422, William's screenshot 908; text <= 450)
+  menu_entry_template:
+    type: template
+    label: Mystery Below list entry image
+    help: The Mystery Below's banner in the adventure list, found by template match because OCR of the list is unreliable.
+    value: templates/adventures/list_mystery_below.png
+    status: calibrated
+    note: The Mystery Below's banner in the adventure list (found by template, OCR of the list is unreliable); 2026-11-03
+  menu_entry_min:
+    type: number
+    label: List entry match score
+    help: Template score that counts as the list entry.
+    value: 0.75
+    status: calibrated
+    note: template score that counts as the list entry
   menu_list_down:
     type: point
+    label: Adventure list down arrow
+    help: The list's scroll-down arrow.
     value: [694, 972]
     status: calibrated
     note: the adventure list scroll-down arrow, measured on three live screenshots (blue blob at 694,972); 450,970 was a list row
   courage_template:
     type: template
+    label: '''Courage'' text image'
+    help: The 'Courage' of the 'COURAGE +25' that pops over a crystal as it lights; it proves a use worked.
     value: templates/adventures/courage.png
     status: calibrated
     note: the "Courage" of the "COURAGE +25" that pops over a crystal as it lights (run B, 24.6 s)
   courage_mask_hsv:
     type: color
+    label: Courage letters colour
+    help: Only the blue letters of the template count (masked match).
     value: [[95, 80, 60], [130, 255, 255]]
     status: calibrated
     note: only the blue letters of the template count (masked match); 0 of 100 other clicks >= 0.9
   courage_min:
     type: number
+    label: Courage match score
+    help: Masked correlation that counts as the Courage text.
     value: 0.9
     status: calibrated
     note: masked correlation that counts as the Courage text
   count_digits_template:
     type: template
+    label: Counter digits image
+    help: The counter's first digit 0-3 stacked top to bottom (26 px each).
     value: templates/adventures/count_digits.png
     status: calibrated
     note: the counter's first digit, 0-3 top to bottom (26 px each), averaged from 400 labelled frames of run B
   count_digit_rois:
     type: list
+    label: Counter digit boxes
+    help: The first digit of each slot's 'N/3'.
     value: [[196, 46, 22, 26], [196, 186, 22, 26]]
     status: calibrated
     note: the first digit of each slot's "N/3"; matched by normalised correlation (300/300 on run A, the dimmed "0/3" too)
   count_digit_min:
     type: number
+    label: Counter digit match score
+    help: Best correlation that counts as a digit.
     value: 0.7
     status: calibrated
     note: best correlation that counts (real digits 0.99-1.0, no slot <= 0.2)
   marker_orange_hsv:
     type: color
+    label: Torch pin colour
+    help: The flame inside the torch pin (take the torch, light a basin).
     value: [[5, 120, 150], [25, 255, 255]]
     status: proposed
     note: the flame inside the torch pin (take the torch, light a basin); measured loosely from run B 557-583 s
   marker_dark_max_v:
     type: number
+    label: Exclamation mark darkness
+    help: 'The black ''!'' inside the speech bubble over a door or a pedestal: pixels darker than this count.'
     value: 70
     status: proposed
     note: the black exclamation mark inside the speech bubble over a door or a pedestal (at least marker_yellow_px pixels darker than this)

@@ -421,34 +421,45 @@ class World:
 
     # --- the mosaic ----------------------------------------------------------------------
 
-    def _prep(self, frame: BgrImage, hud_rois: list[Any]) -> tuple[BgrImage, npt.NDArray[np.uint8]]:
+    def _prep(
+        self, frame: BgrImage, hud_rois: list[Any], anchor: Point | None = None
+    ) -> tuple[BgrImage, npt.NDArray[np.uint8]]:
         """The frame at mosaic scale and the mask of what goes in: the lit disc around the
-        animal without the HUD (and the animal's own box, when passed)."""
+        animal (at ``anchor``, default ``avatar``) without the HUD (and the animal's own box,
+        when passed)."""
         s = self.cfg.mosaic_scale
         small = np.asarray(
             cv2.resize(frame, None, fx=s, fy=s, interpolation=cv2.INTER_AREA), np.uint8
         )
         keep = np.ones(small.shape[:2], np.uint8)
         for x, y, w, h in hud_rois:
-            keep[int(y * s) : int((y + h) * s) + 1, int(x * s) : int((x + w) * s) + 1] = 0
-        ax, ay = int(self.avatar[0] * s), int(self.avatar[1] * s)
+            y0, x0 = max(0, int(y * s)), max(0, int(x * s))
+            keep[y0 : int((y + h) * s) + 1, x0 : int((x + w) * s) + 1] = 0
+        px, py = anchor if anchor is not None else self.avatar
+        ax, ay = int(px * s), int(py * s)
         disc = np.zeros_like(keep)
         cv2.circle(disc, (ax, ay), max(1, int(self.cfg.vignette_px * s)), 1, -1)
         keep &= disc
         return small, keep
 
     def align(
-        self, area: str, pos: Point, frame: BgrImage, hud_rois: list[Any]
+        self,
+        area: str,
+        pos: Point,
+        frame: BgrImage,
+        hud_rois: list[Any],
+        anchor: Point | None = None,
     ) -> tuple[Point, float, float]:
         """Where this frame really belongs, by phase correlation against the part of the
         mosaic it overlaps: (corrected pos, overlap share, response). The estimate from the
         dot and the odometry is good to a few tens of px; the mosaic says the rest. Without
         enough overlap, or with a weak or implausible peak, ``pos`` comes back unchanged
-        with response 0."""
+        with response 0. ``anchor`` is where the animal is on screen (default ``avatar``)."""
         a = self.area(area)
         s = self.cfg.mosaic_scale
-        small, keep = self._prep(frame, hud_rois)
-        ox, oy = round((pos[0] - self.avatar[0]) * s), round((pos[1] - self.avatar[1]) * s)
+        ax, ay = anchor if anchor is not None else self.avatar
+        small, keep = self._prep(frame, hud_rois, (ax, ay))
+        ox, oy = round((pos[0] - ax) * s), round((pos[1] - ay) * s)
         mh, mw = a.mosaic.shape[:2]
         fh, fw = small.shape[:2]
         x0, y0 = max(0, ox), max(0, oy)
@@ -479,17 +490,26 @@ class World:
         # content that appears moved right means the frame was placed too far left
         return (pos[0] - shift[0], pos[1] - shift[1]), overlap, float(resp)
 
-    def observe(self, area: str, pos: Point, frame: BgrImage, hud_rois: list[Any]) -> int:
+    def observe(
+        self,
+        area: str,
+        pos: Point,
+        frame: BgrImage,
+        hud_rois: list[Any],
+        anchor: Point | None = None,
+    ) -> int:
         """Paste the lit disc around the animal into the mosaic at ``pos``. Bright pixels win
         over what was there; dark ones (the vignette's edge) never overwrite. ``hud_rois``
         are left out: pass the HUD and the animal's own box (it is in every frame and would
-        be smeared over the map). Returns the number of mosaic pixels written."""
+        be smeared over the map). ``anchor`` is the animal's screen point in this frame
+        (default ``avatar``): the frame's origin is ``pos - anchor``. Returns the number of
+        mosaic pixels written."""
         a = self.area(area)
         s = self.cfg.mosaic_scale
-        small, keep = self._prep(frame, hud_rois)
+        ax, ay = anchor if anchor is not None else self.avatar
+        small, keep = self._prep(frame, hud_rois, (ax, ay))
         v = np.asarray(cv2.cvtColor(small, cv2.COLOR_BGR2HSV)[:, :, 2], np.int32)
-        # where it lands on the mosaic: the frame's origin is pos - avatar
-        ox, oy = round((pos[0] - self.avatar[0]) * s), round((pos[1] - self.avatar[1]) * s)
+        ox, oy = round((pos[0] - ax) * s), round((pos[1] - ay) * s)
         mh, mw = a.mosaic.shape[:2]
         fh, fw = small.shape[:2]
         x0, y0 = max(0, ox), max(0, oy)
@@ -508,10 +528,12 @@ class World:
         n = int(np.count_nonzero(write))
         if n:
             self.dirty = True
-            self._observe_tiles(area, pos, frame, hud_rois)
+            self._observe_tiles(area, pos, frame, hud_rois, (ax, ay))
         return n
 
-    def _observe_tiles(self, area: str, pos: Point, frame: BgrImage, hud_rois: list[Any]) -> None:
+    def _observe_tiles(
+        self, area: str, pos: Point, frame: BgrImage, hud_rois: list[Any], anchor: Point
+    ) -> None:
         """The same disc at full resolution into the on-disk tiles (when attached)."""
         if self.tiles.folder is None:
             return
@@ -520,10 +542,10 @@ class World:
         for x, y, w, h in hud_rois:
             keep[max(0, int(y)) : int(y + h) + 1, max(0, int(x)) : int(x + w) + 1] = 0
         disc = np.zeros_like(keep)
-        cv2.circle(disc, (self.avatar[0], self.avatar[1]), max(1, self.cfg.vignette_px), 1, -1)
+        cv2.circle(disc, (int(anchor[0]), int(anchor[1])), max(1, self.cfg.vignette_px), 1, -1)
         keep &= disc
         v = np.asarray(cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)[:, :, 2], np.int32)
-        ox, oy = round(pos[0] - self.avatar[0]), round(pos[1] - self.avatar[1])  # frame origin
+        ox, oy = round(pos[0] - anchor[0]), round(pos[1] - anchor[1])  # frame origin
         g = self.tiles.tile_px
         aw, ah = self.size
         for ty in range(max(0, oy // g), min((ah - 1) // g, (oy + fh - 1) // g) + 1):
@@ -947,6 +969,124 @@ class World:
         w.attach_tiles(folder / "tiles")
         w.dirty = False
         return w
+
+
+@dataclass
+class Obs:
+    """One kept frame: where the animal was (world px) and where it was on screen."""
+
+    area: str
+    ts: float
+    file: str  # relative to the store's folder
+    pos: Point  # the animal, world px (the fused estimate at the time)
+    anchor: Point  # the animal on screen (the frame's origin in the world is pos - anchor)
+    box: tuple[int, int, int, int]  # the animal and its tag on screen (masked)
+    tag: str = ""  # which command kept it
+    dot: Point | None = None  # the minimap dot, world px, when seen
+
+
+class ObsStore:
+    """Every observed frame on disk with its pose (``obs/<area>/<n>.png`` + ``obs.jsonl``
+    under the session), so the map can be rebuilt offline with better alignment than the
+    live pass had (``world_build.py``). Frames are written by a thread; ``flush`` waits."""
+
+    def __init__(self, folder: Path | None) -> None:
+        import queue
+        import threading
+
+        self.folder = folder
+        self.records: list[Obs] = []
+        self._n = 0
+        self._q: queue.Queue[tuple[Path, BgrImage] | None] = queue.Queue()
+        self._thread: threading.Thread | None = None
+        if folder is not None:
+            folder.mkdir(parents=True, exist_ok=True)
+            self.records = self.load(folder)
+            self._n = len(self.records)
+            self._thread = threading.Thread(target=self._writer, name="obs-writer", daemon=True)
+            self._thread.start()
+
+    @staticmethod
+    def load(folder: Path) -> list[Obs]:
+        path = folder / "obs.jsonl"
+        out: list[Obs] = []
+        if not path.exists():
+            return out
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            d = json.loads(line)
+            out.append(
+                Obs(
+                    d["area"],
+                    float(d["ts"]),
+                    d["file"],
+                    (float(d["pos"][0]), float(d["pos"][1])),
+                    (float(d["anchor"][0]), float(d["anchor"][1])),
+                    tuple(int(v) for v in d["box"]),  # type: ignore[arg-type]
+                    d.get("tag", ""),
+                    (float(d["dot"][0]), float(d["dot"][1])) if d.get("dot") else None,
+                )
+            )
+        return out
+
+    def _writer(self) -> None:
+        while True:
+            item = self._q.get()
+            if item is None:
+                self._q.task_done()
+                return
+            path, frame = item
+            try:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                cv2.imwrite(str(path), frame, [cv2.IMWRITE_PNG_COMPRESSION, 1])
+            except (OSError, cv2.error):
+                pass
+            self._q.task_done()
+
+    def add(
+        self,
+        area: str,
+        ts: float,
+        frame: BgrImage,
+        *,
+        pos: Point,
+        anchor: Point,
+        box: tuple[int, int, int, int],
+        tag: str = "",
+        dot: Point | None = None,
+    ) -> Obs | None:
+        if self.folder is None:
+            return None
+        self._n += 1
+        rel = f"{area}/{self._n:06d}.png"
+        o = Obs(area, ts, rel, pos, anchor, box, tag, dot)
+        self.records.append(o)
+        self._q.put((self.folder / rel, np.ascontiguousarray(frame)))
+        with (self.folder / "obs.jsonl").open("a", encoding="utf-8") as fh:
+            fh.write(
+                json.dumps(
+                    {
+                        "area": area,
+                        "ts": ts,
+                        "file": rel,
+                        "pos": [round(pos[0], 1), round(pos[1], 1)],
+                        "anchor": [round(anchor[0], 1), round(anchor[1], 1)],
+                        "box": list(box),
+                        "tag": tag,
+                        "dot": [round(dot[0], 1), round(dot[1], 1)] if dot else None,
+                    }
+                )
+                + "\n"
+            )
+        return o
+
+    def pending(self) -> int:
+        return self._q.qsize()
+
+    def flush(self) -> None:
+        if self._thread is not None:
+            self._q.join()
 
 
 def world_dir(profiles_dir: Path, target: str) -> Path:

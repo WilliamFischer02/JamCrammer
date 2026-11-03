@@ -54,7 +54,6 @@ MODE_ICONS = {
     "farm": "arcade",
     "adventure": "adventure",
     "opportunist": "opportunist",
-    "planner": "home",
 }
 
 
@@ -182,7 +181,10 @@ class RunStrip(QFrame):
             self.line.setText(st.mode_detail)
             self.pause_btn.setText("Resume" if st.paused else "Pause")
             owner = self.engine.lease.owner or "nobody"
-            self.lease.setText(f"input: {owner}" + ("  (dry run)" if st.dry_run else ""))
+            handoff = f"  ({st.handoff})" if st.handoff else ""
+            self.lease.setText(
+                f"input: {owner}{handoff}" + ("  (dry run)" if st.dry_run else "")
+            )
         if want != self._shown:
             self._shown = want
             animate_height(self, theme.RUN_STRIP_HEIGHT if want else 0)
@@ -331,7 +333,8 @@ class MainWindow(QMainWindow):
             self.status.showMessage(self.engine.state.last_error, 4000)
 
     def _on_event(self, event: Event) -> None:
-        if event.type == "engine.mode_started":
+        if event.type in ("engine.mode_started", "engine.handoff"):
+            # a start, or a farmer handing over to the Best Guess Farmer: show the bot's page
             mode = str(event.payload.get("mode", ""))
             if mode:
                 self.show_page_key(mode)

@@ -466,6 +466,7 @@ class RunPanel(QFrame):
     stop_clicked = Signal()
     pause_clicked = Signal()
     dry_toggled = Signal(bool)
+    hunt_toggled = Signal(bool)
 
     def __init__(self, title: str, accent: str, icon: str, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -519,10 +520,18 @@ class RunPanel(QFrame):
         self.dry = QCheckBox("Dry run")
         self.dry.setToolTip("Capture, analyse and log, but never send input")
         self.dry.toggled.connect(self.dry_toggled.emit)
+        self.hunt = QCheckBox("Hunt Best Guess")
+        self.hunt.setToolTip(
+            "Before farming, read when Best Guess is due from the party tray; farm until then, "
+            "leave at a round boundary, join Best Guess and hand over to the Best Guess Farmer"
+        )
+        self.hunt.toggled.connect(self.hunt_toggled.emit)
+        self.hunt.setVisible(False)  # farmer bots show it (ModePage)
         for w in (self.start, self.stop, self.pause):
             controls.addWidget(w)
         controls.addSpacing(theme.PAD_SM)
         controls.addWidget(self.dry)
+        controls.addWidget(self.hunt)
         controls.addStretch(1)
         self.hint = QLabel("F9 start · F11 pause · F12 kill")
         self.hint.setObjectName("HotkeyHint")
@@ -543,7 +552,10 @@ class RunPanel(QFrame):
         self.chart_row.addWidget(widget)
 
     def set_running(self, running: bool, paused: bool, *, can_start: bool = True) -> None:
+        """Start and Dry run follow ``can_start`` (the den gate); Stop and Pause follow the
+        bot, so a running bot can always be stopped."""
         self.start.setEnabled(not running and can_start)
+        self.dry.setEnabled(running or can_start)
         self.stop.setEnabled(running)
         self.pause.setEnabled(running)
         self.pause.setText("Resume" if paused else "Pause")
@@ -572,3 +584,76 @@ def grid_of(widgets: Sequence[QWidget], columns: int) -> QGridLayout:
     for i, w in enumerate(widgets):
         lay.addWidget(w, i // columns, i % columns)
     return lay
+
+
+# --- calibration wizard pieces ---------------------------------------------------------------
+
+
+class StepProgress(QWidget):
+    """'Step k of n' with a thin accent bar underneath."""
+
+    def __init__(self, accent: str = "tool", parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(4)
+        top = QHBoxLayout()
+        self.label = QLabel("")
+        self.label.setObjectName("MeterLabel")
+        self.detail = QLabel("")
+        self.detail.setObjectName("MeterValue")
+        _tabular(self.detail)
+        top.addWidget(self.label)
+        top.addStretch(1)
+        top.addWidget(self.detail)
+        lay.addLayout(top)
+        self.bar = QProgressBar()
+        self.bar.setRange(0, 1)
+        self.bar.setValue(0)
+        self.bar.setTextVisible(False)
+        self.bar.setProperty("accent", accent)
+        self.bar.setFixedHeight(6)
+        lay.addWidget(self.bar)
+
+    def set_step(self, k: int, n: int, caption: str = "") -> None:
+        self.label.setText(caption.upper() if caption else "PROGRESS")
+        self.detail.setText(f"Step {k} of {n}")
+        if self.bar.maximum() != max(1, n):
+            self.bar.setRange(0, max(1, n))
+        self.bar.setValue(max(0, min(n, k)))
+
+
+class Segmented(QWidget):
+    """Two or more mutually exclusive icon+text buttons (Guided / Advanced)."""
+
+    changed = Signal(str)
+
+    def __init__(
+        self, options: Sequence[tuple[str, str, str]], current: str, parent: QWidget | None = None
+    ) -> None:
+        """``options`` = (key, icon name, text)."""
+        super().__init__(parent)
+        lay = QHBoxLayout(self)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(4)
+        self._buttons: dict[str, QToolButton] = {}
+        for key, icon, text in options:
+            b = QToolButton()
+            b.setText(text)
+            b.setIcon(make_icon(icon, theme.PALETTE.text))
+            b.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+            b.setProperty("kind", "icon")
+            b.setCheckable(True)
+            b.setChecked(key == current)
+            b.setCursor(Qt.CursorShape.PointingHandCursor)
+            b.clicked.connect(lambda _c=False, k=key: self.select(k))
+            self._buttons[key] = b
+            lay.addWidget(b)
+        self.current = current
+
+    def select(self, key: str) -> None:
+        for k, b in self._buttons.items():
+            b.setChecked(k == key)
+        if key != self.current:
+            self.current = key
+            self.changed.emit(key)

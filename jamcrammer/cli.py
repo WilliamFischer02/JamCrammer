@@ -44,8 +44,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("gui", help="launch the GUI")
 
+    mode_help = {
+        "hunt": "run the Best Guess Farmer headless (hunt My Parties, join, farm); "
+        "'hunt' is the historical name",
+        "farm": "run the Arcade Farmer headless",
+        "opportunist": "run the Opportunist headless",
+    }
     for mode in MODES:
-        p = sub.add_parser(mode, help=f"run the {mode} mode headless")
+        p = sub.add_parser(mode, help=mode_help.get(mode, f"run the {mode} mode headless"))
         p.add_argument("--dry-run", action="store_true", help="never send input")
         p.add_argument("--no-join", action="store_true", help="scan and log, never click GO NOW")
         p.add_argument("--no-antiafk", action="store_true", help="skip the movement pair")
@@ -192,6 +198,17 @@ def _pilot_map_parser(ps: Any) -> None:
     for name in ("x", "y", "w", "h"):
         cr.add_argument(name, type=int)
     cr.add_argument("name")
+    e = ps.add_parser("enter", help="from the den into the adventure by the menus")
+    e.add_argument("--timeout", type=float, default=180.0)
+    sm = ps.add_parser("smash", help="click a rock / purple crystal until it is gone")
+    sm.add_argument("x", type=int)
+    sm.add_argument("y", type=int)
+    sm.add_argument("--max", type=int, default=None, help="clicks at most")
+    ps.add_parser("reload", help="re-read the world from disk (after a rebuild)")
+    rb = ps.add_parser("rebuild", help="rebuild an area's map from the kept frames (offline)")
+    rb.add_argument("--area", default=None)
+    rb.add_argument("--sessions", nargs="*", default=None, help="session folders (default: all)")
+    rb.add_argument("--no-register", action="store_true", help="composite with the poses as kept")
 
 
 def _not_yet(milestone: str) -> Command:

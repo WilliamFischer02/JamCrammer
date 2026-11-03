@@ -6,92 +6,132 @@ name: parties
 fields:
   party_hat_point:
     type: point
+    label: Party hat icon
+    help: The party-hat icon in the top HUD that opens My Parties. One click opens the panel.
     value: [684, 53]
     status: calibrated
     note: HUD party-hat icon; verified live (opens the panel)
   close_x_point:
     type: point
+    label: My Parties close button
+    help: The round blue X on the panel's title bar. The panel is closed after every scan because it does not refresh while open.
     value: [1237, 335]
     status: calibrated
     note: blue round X on the panel title bar; verified live (closes the panel)
   title_template:
     type: template
+    label: '''My Parties'' title image'
+    help: A crop of the panel's title text. Finding it tells the bot the panel is open and where it sits; every other panel position is measured from this box.
     value: templates/parties/title_my_parties.png
     status: calibrated
   close_x_template:
     type: template
+    label: Close X image
+    help: A crop of the blue X button; found by template match so the close click lands even if the panel moved.
     value: templates/parties/close_x.png
     status: calibrated
   go_now_template:
     type: template
+    label: GO NOW button image
+    help: A crop of the blue GO NOW button. Each party slot is found by this button.
     value: templates/parties/go_now.png
     status: calibrated
   title_search_roi:
     type: roi
+    label: Where the title can be
+    help: The area searched first for the My Parties title; the whole frame is searched if nothing matches here.
     value: [540, 160, 900, 300]
     status: proposed
     note: where the title bar can be; the whole frame is searched if the match here is weak
   template_scales:
     type: list
+    label: Template scales
+    help: Scale factors tried when matching the panel templates (the panel scales with the window).
     value: [0.8, 0.86, 0.92, 0.96, 1.0, 1.04, 1.08, 1.14, 1.2]
     status: proposed
   template_threshold:
     type: number
+    label: Panel template score
+    help: 0-1 minimum match for the title and close-X templates.
     value: 0.80
     status: proposed
   go_now_threshold:
     type: number
+    label: GO NOW template score
+    help: 0-1 minimum match for the GO NOW button.
     value: 0.80
     status: proposed
   panel_column_rel:
     type: list
+    label: Banner column (relative)
+    help: Left and right edges of the banner column as multiples of the title-box width, measured from the title's left edge.
     value: [-0.98, 1.99]
     status: calibrated
     note: banner column x-range as multiples of the title-box width, from the title-box left
   panel_rows_rel:
     type: list
+    label: Banner rows (relative)
+    help: Top and bottom of the banner rows as multiples of the title-box height, measured from the title's top.
     value: [1.4, 11.2]
     status: calibrated
     note: banner rows y-range as multiples of the title-box height, from the title-box top
   border_dark_max:
     type: number
+    label: Pinned banner border darkness
+    help: Grey level under which a pixel counts as the navy ring around a pinned banner (Adventure Base Camp, the seasonal adventure).
     value: 70
     status: proposed
     note: gray level below which a pixel counts as a pinned-banner border ring (navy, ~51)
   slot_border_dark_max:
     type: number
+    label: Party slot border darkness
+    help: The party-slot banner's ring is lighter; this threshold is used only around GO NOW buttons.
     value: 90
     status: proposed
     note: the party-slot banner ring is lighter (~80); used only around GO NOW buttons
   border_row_fraction:
     type: number
+    label: Border row fill
+    help: Fraction of a row that must be ring-coloured for the row to belong to a banner border.
     value: 0.6
     status: proposed
   banner_height_rel:
     type: list
+    label: Banner height (relative)
+    help: Valid banner heights as multiples of the title-box height; rows outside this range are not banners.
     value: [1.8, 3.4]
     status: proposed
     note: "valid banner row height as multiples of the title-box height (live 105 px / 42 px)"
   phash_max_distance:
     type: number
+    label: Banner match distance
+    help: Perceptual-hash distance under which a banner matches one in the library (same banner about 16, different banners 22 and up).
     value: 18
     status: proposed
     note: "same banner at 6% scale difference: 16; different banners: 22+"
   phash_min_margin:
     type: number
+    label: Banner match margin
+    help: The best library match must beat the runner-up by this many hash points.
     value: 4
     status: proposed
     note: best match must beat the runner-up by this much
   ocr_upscale:
     type: number
+    label: OCR upscale
+    help: Banner crops are enlarged by this factor before OCR.
     value: 2.0
     status: proposed
   label_fuzzy_threshold:
     type: number
+    label: Label fuzzy match
+    help: 0-100 similarity for OCR text to match a known banner label.
     value: 80
     status: proposed
   known_labels:
     type: list
+    label: Known banner names
+    help: Party names the OCR text can snap to.
     value:
       - Adventure Base Camp
       - Bitter Sweets
@@ -102,9 +142,13 @@ fields:
     status: proposed
   target_keywords:
     type: list
+    label: Target party words
+    help: Words that identify the party to join (Best Guess).
     value: ["best guess"]
     status: calibrated
   wait_popup_keywords:
     type: list
+    label: '''Not started yet'' words'
+    help: Words on the popup shown when GO NOW is clicked before the party starts.
     value: ["wait", "not started", "hasn't started", "starting soon", "try again"]
     status: proposed

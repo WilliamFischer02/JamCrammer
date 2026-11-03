@@ -4,18 +4,26 @@ name: swoopy_eagle
 fields:
   play_roi:
     type: roi
+    label: Play field
+    help: The area where the eagle flies (captured at 60 fps; keep it small).
     value: null
     status: uncalibrated
     note: the play field (captured at 60 fps; keep it small)
   bird_hsv:
     type: color
+    label: Eagle colour
+    help: Sample the eagle.
     value: null
     status: uncalibrated
   pipe_hsv:
     type: color
+    label: Pipe colour
+    help: Sample a pipe.
     value: null
     status: uncalibrated
   crash_template:
     type: template
+    label: Crash screen image
+    help: A crop of the crash / game-over screen.
     value: templates/swoopy_eagle/crash.png
     status: uncalibrated

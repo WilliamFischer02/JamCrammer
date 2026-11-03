@@ -27,7 +27,7 @@ from jamcrammer.core.events import Event, EventBus
 from jamcrammer.core.profiles import Profile
 from jamcrammer.modes.adventures import sight
 from jamcrammer.modes.adventures.level import Level as LevelModel
-from jamcrammer.vision.ocr import OcrResult
+from jamcrammer.vision.ocr import OcrLine, OcrResult, OcrWord
 
 BgrImage = npt.NDArray[np.uint8]
 Word = tuple[str, int, int]  # text (lower), centre x, centre y
@@ -40,7 +40,11 @@ NAME_FUZZY = 50  # a list line / lobby header vs the nearest adventure name (mea
 TOP_Y = 110  # panel headers
 DIALOG_HEADER_Y = (330, 440)  # the Adventure (Join / Host) dialog's header
 TRANSIENT_S = 0.25  # a state must hold this long before it is acted on (panels slide in)
+ROOM_LOOKS = 3  # a room must read as one this many looks running before the globe is clicked
+# (a panel misread as a room got the globe click, which on the open world map is a sea
+# stage: the animal was swapped for a water one, 2026-11-03)
 LOBBY_X_MAX_Y = 220  # the lobby panel's blue X sits near its top right
+OCR_HALF_OVERLAP = 120  # the halves of a frame OCR'd in parts overlap this much
 NAMES = {"mystery_below": "the mystery below"}
 ADVENTURES = [  # the list as it reads (the entries are the real names, OCR'd badly)
     "training grounds",
@@ -64,6 +68,26 @@ ADVENTURES = [  # the list as it reads (the entries are the real names, OCR'd ba
     "the river's heart",
     "jamaa derby",
 ]
+
+
+def robust_ocr(frame: BgrImage, ocr: Callable[[BgrImage], OcrResult]) -> OcrResult:
+    """Windows OCR sometimes reads nothing, or not the words that matter, from a frame it
+    reads fine in parts (the scrolled adventure list, 2026-11-03): a lit frame is also read
+    in two halves and all the lines are merged in frame coordinates."""
+    res = ocr(frame)
+    if float(frame.mean()) < LOADING_MAX_MEAN:
+        return res
+    w = frame.shape[1]
+    parts = [(0, frame[:, : w // 2 + OCR_HALF_OVERLAP]), (w // 2, frame[:, w // 2 :])]
+    lines: list[OcrLine] = list(res.lines)
+    for x0, part in parts:
+        for ln in ocr(np.ascontiguousarray(part)).lines:
+            words = tuple(
+                OcrWord(wd.text, (wd.box[0] + x0, wd.box[1], wd.box[2], wd.box[3]))
+                for wd in ln.words
+            )
+            lines.append(OcrLine(ln.text, words))
+    return OcrResult(" ".join(ln.text for ln in lines), tuple(lines), res.ms, "", 1.0)
 
 
 @dataclass
@@ -130,11 +154,37 @@ def _header_name(lines: list[Word]) -> str:
     return ""
 
 
+def _entry_by_template(frame: BgrImage, prof: Profile) -> tuple[int, int] | None:
+    """The target's banner in the list, by its template (``menu_entry_template``)."""
+    if not prof.has("menu_entry_template"):
+        return None
+    key = str(prof.template_path("menu_entry_template"))
+    tmpl = _ENTRY_TEMPLATES.get(key)
+    if tmpl is None:
+        raw = cv2.imread(key)
+        if raw is None:
+            return None
+        tmpl = np.asarray(raw, dtype=np.uint8)
+        _ENTRY_TEMPLATES[key] = tmpl
+    found = sight.find_template(
+        frame, tmpl, prof.number("menu_entry_min"), prof.roi("menu_list_roi")
+    )
+    return (found[0], found[1]) if found else None
+
+
+_ENTRY_TEMPLATES: dict[str, BgrImage] = {}
+
+
 def classify(frame: BgrImage, res: OcrResult, lvl: LevelModel, prof: Profile) -> Seen:
     """What menu the screen shows (see the module doc)."""
     if float(frame.mean()) < LOADING_MAX_MEAN:
         return Seen("loading")
     ws, lines = words_of(res), lines_of(res)
+    if _has(ws, "land") and _has(ws, "animal"):
+        return Seen("not_land_animal")  # "You must be a land animal to go on this Adventure."
+    entry = _entry_by_template(frame, prof)
+    if entry is not None:
+        return Seen("adventures", entry)  # the list is open and the target is in view
     name = NAMES.get(lvl.target, lvl.target.replace("_", " "))
     bx, by, bw, bh = prof.roi("banner_roi")
     banner = " ".join(t for t, x, y in ws if bx <= x < bx + bw and by <= y < by + bh)
@@ -188,7 +238,7 @@ class Opening:
 
     def see(self) -> Seen:
         self._frame = frame = self._grab()
-        return classify(frame, self._ocr(frame), self.lvl, self.prof)
+        return classify(frame, robust_ocr(frame, self._ocr), self.lvl, self.prof)
 
     def _shot(self, state: str) -> None:
         if self._shots is None or self._frame is None:
@@ -206,9 +256,11 @@ class Opening:
         tries: dict[str, int] = {}
         deadline = self._clock() + c.menu_step_s * (c.menu_retries + 1) * 8 + c.load_max_s
         last = ""
+        streak = 0
         played_at: float | None = None
         while not stop() and self._clock() < deadline:
             seen = self.see()
+            streak = streak + 1 if seen.state == last else 1
             if seen.state != last:
                 self.steps.append(seen.state)
                 self._shot(seen.state)
@@ -216,6 +268,14 @@ class Opening:
                 last = seen.state
             if seen.state == "in_adventure":
                 return True
+            if seen.state == "not_land_animal":
+                self._emit(
+                    "adventure.menu_stuck",
+                    Level.HIGH,
+                    state=seen.state,
+                    message="The game wants a land animal: please switch animals, then start again",
+                )
+                return False
             loading = played_at is not None and self._clock() - played_at < c.load_max_s
             if seen.state == "loading" or (loading and seen.state != "lobby"):
                 self._sleep(self._poll)  # the splash after PLAY reads as a room: never click it
@@ -226,6 +286,8 @@ class Opening:
             self._sleep(c.room_hold_s if seen.state == "room" else TRANSIENT_S)
             if self.see().state != seen.state:
                 continue
+            if seen.state == "room" and streak < ROOM_LOOKS:
+                continue  # one more look: a panel read as a room must never get the globe
             n = tries.get(seen.state, 0)
             if n > c.menu_retries:
                 self._emit(

@@ -7,26 +7,36 @@ fields:
   # --- HUD geometry (from the 2026-10-26 Crystal Sands snapshot) ---
   hud_top_band:
     type: roi
+    label: HUD top band
+    help: The strip of icons across the top of the game. The room-change guard ignores this strip because it looks the same in every room, so the guard only reacts to the room itself changing.
     value: [0, 0, 1920, 110]
     status: proposed
     note: icon row across the top; excluded from room-drift fingerprint
   hud_bottom_band:
     type: roi
+    label: HUD bottom band
+    help: 'The bottom of the screen: chat bar, your avatar, the map and den buttons. Ignored by the room-change guard for the same reason as the top band.'
     value: [0, 880, 1920, 200]
     status: proposed
     note: chat bar, avatar, map; excluded from room-drift fingerprint
   animal_center_box:
     type: roi
+    label: Where your animal stands
+    help: The patch of floor where your own animal usually idles. Masked out of the room-change guard so your animal's animation does not count as the room changing.
     value: [760, 380, 400, 320]
     status: proposed
     note: where our own animal usually stands; excluded from room-drift fingerprint
   party_hat_point:
     type: point
+    label: Party hat icon
+    help: The balloon / party-hat icon in the top HUD that opens the My Parties panel. The Hunter clicks here on every scan.
     value: [690, 50]
     status: proposed
     note: the party-hat/balloon HUD icon that opens My Parties
   gem_counter_roi:
     type: roi
+    label: Gem counter
+    help: The HUD box that shows your gem total. The Gem Ledger reads it with OCR to measure real earnings. Leave it missing if the counter is not shown in your rooms.
     value: null
     status: uncalibrated
     note: HUD gem total for the Gem Ledger; not visible on this account in Crystal Sands
@@ -34,71 +44,103 @@ fields:
   # --- Popup Watchdog ---
   popup_center_box:
     type: fraction_box
+    label: Popup area
+    help: The middle of the screen where modal dialogs (still playing?, logged out) appear, as fractions of the client size. The watchdog looks for popups only here.
     value: [0.25, 0.20, 0.75, 0.80]
     status: proposed
     note: where modal dialogs appear
   popup_green_hsv:
     type: color
+    label: Still-playing button green
+    help: The saturated green of the confirm button on the 'Are you still playing?' popup. Sample a pixel on the button; the watchdog finds the button by this colour.
     value: [[40, 120, 120], [85, 255, 255]]
     status: proposed
     note: saturated green of the "still playing" confirm button (OpenCV HSV)
   popup_green_min_area:
     type: number
+    label: 'Green button: smallest area'
+    help: A green blob smaller than this many pixels is not the button (foliage, small icons).
     value: 1500
     status: proposed
   popup_green_max_area:
     type: number
+    label: 'Green button: largest area'
+    help: A green blob larger than this many pixels is not the button (a green floor).
     value: 80000
     status: proposed
   popup_green_min_aspect:
     type: number
+    label: 'Green button: narrowest shape'
+    help: Width divided by height. The button is wider than tall, so blobs squarer than this are ignored.
     value: 1.3
     status: proposed
   popup_green_max_aspect:
     type: number
+    label: 'Green button: widest shape'
+    help: Blobs wider than this width-to-height ratio are not the button.
     value: 8.0
     status: proposed
   still_playing_keywords:
     type: list
+    label: Still-playing words
+    help: Words the OCR must read on the popup for it to count as the idle popup (any one matches).
     value: ["still playing", "still here", "are you still", "still there"]
     status: proposed
   logged_out_keywords:
     type: list
+    label: Logged-out words
+    help: Words that mean the account was logged out or the connection dropped. The bot stops and alerts instead of clicking.
     value: ["logged out", "been logged", "disconnected", "connection lost", "lost connection"]
     status: proposed
   play_now_keywords:
     type: list
+    label: Play Now words
+    help: Words on the login / Play Now screen; seeing them means we are out of the game.
     value: ["play now"]
     status: proposed
   still_playing_template:
     type: template
+    label: Still-playing popup image
+    help: A crop of the idle popup used for exact template matching, which is faster and surer than OCR. Crop the dialog without its surroundings.
     value: templates/popups/still_playing.png
     status: uncalibrated
     note: crop from inbox/popups once William supplies it
   logged_out_template:
     type: template
+    label: Logged-out popup image
+    help: A crop of the logged-out dialog for template matching.
     value: templates/popups/logged_out.png
     status: uncalibrated
   play_now_template:
     type: template
+    label: Play Now button image
+    help: A crop of the Play Now button for template matching.
     value: templates/popups/play_now.png
     status: uncalibrated
   template_match_threshold:
     type: number
+    label: Template match score
+    help: '0-1: how closely a popup template must match before it counts. Lower it if real popups are missed; raise it if false alarms appear.'
     value: 0.85
     status: proposed
   modal_center_diff_min:
     type: number
+    label: 'Unknown dialog: centre change'
+    help: Mean pixel change (0-255) in the popup area versus the room baseline that suggests a dialog opened.
     value: 12
     status: proposed
     note: mean abs diff (0-255) of the center box vs the room baseline that suggests a modal
   modal_border_diff_max:
     type: number
+    label: 'Unknown dialog: border stays still'
+    help: The edge of the frame must change less than this; otherwise the whole room changed rather than a dialog opening.
     value: 14
     status: proposed
     note: the frame border must stay close to baseline (otherwise it is a room change, not a modal)
   modal_center_border_ratio:
     type: number
+    label: 'Unknown dialog: centre / border ratio'
+    help: The centre change must exceed the border change by this factor to count as a dialog.
     value: 2.5
     status: proposed
     note: center diff must exceed border diff by this factor

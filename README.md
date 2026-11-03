@@ -7,9 +7,15 @@ no packets, no client patching. The full spec is `docs/KICKOFF.md`; engineering 
 
 | Mode | What it does |
 |---|---|
-| **Best Guess Hunter** | Opens My Parties on a schedule, identifies the banners, alerts (sound/ntfy/Discord) and auto-joins when the *Best Guess Game* appears, then farms it with OCR and a self-learning answer bank once the profile gate is open. |
+| **Best Guess Farmer** | Farms the *Best Guess Game* arena with OCR and a self-learning answer bank (CLI: `hunt`, the historical name). Started in your den it reads when Best Guess is due from the party tray, waits (or races the Derby), joins on time, then farms until you stop it. |
 | **Arcade Farmer** | Farms Double Up (primary), Jamaa Derby, or runs the Gem Ball auto-tuner / Swoopy Eagle prototype. |
 | **Opportunist** | Farms the arcade game, checks the party slot every few minutes at a round boundary, hops to Best Guess the moment it appears. |
+
+Every farmer bot starts from your den and has a **Hunt Best Guess** checkbox next to Start:
+checked, it reads when Best Guess is due before farming, farms until shortly before, leaves at
+a round boundary, joins Best Guess and hands over to the Best Guess Farmer. While no bot runs,
+Start is enabled only when the live capture shows your den ("Return to Den to enable this
+Farmer" otherwise); the Best Guess Farmer may also start inside the arena.
 | **Learn** | You play; JamCrammer records keyframes, your clicks and F6/F7/F8 markers, then proposes the calibration and seeds the answer bank. Also ingests PNG/MP4 from `inbox/`. |
 
 Shared services: Popup Watchdog, Anti-AFK with a room-drift guard, presence detection (hands

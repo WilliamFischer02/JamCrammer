@@ -49,14 +49,16 @@ BANNER_UPSCALE = 2.0  # the 36 px objective banner reads as nothing at 1x, perfe
 
 log = get_logger("engine")
 
-MODES = ("planner", "hunt", "farm", "adventure", "opportunist")
+MODES = ("hunt", "farm", "adventure", "opportunist")
 MODE_LABELS = {
-    "planner": "Den Planner",
-    "hunt": "Best Guess Hunter",
+    "hunt": "Best Guess Farmer",
     "farm": "Arcade Farmer",
     "adventure": "Adventure Farmer",
     "opportunist": "Opportunist",
 }
+# the stats key each mode's page reads (``EngineState.stats``); the Best Guess Farmer has its
+# own key because the hunter (My Parties scans) and the farmer (rounds) are different things
+BESTGUESS_STATS = "bestguess"
 PREVIEW_IDLE_S = 0.5
 THREAD_JOIN_S = 5.0
 
@@ -76,6 +78,10 @@ class EngineState:
     stats: dict[str, Any] = field(default_factory=dict)
     bg_eta_ts: float | None = None  # epoch when Best Guess is due (planner)
     bg_eta_note: str = ""
+    situation: str = ""  # where the player is (modes/situation.py), "" = not looked yet
+    situation_room: str = ""  # the room title that decided it
+    situation_ts: float = 0.0
+    handoff: str = ""  # "farm -> hunt" after an internal hand-off (run strip)
 
     def bg_eta_s(self) -> float | None:
         return None if self.bg_eta_ts is None else self.bg_eta_ts - time.time()
@@ -127,6 +133,9 @@ class Engine:
         self._mode_thread: threading.Thread | None = None
         self._mode_stop = threading.Event()
         self._mode_obj: Any = None
+        self._stats_key = ""  # where _mode_obj.stats is published in state.stats
+        self._lease_owner = ""  # who holds the input lease on the mode thread
+        self._situator: Any = None
         self._recorder: Recorder | None = None
         self.input = InputController(
             self.tracker.provider(), cfg.input, dry_run=cfg.dry_run, bus=self.bus
@@ -216,13 +225,17 @@ class Engine:
         self.state.window = info
         return info
 
-    def start_capture(self) -> bool:
+    def start_capture(self, *, quiet: bool = False) -> bool:
+        """Open the capture backend and the preview loop (read-only). ``quiet``: a bot page
+        asking for frames for its den gate; no toast when the game is not running."""
         if self.state.capture_running:
             return True
         if self.refresh_window() is None:
             self.state.last_error = "AJC window not found"
             self.emit(
-                "engine.no_window", Level.NOTICE, message="Animal Jam Classic window not found"
+                "engine.no_window",
+                Level.INFO if quiet else Level.NOTICE,
+                message="Animal Jam Classic window not found",
             )
             return False
         try:
@@ -276,6 +289,7 @@ class Engine:
                 if self._mode_thread is None and not self.kill.tripped:
                     self.watchdog.tick(frame)
                     self.ledger.tick(frame.image, "idle")
+                    self._poll_situation(frame)
                 change = self.tracker.poll()
                 if change is not None:
                     self.state.window = self.tracker.info
@@ -299,7 +313,58 @@ class Engine:
         self.input.dry_run = on
         self.emit("engine.dry_run", on=on)
 
-    def start_mode(self, name: str) -> bool:
+    # --- where are we? (modes/situation.py) ------------------------------------------------------
+
+    @property
+    def situator(self) -> Any:
+        if self._situator is None:
+            from jamcrammer.modes.situation import Situator
+
+            self._situator = Situator(self.profile, self.cfg, self.paths)
+        return self._situator
+
+    def _classify(self, image: Any, *, announce: bool) -> Any:
+        sight = self.situator.classify(image)
+        self.state.situation = str(sight.situation)
+        self.state.situation_room = sight.room
+        self.state.situation_ts = time.time()
+        if announce:
+            self.emit(
+                "engine.situation",
+                Level.NOTICE,
+                situation=str(sight.situation),
+                room=sight.room,
+                note=sight.note,
+                message=f"Screen: {sight} [{sight.note}]",
+            )
+        return sight
+
+    def _poll_situation(self, frame: Frame) -> None:
+        """The den gate's read-only poll: every ``planner.gate_poll_s`` while no bot runs,
+        classify the live frame so the bot pages can enable or disable Start."""
+        if time.time() - self.state.situation_ts < self.cfg.planner.gate_poll_s:
+            return
+        try:
+            self._classify(frame.image, announce=False)
+        except Exception as exc:  # the gate is a convenience: never let it take the loop down
+            log.debug("situation poll failed: %s", exc)
+
+    def classify_now(self, *, announce: bool = True) -> Any:
+        """Classify a fresh capture. Never the preview's last frame: on the first Start after
+        the capture opens that frame does not exist yet (2026-11-02 21:00, the arena was not
+        seen and the Best Guess Farmer went looking for the party tray instead)."""
+        return self._classify(self.grab().image, announce=announce)
+
+    def start_allowed(self, name: str, *, internal: bool = False) -> tuple[bool, str]:
+        """The den gate for a Start (pages, dashboard, tray, F9): ``(ok, why_not)``."""
+        from jamcrammer.modes.situation import Situation, start_gate
+
+        sit = Situation(self.state.situation) if self.state.situation else None
+        return start_gate(name, sit, running=self._mode_thread is not None, internal=internal)
+
+    # --- starting and stopping ------------------------------------------------------------------
+
+    def start_mode(self, name: str, *, internal: bool = False) -> bool:
         if self._mode_thread is not None:
             return False
         if self.kill.tripped:
@@ -307,6 +372,20 @@ class Engine:
             return False
         if not self.start_capture():
             return False
+        if not internal:
+            # the den gate (William, 2026-11-03): a user Start needs the den (or the arena for
+            # the Best Guess Farmer); a stale poll never refuses on its own, a fresh look does
+            ok, why = self.start_allowed(name)
+            if not ok:
+                try:
+                    self.classify_now(announce=False)
+                except Exception as exc:
+                    log.debug("fresh classification failed: %s", exc)
+                ok, why = self.start_allowed(name)
+            if not ok:
+                self.state.last_error = why
+                self.emit("engine.start_refused", Level.NOTICE, mode=name, message=why)
+                return False
         # On one screen (the laptop) Start leaves the GUI in front of the game: mss would capture
         # the GUI and Space/arrow keys would land on its buttons. Bring the game forward first.
         focused = self.focus_game()
@@ -318,13 +397,14 @@ class Engine:
             self.pause.resume()
             self.state.paused = False
         self.state.last_error = ""
-        self.presence.mark()  # the click on Start is not a takeover
+        self.presence.mark()  # the click on Start is not a takeover (every mode)
         self._mode_stop.clear()
         self.state.mode = name
         self.state.mode_state = "STARTING"
         self.state.mode_detail = ""
+        self.state.handoff = ""
+        self._stats_key = ""
         target = {
-            "planner": self._run_planner,
             "hunt": self._run_hunt,
             "farm": self._run_farm,
             "opportunist": self._run_opportunist,
@@ -345,13 +425,16 @@ class Engine:
             self.emit("engine.mode_crashed", Level.HIGH, mode=name, message=str(exc))
             log.exception("mode %s crashed", name)
         finally:
+            self._publish_stats()
+            ended = self.state.mode or name
             self.state.mode = None
             self.state.mode_state = "IDLE"
             self.state.mode_detail = ""
             self._mode_thread = None
             self._mode_obj = None
-            self.lease.release(name)
-            self.emit("engine.mode_stopped", mode=name)
+            self._stats_key = ""
+            self._release_lease()
+            self.emit("engine.mode_stopped", mode=ended)
 
     def stop_mode(self) -> None:
         self._mode_stop.set()
@@ -364,6 +447,67 @@ class Engine:
             self.stop_mode()
         else:
             self.start_mode(self.selected_mode)
+
+    # --- the input lease and the hand-off ------------------------------------------------------
+
+    def _take_lease(self, owner: str) -> None:
+        """One owner at a time: the mode thread's current owner hands over to ``owner``."""
+        if self._lease_owner and self._lease_owner != owner:
+            self.lease.release(self._lease_owner)
+        self.lease.acquire(owner)
+        self._lease_owner = owner
+
+    def _release_lease(self) -> None:
+        if self._lease_owner:
+            self.lease.release(self._lease_owner)
+            self._lease_owner = ""
+
+    def _handoff(self, previous: str, to: str) -> None:
+        """A farmer hands the run over to the Best Guess Farmer on the same thread: the lease
+        moves, the state says who runs (the pages and the run strip follow it), and the
+        hand-off is logged."""
+        self._take_lease(to)
+        self.state.handoff = f"{MODE_LABELS.get(previous, previous)} -> {MODE_LABELS.get(to, to)}"
+        self.state.mode = to
+        self._stats_key = ""
+        self.emit(
+            "engine.handoff",
+            Level.NOTICE,
+            previous=previous,
+            mode=to,
+            message=f"{self.state.handoff}: input lease handed over",
+        )
+
+    # --- stats and status (what the pages read) ----------------------------------------------
+
+    def _attach(self, obj: Any, stats_key: str) -> None:
+        """The running mode object; its ``stats`` are published under ``stats_key`` on every
+        status tick, so the tiles move while the bot farms (not only when it stops)."""
+        self._mode_obj = obj
+        self._stats_key = stats_key
+        self._publish_stats()
+
+    @staticmethod
+    def _stats_dict(stats: Any) -> dict[str, Any]:
+        if hasattr(stats, "as_dict"):
+            return dict(stats.as_dict())
+        if hasattr(stats, "__dict__"):
+            return {k: v for k, v in vars(stats).items() if isinstance(v, (int, float, str, bool))}
+        return {}
+
+    def _publish_stats(self) -> None:
+        obj = self._mode_obj
+        if obj is None or not self._stats_key:
+            return
+        stats = getattr(obj, "stats", None)
+        if stats is not None:
+            self.state.stats[self._stats_key] = self._stats_dict(stats)
+
+    def _status(self, text: str) -> None:
+        parts = text.split(" · ", 1)
+        self.state.mode_state = parts[0]
+        self.state.mode_detail = parts[1] if len(parts) > 1 else ""
+        self._publish_stats()
 
     def _seed_facts(self) -> None:
         """Load the community wiki answers into the bank once (assets/bestguess/facts_wiki.txt)."""
@@ -394,30 +538,52 @@ class Engine:
             self.emit("engine.mode_blocked", Level.HIGH, message=self.state.last_error)
         return True
 
-    def _status(self, text: str) -> None:
-        parts = text.split(" · ", 1)
-        self.state.mode_state = parts[0]
-        self.state.mode_detail = parts[1] if len(parts) > 1 else ""
+    def _halted(self) -> bool:
+        return self._should_stop() or self.pause.paused or self._watchdog_blocks()
+
+    # --- Best Guess Farmer -----------------------------------------------------------------------
 
     def _run_hunt(self) -> None:
-        if self._on_derby_track():
-            # Start was pressed on the Derby track with the Hunter selected: farm the Derby
+        """Start of the Best Guess Farmer. In the arena: farm now. On the Derby track: race
+        (the old "Start on the track" behaviour). Else, from the den: read when Best Guess is
+        due, race the Derby until then (``hunt.derby_while_waiting``) or wait in the den with
+        the keepalive, then join on time and farm until stopped."""
+        from jamcrammer.modes.situation import Situation
+
+        sight = self.classify_now()
+        if sight.situation == Situation.ARENA:
+            self._take_lease("hunt")
+            self._farm_or_record_after_join()
+            return
+        on_track = sight.situation == Situation.DERBY and self._derby_gate_open()
+        if on_track:
             self.emit("engine.track_detected", Level.NOTICE, message="Jamaa Derby track on screen")
             self.cfg.arcade_game = "jamaa_derby"
-            self._run_farm()
-            return
-        if self._already_in_arena() and self._phase_c_allowed():
-            # William is standing in the Best Guess arena already: skip the hunt, farm now
-            self.emit("engine.arena_detected", Level.NOTICE, message="Best Guess arena on screen")
-            self.lease.acquire("hunt")
+            self.state.stats.pop("farm", None)
+        nav = self._make_navigator()
+        plugin = (
+            self._derby_plugin(nav)
+            if on_track or self.cfg.hunt.derby_while_waiting
+            else self._wait_plugin(nav)
+        )
+        self._run_plan("hunt", nav, plugin)
+
+    def _farm_or_record_after_join(self) -> None:
+        """In the arena: Phase C when the gate and the answer mode allow it, else Learn-only
+        (a recording) until stopped."""
+        if self._phase_c_allowed():
             self._run_bestguess_farmer()
             return
-        if self.cfg.hunt.derby_while_waiting:
-            # William (2026-11-02): from a room, Start reads when Best Guess is due, plays the
-            # Derby until then, comes back and joins on time (the Den Planner flow)
-            self._run_planner()
-            return
-        self._hunt_then_farm()
+        self.emit(
+            "engine.arena_learn_only",
+            Level.NOTICE,
+            message="In the Best Guess arena; farming is off (gate or answer mode): recording only",
+        )
+        self._on_joined(None)
+        while not self._halted():
+            self._status("JOINED · recording")
+            self._keepalive()
+            time.sleep(PREVIEW_IDLE_S)
 
     def _make_watcher(self) -> Any:
         from jamcrammer.modes.party_watcher import BannerLibrary, PanelAnalyzer, PartyWatcher
@@ -435,8 +601,8 @@ class Engine:
             unknown_dir=self.paths.unknown,
         )
 
-    def _hunt_then_farm(self, presence: bool = True) -> None:
-        """Hunter loop (My Parties scans, auto-join), then Phase C once joined."""
+    def _run_hunter(self, *, presence: bool, interval_s: float | None = None) -> Any:
+        """The Hunter loop (My Parties scans, auto-join) until joined or stopped."""
         from jamcrammer.modes.bestguess.hunter import Hunter
 
         hunter = Hunter(
@@ -451,17 +617,24 @@ class Engine:
             presence=self.presence if presence else None,
             on_joined=self._on_joined,
         )
-        self._mode_obj = hunter
-        self.lease.acquire("hunt")
-        hunter.run(lambda: self._should_stop() or self.pause.paused, self._status)
-        if hunter.stats.joined and self._phase_c_allowed():
-            self._run_bestguess_farmer()
-        while hunter.stats.joined and not self._should_stop():
-            self._status("JOINED · recording")
-            time.sleep(PREVIEW_IDLE_S)
-        self.state.stats["hunt"] = hunter.stats.__dict__.copy()
+        self._attach(hunter, "hunt")
+        saved = self.cfg.hunt_interval_s
+        if interval_s is not None:
+            self.cfg.hunt_interval_s = interval_s
+        try:
+            hunter.run(lambda: self._should_stop() or self.pause.paused, self._status)
+        finally:
+            self.cfg.hunt_interval_s = saved
+        self._publish_stats()
+        return hunter
 
-    # --- den planner ------------------------------------------------------------------------
+    def _hunt_until_joined(self) -> bool:
+        """The plan's last step: scan My Parties every ``planner.hunt_interval_s`` (the bot
+        just left a game; its own input is not William coming back) until joined."""
+        hunter = self._run_hunter(presence=False, interval_s=self.cfg.planner.hunt_interval_s)
+        return bool(hunter.stats.joined)
+
+    # --- the shared "Hunt Best Guess" plan (modes/planner.py) --------------------------------
 
     def set_best_guess_eta(self, seconds: float | None, note: str = "") -> None:
         self.state.bg_eta_ts = None if seconds is None else time.time() + seconds
@@ -494,103 +667,180 @@ class Engine:
             self.emit("planner.eta_unread", Level.NOTICE, message=note)
         return (eta, note)
 
-    def _run_planner(self) -> None:
-        """Den -> Jamaa Derby (PRO) until Best Guess is due -> leave -> hunt Best Guess."""
+    def _run_plan(self, mode: str, nav: Any, plugin: Any) -> str:
+        """Run ``plugin`` under the Best Guess plan: tray -> farm until due -> leave -> join ->
+        hand over to the Best Guess Farmer, which plays until stopped."""
+        from jamcrammer.modes.planner import BestGuessPlan
+
+        plan = BestGuessPlan(
+            self.cfg.planner,
+            nav,
+            eta_s=self.state.bg_eta_s,
+            set_eta=self.set_best_guess_eta,
+            should_stop=self._should_stop,
+            hunt=self._hunt_until_joined,
+            status=self._status,
+            bus=self.bus,
+            blocked=lambda: self.pause.paused or self._watchdog_blocks(),
+        )
+        self._take_lease(mode)
+        self.emit(
+            "planner.started",
+            Level.NOTICE,
+            mode=mode,
+            plugin=plugin.name,
+            message=f"{MODE_LABELS.get(mode, mode)}: farm {plugin.name} until Best Guess is due",
+        )
+        outcome = plan.run(plugin)
+        self.emit("planner.outcome", outcome=outcome, mode=mode, plugin=plugin.name)
+        if outcome == "failed":
+            self.state.last_error = plan.last_error or "the plan failed"
+            self.emit("engine.plan_failed", Level.HIGH, mode=mode, message=self.state.last_error)
+        elif outcome == "joined":
+            if mode != "hunt":
+                self._handoff(mode, "hunt")
+            self._farm_or_record_after_join()
+        return str(outcome)
+
+    def _derby_gate_open(self) -> bool:
+        from jamcrammer.core.gate import gate_status
+
+        return gate_status("jamaa_derby", self.paths, self._profiles).unlocked
+
+    def _derby_plugin(self, nav: Any) -> Any:
         from jamcrammer.core.gate import gate_status
         from jamcrammer.modes.arcade.derby import DerbyDetector, Screen
+        from jamcrammer.modes.planner import FarmPlugin, NavResult
 
-        pc = self.cfg.planner
-        nav = self._make_navigator()
-        self.lease.acquire("planner")
         detector = DerbyDetector(self.profile("jamaa_derby"), self.cfg.derby)
 
         def track_visible(image: Any) -> bool:
             return detector.screen(image) != Screen.UNKNOWN
 
-        # 1. the demonstration + time read (skipped when we are already on the track)
-        if pc.demo and not track_visible(self.grab().image):
-            self._status("PLANNER · reading the party tray")
-            eta, note = nav.read_best_guess_eta()
-            if eta is not None:
-                self.set_best_guess_eta(eta, note)
-            else:
-                self.emit("planner.eta_unread", Level.NOTICE, message=note)
-        if self.state.bg_eta_ts is None:
-            self.set_best_guess_eta(pc.eta_default_min * 60, "default")
-        if self._should_stop():
-            return
-
-        # 2. Derby, unless the track is already on screen
-        if not track_visible(self.grab().image):
-            self._status("PLANNER · going to the den")
-            res = nav.go_to_den()
-            self.emit("planner.den", Level.INFO if res.ok else Level.HIGH, message=res.note)
-            if not res.ok or self._should_stop():
-                self.state.last_error = res.note
-                return
+        def enter() -> NavResult:
             gate = gate_status("jamaa_derby", self.paths, self._profiles)
             if not gate.unlocked:
-                self.state.last_error = f"jamaa_derby {gate.summary()}"
-                self.emit(
-                    "engine.gate_locked", Level.HIGH, mode="planner", message=self.state.last_error
-                )
-                return
-            self._status("PLANNER · opening Jamaa Derby (PRO)")
-            res = nav.open_derby(track_visible)
-            self.emit("planner.derby", Level.INFO if res.ok else Level.HIGH, message=res.note)
-            if not res.ok or self._should_stop():
-                self.state.last_error = res.note
-                return
+                return NavResult(False, f"jamaa_derby {gate.summary()}")
+            self.cfg.arcade_game = "jamaa_derby"
+            res: NavResult = nav.open_derby(track_visible)
+            return res
 
-        # 3. farm until Best Guess is due (leave at a leaderboard or the start line)
-        self.cfg.arcade_game = "jamaa_derby"
+        def can_pause_now() -> bool:
+            # a race is never abandoned: only the leaderboard, the start line, or no track
+            return str(getattr(self._mode_obj, "state", "")) in ("RESULTS", "WAITING", "UNKNOWN")
 
-        def due() -> bool:
-            eta = self.state.bg_eta_s()
-            return eta is not None and eta <= pc.leave_lead_s
+        def leave() -> NavResult:
+            if not self._leave_derby(nav, track_visible):
+                return NavResult(False, "the Derby did not close")
+            home: NavResult = nav.go_to_den()
+            return home
 
-        if not self._farm_until(due, nav, track_visible):
-            return
+        return FarmPlugin(
+            name="Jamaa Derby",
+            in_game=track_visible,
+            enter=enter,
+            farm=lambda stop: self._farm_game(extra_stop=stop),
+            can_pause_now=can_pause_now,
+            interrupted=lambda: str(getattr(self._mode_obj, "paused_reason", "") or ""),
+            leave=leave,
+        )
 
-        # 4. leave the Derby and hunt Best Guess in My Parties every hunt_interval_s
-        self._leave_derby(nav, track_visible)
-        self.emit("planner.left_derby", Level.NOTICE, message="Best Guess is due; hunting it now")
-        saved = self.cfg.hunt_interval_s
-        self.cfg.hunt_interval_s = pc.hunt_interval_s
-        try:
-            self._hunt_then_farm(presence=False)
-        finally:
-            self.cfg.hunt_interval_s = saved
+    def _double_up_plugin(self, nav: Any) -> Any:
+        """Double Up through its calibrated entry route (the Opportunist's ``ArcadeEntry``);
+        None when the route is not calibrated."""
+        from jamcrammer.modes.arcade.double_up import DoubleUpFarmer
+        from jamcrammer.modes.opportunist import ENTRY_FIELDS, ArcadeEntry
+        from jamcrammer.modes.planner import FarmPlugin, NavResult
 
-    def _farm_until(
-        self, due: Callable[[], bool], nav: Any, track_visible: Callable[[Any], bool]
-    ) -> bool:
-        """Race until ``due``. The farmer stops on its own when the track is gone for
-        ``derby.unknown_pause_s`` (an advert between races, a kick to the den): then the
-        track is waited for, else the Derby is re-opened from the den. False when the run
-        should end (stopped, paused by William or the watchdog, could not get back)."""
-        pc = self.cfg.planner
-        for _n in range(pc.reentries_max + 1):
-            self._run_farm(extra_stop=due, between_races_only=True)
-            if self._should_stop() or self.pause.paused or self._watchdog_blocks():
-                return False
-            if due():
-                return True
-            reason = str(getattr(self._mode_obj, "paused_reason", "") or "")
-            self.emit("planner.farm_interrupted", Level.NOTICE, reason=reason)
-            self._status("PLANNER · waiting for the track")
-            if nav._wait(track_visible, pc.ad_wait_s) is not None:
-                continue  # the advert passed
-            self._status("PLANNER · back to the Derby")
-            res = nav.go_to_den()
-            if res.ok:
-                res = nav.open_derby(track_visible)
-            self.emit("planner.derby", Level.INFO if res.ok else Level.HIGH, message=res.note)
-            if not res.ok:
-                self.state.last_error = res.note
-                return False
-        self.emit("planner.reentries_exhausted", Level.HIGH, message="the Derby kept closing")
-        return False
+        prof = self.profile("double_up")
+        missing = prof.missing(list(ENTRY_FIELDS))
+        if missing:
+            self.emit(
+                "planner.no_entry_route",
+                Level.NOTICE,
+                message=f"Double Up entry route missing {missing}: farming only",
+            )
+            return None
+        grab_image = lambda: self.grab().image  # noqa: E731
+        probe = DoubleUpFarmer(prof, self.cfg.double_up, self.input, grab_image)
+        entry = ArcadeEntry(prof, self.cfg.opportunist, self.input, grab_image, probe.board_visible)
+
+        def enter() -> NavResult:
+            self.cfg.arcade_game = "double_up"
+            ok = entry.enter()
+            return NavResult(ok, "Double Up opened" if ok else "the Double Up board did not show")
+
+        def leave() -> NavResult:
+            if not entry.leave():
+                return NavResult(False, "Double Up did not close")
+            home: NavResult = nav.go_to_den()
+            return home
+
+        return FarmPlugin(
+            name="Double Up",
+            in_game=probe.board_visible,
+            enter=enter,
+            farm=lambda stop: self._farm_game(extra_stop=stop),
+            can_pause_now=lambda: True,  # the round loop checks between rounds only
+            interrupted=lambda: str(getattr(self._mode_obj, "paused_reason", "") or ""),
+            leave=leave,
+        )
+
+    def _arcade_plugin(self, nav: Any) -> Any:
+        game = self.cfg.arcade_game
+        if game == "jamaa_derby":
+            return self._derby_plugin(nav)
+        if game == "double_up":
+            return self._double_up_plugin(nav)
+        self.emit(
+            "planner.unsupported_game",
+            Level.NOTICE,
+            message=f"Hunt Best Guess is not available for {game}: farming only",
+        )
+        return None
+
+    def _adventure_plugin(self, nav: Any) -> Any:
+        """The route farmer does its own menus from a room; leaving is the HUD's den button
+        (not yet seen live inside an adventure: a failure stops the run with a HIGH alert)."""
+        from jamcrammer.modes.planner import FarmPlugin, NavResult
+
+        done = {"reason": ""}
+
+        def farm(stop: Callable[[], bool]) -> None:
+            done["reason"] = ""
+            self._run_adventure(extra_stop=stop)
+            if not stop() and not self._halted():
+                done["reason"] = "route finished"
+
+        return FarmPlugin(
+            name="Adventure",
+            in_game=lambda _im: False,  # re-entered through its own menus every time
+            enter=lambda: NavResult(True, "the route farmer opens the adventure itself"),
+            farm=farm,
+            can_pause_now=lambda: True,
+            interrupted=lambda: done["reason"],
+            leave=nav.go_to_den,
+        )
+
+    def _wait_plugin(self, nav: Any) -> Any:
+        """No game to farm: wait in the den with the keepalive until Best Guess is due."""
+        from jamcrammer.modes.planner import FarmPlugin, NavResult, format_eta
+
+        def farm(stop: Callable[[], bool]) -> None:
+            while not stop() and not self._halted():
+                self._keepalive()
+                self._status(f"WAITING · Best Guess in {format_eta(self.state.bg_eta_s())}")
+                time.sleep(self.cfg.planner.wait_poll_s)
+
+        return FarmPlugin(
+            name="the den (waiting)",
+            in_game=nav.in_den,
+            enter=lambda: NavResult(True, "waiting in the den"),
+            farm=farm,
+            can_pause_now=lambda: True,
+            interrupted=lambda: "",
+            leave=nav.go_to_den,
+        )
 
     def _leave_derby(self, nav: Any, track_visible: Callable[[Any], bool]) -> bool:
         """The Derby's X opens "Leave game?" and LEAVE confirms it; the leaderboard has its
@@ -613,34 +863,6 @@ class Engine:
                 return True
         self.emit("planner.leave_failed", Level.HIGH, message="the Derby did not close")
         return False
-
-    def _on_derby_track(self) -> bool:
-        """The Derby track, start line or leaderboard is on screen and its gate is open."""
-        from jamcrammer.core.gate import gate_status
-        from jamcrammer.modes.arcade.derby import DerbyDetector, Screen
-
-        frame = self.snapshot()
-        if frame is None:
-            return False
-        try:
-            det = DerbyDetector(self.profile("jamaa_derby"), self.cfg.derby)
-            if det.screen(frame.image) == Screen.UNKNOWN:
-                return False
-            return gate_status("jamaa_derby", self.paths, self._profiles).unlocked
-        except Exception:
-            return False
-
-    def _already_in_arena(self) -> bool:
-        """The parchment banner and the gem icon of the Best Guess arena are on screen now."""
-        from jamcrammer.modes.bestguess.state import in_arena
-
-        frame = self.snapshot()
-        if frame is None:
-            return False
-        try:
-            return in_arena(frame.image, self.profile("bestguess"), self.cfg.bestguess)
-        except Exception:
-            return False
 
     def _phase_c_allowed(self) -> bool:
         from jamcrammer.core.gate import gate_status
@@ -674,17 +896,17 @@ class Engine:
             bus=self.bus,
             screenshot=self._save_shot,
         )
-        self._mode_obj = farmer
+        self._attach(farmer, BESTGUESS_STATS)
         self.emit("engine.phase_c", Level.NOTICE, message="Best Guess farming started (gate open)")
 
         def guarded_stop() -> bool:
             frame = self.snapshot()
             if frame is not None:
                 self.watchdog.tick(frame, known_screen=self._screen_known())
-            return self._should_stop() or self.pause.paused or self._watchdog_blocks()
+            return self._halted()
 
         farmer.run(guarded_stop, self._status)
-        self.state.stats["bestguess"] = farmer.stats.as_dict()
+        self._publish_stats()
         if farmer.stats.gems_est:
             self.ledger.record_payout(farmer.stats.gems_est, "hunt")
 
@@ -697,14 +919,32 @@ class Engine:
         cv2.imwrite(str(path), image)
         return path
 
-    def _run_farm(
-        self,
-        extra_stop: Callable[[], bool] | None = None,
-        between_races_only: bool = False,
-    ) -> None:
-        """Arcade farmer behind the profile gate. ``extra_stop`` adds a stop condition (the
-        planner's deadline); with ``between_races_only`` it is honoured only off the track
-        (leaderboard or start line) so a race is never abandoned mid-way."""
+    # --- Arcade Farmer -----------------------------------------------------------------------------
+
+    def _run_farm(self) -> None:
+        """Start of the Arcade Farmer: with "Hunt Best Guess" on, the game runs under the
+        plan (tray, farm until due, join, hand over); off, it farms until stopped."""
+        from jamcrammer.modes.situation import Situation
+
+        sight = self.classify_now()
+        if self.cfg.hunt_best_guess.farm:
+            nav = self._make_navigator()
+            plugin = self._arcade_plugin(nav)
+            if plugin is not None:
+                if sight.situation == Situation.DERBY and self.cfg.arcade_game != "jamaa_derby":
+                    self.emit(
+                        "engine.track_detected", Level.NOTICE, message="Jamaa Derby track on screen"
+                    )
+                    self.cfg.arcade_game = "jamaa_derby"
+                    plugin = self._derby_plugin(nav)
+                self._run_plan("farm", nav, plugin)
+                return
+        self._take_lease("farm")
+        self._farm_game()
+
+    def _farm_game(self, extra_stop: Callable[[], bool] | None = None) -> None:
+        """The arcade game behind its profile gate, until stopped or ``extra_stop`` (the
+        plan's deadline at a round boundary: the plugin's ``can_pause_now`` is folded in)."""
         from jamcrammer.core.gate import gate_status
         from jamcrammer.modes.arcade.double_up import DoubleUpFarmer
 
@@ -745,40 +985,44 @@ class Engine:
                 store=self.store,
                 bus=self.bus,
             )
-        self._mode_obj = farmer
-        self.lease.acquire("farm")
+        self._attach(farmer, "farm")
 
         def guarded_stop() -> bool:
             frame = self.snapshot()
             if frame is not None:
                 self.watchdog.tick(frame, known_screen=self._screen_known())
             if extra_stop is not None and extra_stop():
-                state = str(getattr(farmer, "state", ""))
-                if not between_races_only or state in ("RESULTS", "WAITING", "UNKNOWN"):
-                    return True
-            return self._should_stop() or self.pause.paused or self._watchdog_blocks()
+                return True
+            return self._halted()
 
         farmer.run(guarded_stop, self._status)
+        self._publish_stats()
         if farmer.stats.gems:
             self.ledger.record_payout(farmer.stats.gems, "farm")
-        self.state.stats["farm"] = (
-            farmer.stats.as_dict()
-            if hasattr(farmer.stats, "as_dict")
-            else {
-                "rounds": farmer.stats.rounds,
-                "perfect": farmer.stats.perfect,
-                "gems": farmer.stats.gems,
-                "median_round_s": farmer.stats.median_round_s,
-            }
-        )
+
+    # --- Opportunist ---------------------------------------------------------------------------------
 
     def _run_opportunist(self) -> None:
+        """Start of the Opportunist. With "Hunt Best Guess" on, the periodic party checks are
+        redundant (the tray says when Best Guess is due): Double Up runs under the plan. Off,
+        the classic loop: Double Up rounds + party checks + hop to Best Guess."""
+        self.classify_now()
+        if self.cfg.hunt_best_guess.opportunist:
+            nav = self._make_navigator()
+            plugin = self._double_up_plugin(nav)
+            if plugin is not None:
+                self.cfg.arcade_game = "double_up"
+                self._run_plan("opportunist", nav, plugin)
+                return
+        self._take_lease("opportunist")
+        self._opportunist_loop()
+
+    def _opportunist_loop(self) -> None:
         """Opportunist (M9): Double Up rounds + party checks + hop to Best Guess."""
         from jamcrammer.core.gate import gate_status
         from jamcrammer.modes.arcade.double_up import DoubleUpFarmer
         from jamcrammer.modes.bestguess.hunter import Hunter
         from jamcrammer.modes.opportunist import ENTRY_FIELDS, ArcadeEntry, Opportunist
-        from jamcrammer.modes.party_watcher import BannerLibrary, PanelAnalyzer, PartyWatcher
 
         gate = gate_status("double_up", self.paths, self._profiles)
         route_missing = self.profile("double_up").missing(list(ENTRY_FIELDS))
@@ -800,21 +1044,9 @@ class Engine:
             store=self.store,
             bus=self.bus,
         )
-        analyzer = PanelAnalyzer(
-            self.profile("parties"), BannerLibrary(self.paths.assets / "banners"), paths=self.paths
-        )
-        watcher = PartyWatcher(
-            analyzer,
-            self.cfg.hunt,
-            self.input,
-            grab_image,
-            store=self.store,
-            bus=self.bus,
-            unknown_dir=self.paths.unknown,
-        )
         hunter = Hunter(
             self.cfg,
-            watcher,
+            self._make_watcher(),
             self.grab,
             watchdog=self.watchdog,
             antiafk=self.antiafk,
@@ -840,19 +1072,20 @@ class Engine:
             store=self.store,
             bus=self.bus,
         )
-        self._mode_obj = opp
-        self.lease.acquire("opportunist")
+        self._attach(opp, "opportunist")
 
         def guarded_stop() -> bool:
             frame = self.snapshot()
             if frame is not None:
                 self.watchdog.tick(frame, known_screen=self._screen_known())
-            return self._should_stop() or self.pause.paused or self._watchdog_blocks()
+            return self._halted()
 
         opp.run(guarded_stop, self._status)
-        self.state.stats["opportunist"] = opp.stats.as_dict()
-        if hunter.stats.joined and self._phase_c_allowed():
-            self._run_bestguess_farmer()
+        self._publish_stats()
+        self.state.stats["farm"] = self._stats_dict(farmer.stats)
+        if hunter.stats.joined:
+            self._handoff("opportunist", "hunt")
+            self._farm_or_record_after_join()
 
     def _run_gem_ball(self) -> None:
         """Gem Ball auto-tuner (M11): sweep hold durations, then exploit or declare random."""
@@ -876,8 +1109,7 @@ class Engine:
             bus=self.bus,
             report_dir=self.paths.data,
         )
-        self._mode_obj = tuner
-        self.lease.acquire("farm")
+        self._attach(tuner, "farm")  # the lease is the Arcade Farmer's already
         rep = tuner.sweep(self._should_stop)
         if rep.deterministic and not self._should_stop():
             self._status(f"EXPLOITING · {rep.best_duration_ms} ms")
@@ -907,12 +1139,24 @@ class Engine:
         pilot = SwoopyPilot(
             prof, self.cfg.swoopy, self.input, lambda: self.grab().image, bus=self.bus
         )
-        self._mode_obj = pilot
-        self.lease.acquire("farm")
+        self._attach(pilot, "farm")
         stats = pilot.run(lambda: self._should_stop() or self.pause.paused, crashed)
         self.state.stats["farm"] = stats.as_dict()
 
-    def _run_adventure(self) -> None:
+    def _run_adventure(self, extra_stop: Callable[[], bool] | None = None) -> None:
+        """Start of the Adventure Farmer. With "Hunt Best Guess" on and no ``extra_stop`` of
+        its own, the route runs under the plan; else the route farmer runs until stopped."""
+        if extra_stop is None and self.cfg.hunt_best_guess.adventure:
+            self.classify_now()
+            nav = self._make_navigator()
+            self._run_plan("adventure", nav, self._adventure_plugin(nav))
+            return
+        if extra_stop is None:
+            self.classify_now()
+        self._take_lease("adventure")
+        self._adventure_route(extra_stop)
+
+    def _adventure_route(self, extra_stop: Callable[[], bool] | None = None) -> None:
         """Adventure route farmer (modes/adventures/replay.py) behind the gate: replays the
         recorded run of ``adventures.route.target`` and keeps it on course; William's own
         input pauses it and it continues where he leaves it."""
@@ -958,7 +1202,7 @@ class Engine:
         route = load_or_build(session, rc.target, prof, rc, x_tmpl)
         start_rt: float | None = None
         if self.cfg.adventures.level.enabled:
-            start_rt = self._run_level(route, prof, x_tmpl)
+            start_rt = self._run_level(route, prof, x_tmpl, extra_stop)
             if start_rt is None:
                 return
         tape = Tape(self._screen_to_stage)
@@ -976,8 +1220,7 @@ class Engine:
             fixes=FixLog(self.paths.data / "adventures" / f"{rc.target}_fixes.jsonl"),
             tape=tape,
         )
-        self._mode_obj = runner
-        self.lease.acquire("adventure")
+        self._attach(runner, "adventure")
 
         def guarded_stop() -> bool:
             frame = self.snapshot()
@@ -985,13 +1228,15 @@ class Engine:
                 # the runner closes in-game dialogs itself; logout and the like still stop it
                 self.watchdog.tick(frame, known_screen=True)
             self._keepalive()
-            return self._should_stop() or self.pause.paused or self._watchdog_blocks()
+            if extra_stop is not None and extra_stop():
+                return True
+            return self._halted()
 
         try:
             runner.run(guarded_stop, self._status, start_rt=start_rt)
         finally:
             tape.stop()
-        self.state.stats["adventure"] = runner.stats.as_dict()
+        self._publish_stats()
 
     def _keepalive(self) -> None:
         """The game logs an idle account out ("gone for too long", five times on 2026-10-30).
@@ -1012,7 +1257,13 @@ class Engine:
         except Exception as exc:  # a keepalive must never take the mode down
             self.emit("engine.keepalive_failed", Level.NOTICE, error=str(exc))
 
-    def _run_level(self, route: Any, prof: Profile, x_tmpl: Any) -> float | None:
+    def _run_level(
+        self,
+        route: Any,
+        prof: Profile,
+        x_tmpl: Any,
+        extra_stop: Callable[[], bool] | None = None,
+    ) -> float | None:
         """The menus by state and the moth chamber from the level model
         (modes/adventures/{opening,level_runner}.py). Returns the route time the replay
         continues from (the banner the level runner stopped at), or None to stop."""
@@ -1039,7 +1290,9 @@ class Engine:
             if frame is not None:
                 self.watchdog.tick(frame, known_screen=True)
             self._keepalive()
-            return self._should_stop() or self.pause.paused or self._watchdog_blocks()
+            if extra_stop is not None and extra_stop():
+                return True
+            return self._halted()
 
         from jamcrammer.modes.adventures.inventory import DigitBank
         from jamcrammer.modes.adventures.objects import CourageText
@@ -1058,7 +1311,7 @@ class Engine:
             else None
         )
         grab = lambda: self.grab().image  # noqa: E731
-        self.lease.acquire("adventure")  # the menu clicks are ours from here
+        self._take_lease("adventure")  # the menu clicks are ours from here
         self._status("MENUS · into the adventure")
         opening = Opening(
             lvl,
@@ -1092,7 +1345,7 @@ class Engine:
             bus=self.bus,
             shots=self.paths.captures / "adventure_shots",
         )
-        self._mode_obj = runner
+        self._attach(runner, "adventure_level")
         out = runner.run(guarded_stop, self._status)
         self.state.stats["adventure_level"] = {"outcome": out, **runner.stats.as_dict()}
         if out == "stopped":

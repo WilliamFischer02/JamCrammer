@@ -7,77 +7,109 @@ name: bestguess
 fields:
   fact_roi:
     type: roi
+    label: Fact banner
+    help: The parchment banner at the top of the arena where the true/false animal fact is written. OCR reads the question here; everything the farmer does starts from this text.
     value: [360, 40, 1200, 120]
     status: uncalibrated
     note: the true/false animal fact on the parchment banner at the top of the arena
   countdown_roi:
     type: roi
+    label: Countdown digits
+    help: Where a countdown would be read. The live game shows a dial, not digits, so this stays empty and elapsed time is used instead.
     value: null
     status: uncalibrated
     note: digits decreasing ~1/s during a question (the live game shows a dial; leave null)
   gem_counter_roi:
     type: roi
+    label: Gem counter
+    help: The HUD gem total, if it is visible in the arena, for the Gem Ledger.
     value: null
     status: uncalibrated
   true_point:
     type: point
+    label: TRUE side (left, green)
+    help: 'Where to click so your animal walks to the green TRUE side. Pick open floor where nobody stands: clicking a player opens their card.'
     value: [330, 640]
     status: uncalibrated
     note: left (green) floor, open area left of the crowd (clicking a player opens their card)
   false_point:
     type: point
+    label: FALSE side (right, purple)
+    help: Where to click for the purple FALSE side; open floor near the right edge.
     value: [1790, 560]
     status: uncalibrated
     note: right (purple) floor, near the right frame where nobody stands
   reveal_word_roi:
     type: roi
+    label: Reveal word
+    help: The top line of the banner where the green 'True!' or orange 'False!' appears after the lock. This is how the answer bank learns the right answer.
     value: null
     status: uncalibrated
     note: top line of the banner where the green True! / orange False! word appears
   arena_anchor_roi:
     type: roi
+    label: Arena marker
+    help: A colourful HUD element that only exists inside the arena (the gem-stack icon, top left). When it is gone the farmer knows it has left the arena.
     value: null
     status: uncalibrated
     note: a colourful HUD element only present inside the arena (the gem-stack icon)
   score_roi:
     type: roi
+    label: Round score
+    help: The round score next to the gem icon; its jumps tell the farmer whether the last answer was right.
     value: null
     status: uncalibrated
     note: round score next to the gem icon (top-left of the arena)
   round_complete_roi:
     type: roi
+    label: Round Complete scroll
+    help: The scroll that says ROUND COMPLETE with the correct count and gems earned, and the Leave Game dialog. The farmer reads the round total here.
     value: null
     status: uncalibrated
   reveal_roi:
     type: roi
+    label: Reveal region
+    help: The same box as the reveal word; kept for the gate and the older detectors.
     value: null
     status: uncalibrated
     note: region whose color/template shows the correct side after the lock
   floor_roi:
     type: roi
+    label: Arena floor
+    help: The floor between the banner and the HUD. Name tags are counted here per side to follow the crowd when a fact is unknown.
     value: [90, 250, 1740, 760]
     status: proposed
     note: the arena floor between the banner and the HUD; name tags are counted here per side
   crowd_commit_after_s:
     type: number
+    label: Crowd read delay (s)
+    help: With an unknown fact, read which side the crowd chose this long after the question appears.
     value: 5
     status: proposed
     note: with an unknown fact, read the crowd this long after the question appears (people have moved)
   own_animal_roi:
     type: roi
+    label: Your animal
+    help: Where your own animal stands. A dance (frame change) here means the answer was right.
     value: null
     status: uncalibrated
     note: where our animal stands; dance detection by frame diff
   round_question_s:
     type: number
+    label: Question time (s)
+    help: How long a question stays open.
     value: 10
     status: proposed
   round_warning_s:
     type: number
+    label: Warning time (s)
+    help: The last seconds of a question, in which sides can no longer be switched.
     value: 5
     status: proposed
   commit_after_s:
     type: number
+    label: Answer delay (s)
+    help: How long after the question appears the farmer walks to its side.
     value: 3
     status: proposed
     note: commit the answer this long after the question appears (2-4 s)

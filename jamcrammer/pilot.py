@@ -53,15 +53,19 @@ from jamcrammer.modes.adventures.inventory import DigitBank, read_counts
 from jamcrammer.modes.adventures.level import Level, level_dir
 from jamcrammer.modes.adventures.localize import Fix, Localizer
 from jamcrammer.modes.adventures.nav import Floor, Navigator
-from jamcrammer.modes.adventures.opening import classify
+from jamcrammer.modes.adventures.opening import Opening, classify
 from jamcrammer.modes.adventures.replay import Input
 from jamcrammer.modes.adventures.world import (
     DIRECTION_KEYS,
     DIRECTIONS,
     STATE_NAMES,
+    ObsStore,
     World,
     world_dir,
 )
+from jamcrammer.platform.capture import Frame as CaptureFrame
+from jamcrammer.platform.window import Rect
+from jamcrammer.services.watchdog import FATAL_KINDS, Detection, Watchdog
 from jamcrammer.vision.ocr import OcrResult
 
 BgrImage = npt.NDArray[np.uint8]
@@ -78,6 +82,8 @@ SURVEY_DIRS = ("right", "dr", "down", "dl", "left", "ul", "up", "ur")
 CARDINAL_DIRS = ("right", "down", "left", "up")
 SURVEY_BACK_TOL_PX = 40.0
 SERVER_HEARTBEAT_S = 1.0
+WATCHDOG_EVERY_S = 1.0  # while a key is held, the popup watchdog looks this often
+WIGGLE_PX = 12  # the keepalive cursor move alternates this far left and right
 WRITE_RETRIES = 8  # a reader may hold the file for an instant (Windows)
 WRITE_RETRY_S = 0.03
 SERVER_STALE_S = 5.0
@@ -365,6 +371,9 @@ class Executor:
         window: Callable[[], dict[str, Any]] = dict,
         digits: DigitBank | None = None,
         dialog_x: BgrImage | None = None,
+        nametag: BgrImage | None = None,
+        courage: objects.CourageText | None = None,
+        watchdog: Watchdog | None = None,
         out_dir: Path,
         world_dir: Path | None,
         session: PilotSession | None,
@@ -377,7 +386,20 @@ class Executor:
         self._grab, self._in, self._ocr, self._banner = grab, inp, ocr, banner_ocr
         self._user_age, self._foreground, self._window = user_input_age, foreground, window
         self.digits, self.dialog_x = digits, dialog_x
+        self.nametag, self.courage = nametag, courage
+        self.watchdog = watchdog
+        self._watchdog_ts = 0.0
+        self._wiggle_ts = 0.0
+        self._wiggle_side = 1
+        self.fatal: Detection | None = None  # logged out / Play Now: no input until William
         self.out_dir, self.world_dir, self.session = out_dir, world_dir, session
+        self.obs: ObsStore | None = None  # follows the session (``_store``)
+        self._obs_last = 0.0
+        self.player: tuple[tuple[int, int], tuple[int, int, int, int], float] = (
+            (0, 0),
+            (0, 0, 0, 0),
+            0.0,
+        )
         self.position_path = position_path
         self._clock, self._wall, self._sleep = clock, wall, sleep
         self.loc = Localizer(world, prof, cfg.adventures.world)
@@ -412,25 +434,67 @@ class Executor:
         fix = self.loc.rejoin(frame, self._wall())
         if fix.pos is not None:
             self.world.mark_track(self.area, fix.pos)
-            self._observe(frame, fix.pos)
+            self._observe(frame, fix.pos, tag="fix")
         self._publish(fix)
         return fix
 
-    def _observe(self, frame: BgrImage, pos: Point) -> int:
+    def _dialog_open(self, frame: BgrImage) -> bool:
+        if self.dialog_x is None:
+            return False
+        roi = self.prof.roi("dialog_x_search_roi") if self.prof.has("dialog_x_search_roi") else None
+        return (
+            sight.find_dialog_x(frame, self.dialog_x, self.prof.number("dialog_x_min"), roi)
+            is not None
+        )
+
+    def _locate_player(self, frame: BgrImage) -> tuple[Point, list[list[int]]]:
+        """The animal's screen point this frame (by its name tag; ``avatar_xy`` when the tag
+        is not seen) and the masks to leave out of the map: the HUD and the animal's box."""
+        self.player = sight.player_on_screen(frame, self.prof, self.nametag)
+        anchor, box, _score = self.player
+        masks = [*self.prof.items("hud_rois"), list(box)]
+        return (float(anchor[0]), float(anchor[1])), masks
+
+    def _store(self) -> ObsStore | None:
+        """The observation store of the current session (frames + poses on disk)."""
+        if not self.cfg.adventures.world.obs_keep or self.session is None:
+            return None
+        folder = self.session.session_dir / "obs"
+        if self.obs is None or self.obs.folder != folder:
+            self.obs = ObsStore(folder)
+        return self.obs
+
+    def _record(self, frame: BgrImage, fix: Fix, tag: str, *, force: bool = False) -> None:
+        """Keep the frame with its pose for the offline rebuild (throttled while walking)."""
+        store = self._store()
+        if store is None or fix.pos is None:
+            return
+        now = self._clock()
+        if not force and now - self._obs_last < self.cfg.adventures.world.obs_every_s:
+            return
+        self._obs_last = now
+        if self._dialog_open(frame):
+            return  # a dialog over the scene is no observation
+        anchor, _masks = self._locate_player(frame)
+        store.add(
+            self.area,
+            self._wall(),
+            frame,
+            pos=fix.pos,
+            anchor=anchor,
+            box=self.player[1],
+            tag=tag,
+            dot=fix.dot,
+        )
+
+    def _observe(self, frame: BgrImage, pos: Point, *, tag: str = "") -> int:
         """The frame into the mosaic, unless a dialog covers the scene; the HUD and the
-        animal's own box (``avatar_roi``) are left out."""
-        if self.dialog_x is not None:
-            roi = (
-                self.prof.roi("dialog_x_search_roi")
-                if self.prof.has("dialog_x_search_roi")
-                else None
-            )
-            if sight.find_dialog_x(frame, self.dialog_x, self.prof.number("dialog_x_min"), roi):
-                return 0
-        masks = [*self.prof.items("hud_rois")]
-        if self.prof.has("avatar_roi"):
-            masks.append(list(self.prof.roi("avatar_roi")))
-        fixed, overlap, resp = self.world.align(self.area, pos, frame, masks)
+        animal's own box (found by its name tag) are left out; the frame is kept on disk
+        with its pose."""
+        if self._dialog_open(frame):
+            return 0
+        anchor, masks = self._locate_player(frame)
+        fixed, overlap, resp = self.world.align(self.area, pos, frame, masks, anchor)
         if resp > 0 and fixed != pos:
             self.loc.pos = fixed  # the mosaic knows better than the dot
             self.align_log.append(
@@ -438,7 +502,9 @@ class Executor:
             )
             pos = fixed
         self.last_align = (round(overlap, 2), round(resp, 2))
-        return self.world.observe(self.area, pos, frame, masks)
+        kept = Fix(pos, self.loc.last.dot, (0.0, 0.0), 0.0, "fix", 0.0)
+        self._record(frame, kept, tag, force=True)
+        return self.world.observe(self.area, pos, frame, masks, anchor)
 
     def _publish(self, fix: Fix) -> None:
         """The position for the Mapping tab (``data/pilot/position.json``)."""
@@ -461,6 +527,11 @@ class Executor:
                 "response": self.last_align[1],
                 "corrections": self.align_log[-3:],
             },
+            "player": {
+                "screen": list(self.player[0]),
+                "tag_score": round(self.player[2], 2),
+            },
+            "obs": len(self.obs.records) if self.obs is not None else 0,
         }
 
     def look(self, tag: str = "look", frame: BgrImage | None = None) -> dict[str, Any]:
@@ -709,7 +780,50 @@ class Executor:
         check_budget(self.session, self._wall())
         check_yield(self.cfg.pilot, self._user_age())
         self._foreground()
+        self._guard(self.grab(), force=True)
         self.close_dialog()
+
+    def _wiggle(self, now: float) -> None:
+        """A small cursor move over the floor near the animal every ``mouse_keepalive_s``:
+        ordinary OS mouse input, no click, so the game sees a live player."""
+        every = self.cfg.pilot.mouse_keepalive_s
+        if every <= 0 or now - self._wiggle_ts < every:
+            return
+        self._wiggle_ts = now
+        self._wiggle_side = -self._wiggle_side
+        px, py = self.player[0] if self.player[2] > 0 else self.world.avatar
+        ox, oy = self.cfg.pilot.mouse_keepalive_offset
+        x, y = int(px + ox + WIGGLE_PX * self._wiggle_side), int(py + oy)
+        try:
+            check_point(self.cfg.pilot, x, y)
+        except PilotRefusedError:
+            return
+        if self._in.move(x, y):
+            self._log({"cmd": "mouse_keepalive", "x": x, "y": y})
+
+    def _guard(self, frame: BgrImage, *, force: bool = False) -> Detection | None:
+        """The popup watchdog on an input path: the "still playing?" popup is answered (its
+        green button), a logged-out or Play Now screen stops all input until William logs
+        in (never by us). Throttled while a key is held."""
+        now = self._clock()
+        self._wiggle(now)
+        if self.watchdog is None:
+            return None
+        if not force and now - self._watchdog_ts < WATCHDOG_EVERY_S:
+            return None
+        self._watchdog_ts = now
+        h, w = frame.shape[:2]
+        det = self.watchdog.tick(
+            CaptureFrame(frame, self._wall(), 0, Rect(0, 0, w, h), "pilot"), known_screen=True
+        )
+        if det is not None and det.kind in FATAL_KINDS:
+            self.fatal = det
+            self._log({"cmd": "watchdog_fatal", "kind": det.kind, "text": det.text[:80]})
+            msg = f"the game shows {det.kind}: William must log in (the pilot never does)"
+            raise PilotRefusedError(msg)
+        if det is not None:
+            self._log({"cmd": "watchdog", "kind": det.kind, "via": det.via})
+        return det
 
     def close_dialog(self, frame: BgrImage | None = None) -> bool:
         """An open game dialog (Cosmo's, the blue X) holds the animal: close it first, as
@@ -775,9 +889,11 @@ class Executor:
                 self._sleep(wc.probe_tick_s)
                 ticks += 1
                 frame = self.grab()
+                self._guard(frame)
                 fix = self.loc.update(frame, self._wall(), moving=True)
                 if fix.pos is not None:
                     self.world.mark_track(self.area, fix.pos)
+                    self._record(frame, fix, "hold")
                 d = math.hypot(*fix.moved)
                 travelled += d
                 if self._user_stop():
@@ -795,7 +911,7 @@ class Executor:
         if reason == "collision" and self.close_dialog(frame):
             reason = "dialog"  # a dialog held the animal: not a wall
         if fix.pos is not None:
-            self._observe(frame, fix.pos)
+            self._observe(frame, fix.pos, tag=reason)
         return Hold(reason, travelled, pos0, fix.pos, ticks, fix)
 
     def key(self, name: str, hold_s: float) -> dict[str, Any]:
@@ -903,9 +1019,11 @@ class Executor:
                     self._in.key_down(k)
                 held = keys
                 self._sleep(wc.probe_tick_s)
-                fix = self.loc.update(self.grab(), self._wall(), moving=True)
+                frame = self.grab()
+                fix = self.loc.update(frame, self._wall(), moving=True)
                 if fix.pos is not None:
                     self.world.mark_track(self.area, fix.pos)
+                    self._record(frame, fix, "back")
         finally:
             for k in sorted(held):
                 self._in.key_up(k)
@@ -982,12 +1100,89 @@ class Executor:
     def _tracked_grab(self, moving: Callable[[], bool]) -> Callable[[], BgrImage]:
         def grab() -> BgrImage:
             frame = self.grab()
+            self._guard(frame)
             fix = self.loc.update(frame, self._wall(), moving=moving())
             if fix.pos is not None:
                 self.world.mark_track(self.area, fix.pos)
+                self._record(frame, fix, "goto")
             return frame
 
         return grab
+
+    def enter(self, timeout_s: float) -> dict[str, Any]:
+        """From the den (any room) into the adventure by the menus (``opening.py``): the
+        state machine the level runner uses, with the pilot's hands."""
+        if self.lvl is None:
+            msg = "no level model: nothing to enter"
+            raise PilotRefusedError(msg)
+        self._arm()
+        deadline = self._clock() + timeout_s
+        opening = Opening(
+            self.lvl,
+            self.prof,
+            self.cfg.adventures.level,
+            click=self._in.click,
+            grab=self.grab,
+            ocr=self._ocr,
+            dialog_x=self.dialog_x,
+            clock=self._clock,
+            sleep=self._sleep,
+            shots=self.out_dir / "enter",
+        )
+        ok = opening.run(lambda: self._clock() > deadline or self._user_stop())
+        doc = {"cmd": "enter", "ok": ok, "steps": opening.steps}
+        self._log(doc)
+        self.loc.reset()
+        return {**doc, **self._position(self._fix(self.grab()))}
+
+    def smash(self, x: int, y: int, max_clicks: int | None) -> dict[str, Any]:
+        """Click a cracked rock or a purple crystal at screen (x, y) until it is gone: stop
+        after ``smash_quiet`` clicks without a Courage pop once one popped, or after
+        ``smash_probe`` clicks with none (nothing breakable there)."""
+        check_point(self.cfg.pilot, x, y)
+        lc = self.cfg.adventures.level
+        self._arm()
+        before = self.grab()
+        hits = clicks = quiet = 0
+        limit = lc.smash_clicks if max_clicks is None else max_clicks
+        for n in range(1, limit + 1):
+            if self._user_stop():
+                break
+            self._in.click(x, y)
+            clicks = n
+            popped = False
+            end = self._clock() + lc.smash_gap_s
+            while self._clock() < end:
+                frame = self.grab()
+                if self.courage is not None and (
+                    self.courage.near(frame, (x, y), lc.courage_radius_px) >= self.courage.min
+                ):
+                    popped = True
+                self._sleep(self.cfg.adventures.world.probe_tick_s)
+            if popped:
+                hits += 1
+                quiet = 0
+            else:
+                quiet += 1
+            if (hits and quiet >= lc.smash_quiet) or (not hits and n >= lc.smash_probe):
+                break
+        doc = {"cmd": "smash", "x": x, "y": y, "clicks": clicks, "hits": hits}
+        return self._after(doc, before)
+
+    def reload(self) -> dict[str, Any]:
+        """Re-read the world from disk (after an offline rebuild wrote new tiles)."""
+        if self.world_dir is None:
+            msg = "no world folder"
+            raise PilotRefusedError(msg)
+        self._save_world()
+        w = World.load(self.world_dir, self.cfg.adventures.world)
+        if w is None:
+            msg = f"no world at {self.world_dir}"
+            raise PilotRefusedError(msg)
+        self.world = w
+        self.loc.world = w
+        self._log({"cmd": "reload"})
+        return {"cmd": "reload", "world": w.summary()}
 
     # --- the record ------------------------------------------------------------------------
 
@@ -1017,6 +1212,10 @@ class Executor:
     def save(self) -> dict[str, Any]:
         self._save_world(force=True)
         return {"cmd": "save", "world_dir": str(self.world_dir), "world": self.world.summary()}
+
+    def flush(self) -> None:
+        if self.obs is not None:
+            self.obs.flush()
 
     def _save_world(self, force: bool = False) -> None:
         if self.world_dir is not None and (self.world.dirty or force):
@@ -1068,6 +1267,9 @@ def dispatch(ex: Executor, args: argparse.Namespace) -> dict[str, Any]:
         "map": lambda: ex.map(a.area, _crop_arg(a.crop), a.zoom, not a.no_labels),
         "note": lambda: ex.note(" ".join(a.text)),
         "crop": lambda: ex.crop(a.x, a.y, a.w, a.h, a.name),
+        "enter": lambda: ex.enter(a.timeout),
+        "smash": lambda: ex.smash(a.x, a.y, a.max),
+        "reload": ex.reload,
     }
     fn = table.get(a.pilot_command)
     if fn is None:

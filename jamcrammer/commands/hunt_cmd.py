@@ -1,4 +1,5 @@
-"""``hunt``: Best Guess Hunter Phases A/B from the CLI (M3)."""
+"""``hunt``: the Best Guess Farmer's Phases A/B (hunt My Parties, join) from the CLI (M3).
+The subcommand keeps its historical name."""
 
 from __future__ import annotations
 

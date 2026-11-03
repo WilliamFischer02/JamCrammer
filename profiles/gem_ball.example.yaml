@@ -4,19 +4,27 @@ name: gem_ball
 fields:
   launch_point:
     type: point
+    label: Launch spot
+    help: Where to press and hold to launch a ball.
     value: null
     status: uncalibrated
     note: where to press-and-hold to launch a ball
   gem_counter_roi:
     type: roi
+    label: Gem counter
+    help: The HUD gem total; the tuner reads the change per ball.
     value: null
     status: uncalibrated
     note: HUD gem total; the tuner reads the delta per ball
   top_slot_gems:
     type: number
+    label: Top slot gems
+    help: Gems paid by the top slot.
     value: 3
     status: proposed
   jackpot_gems:
     type: number
+    label: Jackpot gems
+    help: Gems paid by the jackpot.
     value: 75
     status: proposed

@@ -203,6 +203,50 @@ def horse_top(box: BgrImage, cfg: DerbyConfig, hay_overlap: bool = False) -> int
     return int(ys.mean())
 
 
+def _window_sums(rows: npt.NDArray[np.int64], size: int) -> npt.NDArray[np.int64]:
+    """Sum of every ``size``-row window: index = the window's top row."""
+    c = np.concatenate(([0], np.cumsum(rows)))
+    return np.asarray(c[size:] - c[:-size], dtype=np.int64)
+
+
+def find_player_lane(
+    box: BgrImage,
+    cfg: DerbyConfig,
+    lane_h: int,
+    marker: HsvRange | None = None,
+    front_x: int | None = None,
+) -> int | None:
+    """Top row, within ``box`` (the horse box stretched over every lane), of the ``lane_h``-tall
+    window that holds the player's horse rather than an NPC's. By the glow under the player's
+    horse when ``marker`` is given (the other horses have none); otherwise by the rider pixels
+    whose right edge sits nearest the nose at ``front_x`` (box-relative). None when nothing
+    horse-like is in the box."""
+    h = box.shape[0]
+    lane_h = max(1, min(int(lane_h), h))
+    hsv = np.asarray(cv2.cvtColor(box, cv2.COLOR_BGR2HSV), dtype=np.uint8)
+    if marker is not None:
+        glow = _window_sums(_mask(hsv, marker).sum(axis=1).astype(np.int64), lane_h)
+        top = int(np.argmax(glow))
+        if glow[top] >= cfg.horse_min_px:
+            return top
+    scenery = _mask(hsv, cfg.grass_hsv)
+    for rng in (cfg.mud_hsv, cfg.water_hsv, cfg.hedge_hsv, cfg.hay_hsv):
+        scenery |= _mask(hsv, rng)
+    rider = ~scenery
+    mass = _window_sums(rider.sum(axis=1).astype(np.int64), lane_h)
+    tops = np.where(mass >= cfg.horse_min_px)[0]
+    if len(tops) == 0:
+        return None
+    if front_x is None:
+        return int(tops[np.argmax(mass[tops])])
+    cols = np.where(rider.any(axis=0), np.arange(rider.shape[1]), -1)
+    right_per_row = np.where(rider, cols[None, :], -1).max(axis=1)
+    right = np.lib.stride_tricks.sliding_window_view(right_per_row, lane_h).max(axis=1)
+    miss = np.abs(right[tops] - front_x)
+    best = tops[miss == miss.min()]
+    return int(best[np.argmax(mass[best])])
+
+
 def highlighted_row(rows_region: BgrImage, cfg: DerbyConfig) -> int | None:
     """y (within the region) of the yellow-framed leaderboard row, i.e. our own result."""
     hsv = np.asarray(cv2.cvtColor(rows_region, cv2.COLOR_BGR2HSV), dtype=np.uint8)
@@ -219,6 +263,7 @@ class Observation:
     screen: Screen
     bands: list[Band] = field(default_factory=list)
     horse_top: int | None = None
+    horse_box: Roi | None = None  # the single-lane box the horse was measured in
     carrots_left: bool = False
     strip: BgrImage | None = field(default=None, repr=False)
     strip_hsv: BgrImage | None = field(default=None, repr=False)
@@ -233,6 +278,29 @@ class DerbyDetector:
         self.profile = profile
         self.cfg = cfg
         self.ranges = ranges or default_ranges(cfg)
+        self._lane: Roi | None = None  # the player's lane this race (range horse box only)
+
+    @property
+    def lane_box(self) -> Roi | None:
+        return self._lane
+
+    def horse_box(self, image: BgrImage, kind: Screen) -> Roi:
+        """The box the horse is measured in. A plain ``horse_box_roi`` is that box; one flagged
+        as a range spans every lane, and the player's lane is found inside it at the start
+        line (the horses stand still) and kept for the race."""
+        p = self.profile
+        full = p.roi("horse_box_roi")
+        if not p.is_range("horse_box_roi"):
+            return full
+        if kind == Screen.WAITING or self._lane is None:
+            rx, ry, rw, rh = full
+            lane_h = int(p.number("horse_lane_h")) if p.has("horse_lane_h") else rh
+            marker = p.color("player_marker_hsv") if p.has("player_marker_hsv") else None
+            front = int(p.number("horse_front_x")) - rx if p.has("horse_front_x") else None
+            top = find_player_lane(crop(image, full), self.cfg, lane_h, marker, front)
+            if top is not None:
+                self._lane = (rx, ry + top, rw, min(lane_h, rh - top))
+        return self._lane or full
 
     def screen(self, image: BgrImage) -> Screen:
         p, c = self.profile, self.cfg
@@ -250,6 +318,10 @@ class DerbyDetector:
     def observe(self, image: BgrImage) -> Observation:
         kind = self.screen(image)
         obs = Observation(kind)
+        if kind == Screen.WAITING:
+            obs.horse_box = self.horse_box(image, kind)  # the lane is learned at the line
+        if kind not in (Screen.RACING, Screen.WAITING):
+            self._lane = None  # next race: the game may deal another lane
         if kind != Screen.RACING:
             return obs
         p = self.profile
@@ -257,9 +329,11 @@ class DerbyDetector:
         obs.strip = crop(image, p.roi("strip_roi"))
         obs.strip_hsv = np.asarray(cv2.cvtColor(obs.strip, cv2.COLOR_BGR2HSV), dtype=np.uint8)
         obs.bands = detect_bands(obs.strip, sx, self.cfg, self.ranges, obs.strip_hsv)
-        hx, _hy, hw, _hh = p.roi("horse_box_roi")
+        hbox = self.horse_box(image, kind)
+        hx, _hy, hw, _hh = hbox
         hay_overlap = any(b.kind == "hay" and b.left < hx + hw and b.right > hx for b in obs.bands)
-        obs.horse_top = horse_top(crop(image, p.roi("horse_box_roi")), self.cfg, hay_overlap)
+        obs.horse_top = horse_top(crop(image, hbox), self.cfg, hay_overlap)
+        obs.horse_box = hbox
         obs.carrots_left = (
             fill(crop(image, p.roi("boost_box_roi")), self.cfg.carrot_hsv)
             >= self.cfg.carrot_min_fill

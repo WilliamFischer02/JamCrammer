@@ -5,99 +5,160 @@ name: navigation
 fields:
   games_icon_point:
     type: point
+    label: Games icon
+    help: The controller icon in the top bar; it opens the games menu.
     value: [793, 37]
     status: proposed
     note: the controller icon in the top bar (opens the games menu)
   tray_toggle_point:
     type: point
+    label: Upcoming Parties tray button
+    help: The clock-and-hat button on the right edge of My Parties; it opens the Upcoming Parties tray where the Best Guess time is read.
     value: [1252, 501]
     status: proposed
     note: clock+hat button on the right edge of My Parties; opens the Upcoming Parties tray
   tray_close_point:
     type: point
+    label: Tray close arrow
+    help: The blue left arrow between the panel and the open tray; it closes the tray.
     value: [906, 501]
     status: proposed
     note: blue left arrow between the panel and the open tray; closes the tray
   tray_list_roi:
     type: roi
+    label: Upcoming Parties list
+    help: The tray's list; each row is a banner plus a time such as '1 hr 13 mins'. The planner reads when Best Guess is due here.
     value: [976, 237, 524, 626]
     status: proposed
     note: the Upcoming Parties list; each row = banner + "N minutes" / "1 hr 13 mins"
   tray_banner_template:
     type: template
+    label: Best Guess tray banner image
+    help: A crop of the Best Guess Game row's banner in the tray; found by template match so its time can be read.
     value: templates/navigation/best_guess_tray_banner.png
     status: proposed
     note: the Best Guess Game row banner in the tray (template match 0.84 vs 0.29 elsewhere)
   den_button_point:
     type: point
+    label: Den button
+    help: The hut icon at the bottom right that takes you to your den.
     value: [1522, 966]
     status: proposed
     note: the hut icon bottom right (go to my den)
   room_name_roi:
     type: roi
+    label: Room name
+    help: The room title at the top right ("...'s Den", "Jamaa Township"). OCR here confirms where we are.
     value: [1300, 15, 360, 50]
     status: proposed
     note: room title top right ("Bingusthewizard's Den", "Jamaa Township")
   scroll_thumb_top_point:
     type: point
+    label: Games scrollbar thumb (top)
+    help: Where the games menu's scrollbar thumb sits when the list is at the top (the older drag method).
     value: [1452, 242]
     status: proposed
     note: the games menu scrollbar thumb when the list is at the top
   scroll_mid_point:
     type: point
+    label: Games scrollbar thumb (middle)
+    help: Where the thumb was dragged to so the Jamaa Derby tile is visible (the older drag method).
     value: [1452, 577]
     status: proposed
     note: where the thumb is dragged to (halfway) so the Jamaa Derby tile is visible
   games_scroll_up_point:
     type: point
+    label: Games scroll up arrow
+    help: The scrollbar's up arrow. The list keeps its position, so it is sent to the top first.
     value: [1452, 232]
     status: calibrated
     note: the games menu scrollbar's up arrow; the list keeps its scroll position, so it is sent to the top first
   games_scroll_down_point:
     type: point
+    label: Games scroll down arrow
+    help: The blue down arrow. The list is scrolled one click per look until the Jamaa Derby tile matches.
     value: [1452, 920]
     status: calibrated
     note: the games menu scrollbar's down arrow (blue); measured 2026-11-02 live. The list scrolls by clicking it; a thumb drag depends on where the thumb sits
   games_scroll_rounds:
     type: number
+    label: Scroll looks
+    help: How many times the planner looks for the Jamaa Derby tile while scrolling down.
     value: 12
     status: calibrated
     note: looks for the Jamaa Derby tile this many times while scrolling down
   games_scroll_clicks:
     type: number
+    label: Clicks per look
+    help: Arrow clicks between looks (one click scrolls most of a page).
     value: 1
     status: calibrated
     note: arrow clicks between looks (one click scrolls most of a page; three jumped to the bottom past the Derby)
   games_close_point:
     type: point
+    label: Games menu close X
+    help: The games menu's blue X, top right of the panel.
     value: [1488, 138]
     status: calibrated
     note: the games menu's blue X (top right of the panel), measured 2026-11-02 live
   derby_tile_template:
     type: template
+    label: Jamaa Derby tile image
+    help: A crop of the Jamaa Derby tile in the games grid; found by template match.
     value: templates/navigation/jamaa_derby_tile.png
     status: proposed
     note: the Jamaa Derby tile in the games grid (template match 1.0 vs 0.30 elsewhere)
   derby_tile_fallback_point:
     type: point
+    label: Jamaa Derby tile (fallback)
+    help: Where the tile sits after the half scroll, used if the template is not found.
     value: [555, 820]
     status: proposed
     note: where the tile sits after the half scroll, if the template is not found
   pro_offset:
     type: list
+    label: PRO button offset
+    help: The PRO button centre relative to the 'Play to earn Gems' text centre on the Derby dialog (dx, dy).
     value: [206, 133]
     status: proposed
     note: PRO button centre relative to the "Play to earn Gems" text centre on the Derby dialog (re-measured 2026-11-02 live on the 1920x1009 client; the old 285 landed past the button's edge)
   play_offset:
     type: list
+    label: PLAY! button offset
+    help: The PLAY! button centre relative to the same text (Normal mode).
     value: [9, 138]
     status: proposed
     note: PLAY! button centre relative to the same text (Normal mode, unused)
   template_scales:
     type: list
+    label: Template scales
+    help: Scale factors tried when matching the navigation templates.
     value: [0.9, 1.0, 1.1]
     status: proposed
   template_threshold:
     type: number
+    label: Template score
+    help: 0-1 minimum match for the navigation templates.
     value: 0.6
     status: proposed
+  den_title_keywords:
+    type: list
+    label: Den title words
+    help: The room title of a den ends with "'s Den"; the OCR'd title must contain one of these for us to be at home.
+    value: ["'s den"]
+    status: calibrated
+    note: the room title of a den ends with "'s Den" (read 2026-11-03 on the live den frame and on tests/fixtures/navigation/den.jpg); the name before it is the player's
+  den_title_fuzz:
+    type: number
+    label: Den title fuzz
+    help: 0-100 partial-ratio threshold for the den suffix in the OCR'd room title.
+    value: 80
+    status: calibrated
+    note: partial-ratio threshold for the den suffix in the OCR'd room title
+  games_arrow_min_fill:
+    type: number
+    label: Games menu arrow blue fill
+    help: Share of a small patch around each scrollbar arrow point that must be blue for the games menu to count as open (an open menu reads about 0.9-1.0 on both arrows).
+    value: 0.5
+    status: calibrated
+    note: share of a 24 px patch around each scrollbar arrow point that must be blue for the games menu to count as open (open menu reads 0.92 / 1.00 on both arrows; the arena floor and a join dialog paint only the lower one)

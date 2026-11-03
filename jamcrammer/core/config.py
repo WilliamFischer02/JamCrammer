@@ -164,6 +164,32 @@ class PlannerConfig(StrictModel):
     ad_wait_s: float = Field(120.0, ge=0)  # an advert between races hides the track: wait
     # this long for it to come back before re-opening the Derby from the den
     reentries_max: int = Field(20, ge=0)  # the Derby is re-entered at most this often per run
+    scan_when_unread: bool = True  # the tray could not be read: look in My Parties for the
+    # Best Guess banner before falling back to eta_default_min (it may be on right now)
+    wait_poll_s: float = Field(5.0, gt=0)  # the Best Guess Farmer waiting in the den (no game
+    # to farm) checks the countdown this often; the engine keepalive runs between checks
+    gate_poll_s: float = Field(2.0, gt=0)  # the den gate classifies the live screen this often
+    # while no bot runs (read-only; drives the Start buttons)
+
+
+class HuntBestGuessConfig(StrictModel):
+    """The "Hunt Best Guess" checkbox on each farmer bot's run panel (William, 2026-11-03).
+    Checked: before farming, the bot reads when Best Guess is due from the party tray,
+    farms until ``planner.leave_lead_s`` before that, leaves to the den, joins Best Guess
+    and hands over to the Best Guess Farmer. Unchecked: it farms until stopped."""
+
+    farm: bool = True
+    adventure: bool = False
+    opportunist: bool = False
+
+    def for_mode(self, mode: str) -> bool:
+        return bool(getattr(self, mode, False))
+
+    def set_mode(self, mode: str, value: bool) -> None:
+        if mode not in self.model_fields:
+            msg = f"no Hunt Best Guess toggle for mode {mode!r}"
+            raise KeyError(msg)
+        setattr(self, mode, value)
 
 
 class RouteConfig(StrictModel):
@@ -358,6 +384,31 @@ class WorldConfig(StrictModel):
     align_min_response: float = Field(0.12, ge=0)  # a weaker peak is no alignment
     align_max_px: float = Field(160.0, ge=0)  # a larger shift is a bad peak, not a drift
     align_sigma: float = Field(3.0, gt=0)  # high-pass at mosaic scale (the vignette)
+    # the animal's light: V falls below 40 past this radius (measured 2026-11-03)
+    light_px: int = Field(260, ge=0)
+    # every observed frame is kept with its pose for the offline rebuild (world_build.py)
+    obs_keep: bool = True
+    obs_every_s: float = Field(0.4, gt=0)  # while a key is held, a frame is kept this often
+    # the offline rebuild: pairwise registration, a pose graph, a median composite
+    build_scale: float = Field(0.5, gt=0, le=1)  # phase correlation at this downscale
+    build_sigma: float = Field(8.0, gt=0)  # high-pass at build scale (kills the light's rim)
+    build_pairs: int = Field(6, ge=1)  # earlier overlapping frames registered per frame
+    build_min_overlap: float = Field(0.3, ge=0, le=1)  # of the lit disc, by the poses
+    build_max_err_px: float = Field(150.0, ge=0)  # a shift this far from the poses is wrong
+    build_min_response: float = Field(0.08, ge=0)  # phase correlation peak
+    build_patch_px: int = Field(320, ge=32)  # full-resolution refinement patch
+    build_search_px: int = Field(6, ge=1)  # ... searched this far around the coarse shift
+    build_min_ncc: float = Field(0.45, ge=-1, le=1)  # ... must correlate this well
+    build_prior_weight: float = Field(0.03, ge=0)  # the pose's weight vs a pair's (1.0)
+    build_residual_px: float = Field(8.0, ge=0)  # pairs off by more after a solve are dropped
+    build_stack: int = Field(5, ge=1)  # best-lit samples kept per tile pixel
+    build_k: int = Field(3, ge=1)  # ... the median of the k best-lit is the pixel
+    build_min_v: int = Field(28, ge=0, le=255)  # darker samples are not samples
+    # the animal's light as a gain by radius (px, gain), piecewise linear: measured on
+    # 3702 registered frame pairs (2026-11-03): flat to 110 px, half at 300 px. Samples are
+    # divided by it so the picture has one exposure; below build_min_gain they are not used
+    light_gain: list[list[float]] = [[110, 1.0], [200, 0.77], [300, 0.52], [360, 0.35]]
+    build_min_gain: float = Field(0.3, ge=0, le=1)
 
 
 class AdventureConfig(StrictModel):
@@ -512,6 +563,11 @@ class PilotConfig(StrictModel):
     budget_min: float = Field(45.0, gt=0)  # a pilot session sends input at most this long
     serve_poll_s: float = Field(0.05, gt=0)  # the server looks for a command file this often
     serve_timeout_s: float = Field(90.0, gt=0)  # a client waits this long for the server's answer
+    # the game logged the pilot out 8.5 min into a walk twice (2026-11-03) with no idle popup
+    # first: key input alone may not count as activity, so the cursor is moved a little over
+    # the floor near the animal this often while input runs (0 = never)
+    mouse_keepalive_s: float = Field(40.0, ge=0)
+    mouse_keepalive_offset: list[int] = [0, 150]  # from the animal's screen point (below the tag)
 
 
 class SwoopyConfig(StrictModel):
@@ -556,8 +612,9 @@ class HuntConfig(StrictModel):
     arrival_timeout_s: float = Field(8.0, gt=0)
     sighting_merge_gap_s: float = Field(900.0, gt=0)
     antiafk_each_cycle: bool = True
-    derby_while_waiting: bool = True  # Start from a room: read when Best Guess is due, play
-    # the Derby until then, come back and join (the Den Planner flow); False = scan only
+    derby_while_waiting: bool = True  # the Best Guess Farmer started in the den: read when
+    # Best Guess is due, race the Derby until then, come back and join (the old Den Planner
+    # flow); False = wait in the den with the keepalive instead
 
 
 class ActivityTestConfig(StrictModel):
@@ -638,6 +695,7 @@ class AppConfig(StrictModel):
     bestguess: BestGuessConfig = BestGuessConfig()
     opportunist: OpportunistConfig = OpportunistConfig()
     planner: PlannerConfig = PlannerConfig()
+    hunt_best_guess: HuntBestGuessConfig = HuntBestGuessConfig()
     adventures: AdventureConfig = AdventureConfig()
     derby: DerbyConfig = DerbyConfig()
     gem_ball: GemBallConfig = GemBallConfig()
