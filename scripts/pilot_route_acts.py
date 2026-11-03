@@ -27,7 +27,12 @@ def pilot(*argv: str, timeout: float = 420.0) -> dict:
     for _ in range(20):
         try:
             out = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=timeout, cwd=r"C:\dev\JamCrammer"
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                check=False,
+                cwd=r"C:\dev\JamCrammer",
             )
         except subprocess.TimeoutExpired:
             return {"error": "client timeout"}
