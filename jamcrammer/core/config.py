@@ -384,7 +384,10 @@ class WorldConfig(StrictModel):
     unknown_cost: float = Field(3.0, ge=1)  # A* cost of an unknown cell (floor 1, walked 0.8)
     # a collision blocks the cell ahead and this many cells to each side across the heading
     # (walls are longer than a cell: one bump per cell took dozens of bumps per wall)
-    collision_span: int = Field(1, ge=0)
+    collision_span: int = Field(2, ge=0)
+    # ... and this many cells deep along the heading: the animal stops a few tens of px
+    # short of a wall, so the wall is the second cell ahead as often as the first
+    collision_reach: int = Field(2, ge=1)
     # aligning a new observation to what the mosaic already holds (phase correlation)
     align_min_overlap: float = Field(0.2, ge=0, le=1)  # share of the disc already seen
     align_min_response: float = Field(0.12, ge=0)  # a weaker peak is no alignment

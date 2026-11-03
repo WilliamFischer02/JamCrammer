@@ -87,6 +87,7 @@ class World:
     dialog_shown: bool = False
     loading_until: float = 0.0  # a black loading screen until then (inputs do nothing)
     keys: set[str] = field(default_factory=set)
+    walk_target: tuple[float, float] | None = None  # a floor click: the game walks there
     log: list[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
@@ -106,11 +107,21 @@ class World:
                 continue
             vx = (("right" in self.keys) - ("left" in self.keys)) * self.speed
             vy = (("down" in self.keys) - ("up" in self.keys)) * self.speed
+            if not self.keys and self.walk_target is not None:
+                dx, dy = self.walk_target[0] - self.px, self.walk_target[1] - self.py
+                d = float(np.hypot(dx, dy))
+                if d < 4.0:
+                    self.walk_target = None
+                else:
+                    vx, vy = self.speed * dx / d, self.speed * dy / d
             nx, ny = self.px + vx * dt / steps, self.py + vy * dt / steps
+            moved = False
             if not self._blocked(nx, self.py):
-                self.px = nx
+                self.px, moved = nx, True
             if not self._blocked(self.px, ny):
-                self.py = ny
+                self.py, moved = ny, True
+            if not moved and not self.keys:
+                self.walk_target = None  # a wall: the walk ends short
 
     def _blocked(self, x: float, y: float) -> bool:
         return any(wx <= x < wx + ww and wy <= y < wy + wh for wx, wy, ww, wh in self.walls)
@@ -154,6 +165,8 @@ class World:
             self.held_item = False
             return
         self.held_item = False
+        if 0 <= x < W and 0 <= y < H * 0.86:  # the floor: the game walks the animal there
+            self.walk_target = (wx, wy)
 
     def _pin_shows(self, th: Thing) -> bool:
         near = float(np.hypot(th.x - self.px, th.y - self.py)) <= PIN_REACH

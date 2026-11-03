@@ -85,6 +85,11 @@ GOTO_TOL_MM = 3.0  # arrived within this many minimap px (210 scene px)
 GOTO_LEG_PX = 600.0  # one straight leg of a goto at most (then the path is looked at again)
 GOTO_WAYPOINT_TOL_CELLS = 0.8  # a waypoint counts as reached within this many cells
 GOTO_MAX_REPLANS = 40  # collisions (each a wall on the map) before a goto gives up
+CLICK_SCENE = (100, 60, 1820, 920)  # clicks for a walk land inside this box (the scene)
+CLICK_MIN_PX = 160  # a click closer to the animal than this would hit its tag / itself
+CLICK_WARMUP_TICKS = 4  # the animal takes a moment to set off after a click
+CLICK_LEG_S = 5.0  # one clicked leg is followed at most this long
+WALK_LEG_S = 4.0  # one keyed leg at most this long
 SERVER_HEARTBEAT_S = 1.0
 WATCHDOG_EVERY_S = 1.0  # while a key is held, the popup watchdog looks this often
 WIGGLE_PX = 12  # the keepalive cursor move alternates this far left and right
@@ -1101,27 +1106,120 @@ class Executor:
             )
         return "collision"
 
-    def _visible(self, a: Point, b: Point) -> bool:
-        """No blocked cell on the straight line from ``a`` to ``b`` (sampled every half cell)."""
+    def _along(self, a: Point, b: Point, path: list[Point], upto: int) -> bool:
+        """The straight line from ``a`` to ``b`` stays within a cell of the planned path's
+        first ``upto`` points and crosses no blocked cell: no shortcut through cells the map
+        does not know (a wall it has not met yet)."""
         area = self.world.area(self.area)
         g = self.cfg.adventures.world.grid_px
         n = max(1, int(math.dist(a, b) / (g / 2)))
+        near = path[: upto + 1]
         for k in range(1, n + 1):
             t = k / n
-            if area.state((a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)) == BLOCKED:
+            pt = (a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)
+            if area.state(pt) == BLOCKED:
+                return False
+            if min(math.dist(pt, q) for q in near) > g:
                 return False
         return True
 
     def _waypoint(self, path: list[Point], pos: Point) -> Point:
-        """The farthest point of the planned path the animal can walk straight to, at most
-        GOTO_LEG_PX away (string-pulling on the grid)."""
-        best = path[0]
-        for pt in path:
+        """The farthest point of the planned path the animal can go straight to along the
+        path, at most GOTO_LEG_PX away (string-pulling on the grid)."""
+        best = path[1] if len(path) > 1 else path[0]  # at least the next cell
+        for k, pt in enumerate(path):
             if math.dist(pos, pt) > GOTO_LEG_PX:
                 break
-            if self._visible(pos, pt):
+            if self._along(pos, pt, path, k):
                 best = pt
         return best
+
+    def _track(self, aim: Point, max_s: float, tol: float, *, tag: str) -> dict[str, Any]:
+        """After a click: follow the animal by the fused position until it is within ``tol``
+        of ``aim``, stops moving (arrived short, or blocked), William touches the controls,
+        or the time is up. No keys are held."""
+        wc = self.cfg.adventures.world
+        end = self._clock() + max_s
+        reason = "arrived"
+        still = ticks = 0
+        dot_still = 0
+        last_dot: Point | None = None
+        start = self.loc.pos
+        while True:
+            pos = self.loc.pos
+            if pos is None:
+                reason = "no_position"
+                break
+            if math.dist(pos, aim) <= tol:
+                break
+            if self._clock() >= end:
+                reason = "timeout"
+                break
+            if self._user_stop():
+                reason = "user"
+                break
+            self._sleep(wc.probe_tick_s)
+            frame = self.grab()
+            self._guard(frame)
+            fix = self.loc.update(frame, self._wall(), moving=True)
+            ticks += 1
+            if fix.pos is not None:
+                self.world.mark_track(self.area, fix.pos)
+                self._record(frame, fix, tag)
+            if ticks <= CLICK_WARMUP_TICKS:
+                continue
+            still = still + 1 if math.hypot(*fix.moved) < wc.stuck_px else 0
+            dot_still, last_dot = _dot_still(dot_still, last_dot, fix.dot)
+            if still >= wc.stuck_ticks and dot_still >= wc.dot_stuck_ticks:
+                reason = "stopped"
+                break
+        pos = self.loc.pos
+        moved = math.dist(pos, start) if (pos and start) else 0.0
+        return {
+            "reason": reason,
+            "residual": round(math.dist(pos, aim)) if pos else None,
+            "moved": round(moved),
+            "ticks": ticks,
+        }
+
+    def _click_toward(self, pos: Point, aim: Point) -> tuple[int, int] | None:
+        """The screen point to click for a world ``aim`` seen from ``pos``: by the animal's
+        real screen point, kept inside the scene (not the HUD, not the chat), at least
+        CLICK_MIN_PX from the animal (its own tag opens the player card)."""
+        px, py = self.player[0] if self.player[2] > 0 else self.world.avatar
+        sx, sy = px + aim[0] - pos[0], py + aim[1] - pos[1]
+        x0, y0, x1, y1 = CLICK_SCENE
+        # pull the point back along the line until it is inside the scene box
+        t = 1.0
+        for lim, cur, ref in ((x0, sx, px), (x1, sx, px), (y0, sy, py), (y1, sy, py)):
+            if (cur - ref) != 0:
+                tt = (lim - ref) / (cur - ref)
+                if 0 < tt < t and not (x0 <= cur <= x1 if lim in (x0, x1) else y0 <= cur <= y1):
+                    t = tt
+        sx, sy = px + (sx - px) * t, py + (sy - py) * t
+        if math.hypot(sx - px, sy - py) < CLICK_MIN_PX:
+            return None
+        pt = (int(sx), int(sy))
+        try:
+            check_point(self.cfg.pilot, *pt)
+        except PilotRefusedError:
+            return None
+        return pt
+
+    def _click_went_nowhere(self, leg: dict[str, Any], pos: Point, wp: Point) -> None:
+        """A clicked leg that stopped without moving a cell: the way is blocked; a
+        collision on the map toward the waypoint, and the leg's reason says so."""
+        if leg["reason"] != "stopped" or leg["moved"] >= self.cfg.adventures.world.grid_px:
+            return
+        heading = (
+            int(math.copysign(1, wp[0] - pos[0])) if abs(wp[0] - pos[0]) > 20 else 0,
+            int(math.copysign(1, wp[1] - pos[1])) if abs(wp[1] - pos[1]) > 20 else 0,
+        )
+        if heading != (0, 0) and self.loc.pos is not None:
+            self.world.add_collision(
+                self.area, self.loc.pos, heading, ts=self._wall(), note="stuck on a goto"
+            )
+        leg["reason"] = "collision"
 
     def goto(
         self,
@@ -1132,13 +1230,14 @@ class Executor:
         in_world: bool = False,
         tol: float | None = None,
     ) -> dict[str, Any]:
-        """Walk to a minimap point (or a world point with ``in_world``) on the world grid:
-        A* around every wall the map knows, the legs walked by the fused position, every
-        stuck recorded as a collision and the path planned again. ``tol`` is in minimap px."""
+        """Walk to a minimap point (or a world point with ``in_world``): the path is planned
+        on the world grid around every wall the map knows, each leg is a click on the floor
+        (the game walks the animal there around NPCs and rocks, as William plays it) tracked
+        by the fused position, the last stretch is walked by keys; a leg that goes nowhere
+        is a collision on the map and the path is planned again. ``tol`` is in minimap px."""
         self._arm()
         target = (x, y) if in_world else self.world.dot_to_world((x, y))
         tol_px = (GOTO_TOL_MM if tol is None else tol) * self.world.scale
-        g = self.cfg.adventures.world.grid_px
         before = self.grab()
         self.loc.rejoin(before, self._wall())
         limit = min(timeout_s, self.cfg.pilot.max_goto_s)
@@ -1159,11 +1258,21 @@ class Executor:
                 reason = "no_plan"
                 break
             wp = self._waypoint(path, pos)
-            last = math.dist(wp, target) <= g
-            leg_tol = tol_px if last else g * GOTO_WAYPOINT_TOL_CELLS
-            leg = self._walk_to(
-                target if last else wp, deadline - self._clock(), leg_tol, tag="goto"
-            )
+            pt = self._click_toward(pos, wp)
+            if pt is None or math.dist(pos, wp) < CLICK_MIN_PX:
+                # too close for a click: the last stretch by keys
+                leg = self._walk_to(
+                    wp, min(WALK_LEG_S, deadline - self._clock()), tol_px, tag="goto"
+                )
+                leg["how"] = "keys"
+            else:
+                self._in.click(*pt)
+                leg = self._track(
+                    wp, min(CLICK_LEG_S, deadline - self._clock()), tol_px, tag="goto"
+                )
+                leg["how"] = "click"
+                leg["at"] = list(pt)
+                self._click_went_nowhere(leg, pos, wp)
             trace.append({"to": [round(wp[0]), round(wp[1])], **leg})
             if leg["reason"] in ("user", "no_position"):
                 reason = "user" if leg["reason"] == "user" else "no_dot"
