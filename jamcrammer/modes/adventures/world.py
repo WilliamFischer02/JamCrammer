@@ -44,6 +44,7 @@ WORLD_VERSION = 1
 UNKNOWN, FLOOR, FREE, BLOCKED = 0, 1, 2, 3
 STATE_NAMES = {UNKNOWN: "unknown", FLOOR: "floor", FREE: "free", BLOCKED: "blocked"}
 GRID_PNG_STEP = 80  # grid states are saved as 0 / 80 / 160 / 240
+GOAL_SLACK_CELLS = 3  # a blocked goal is replaced by the nearest open cell this close
 # what the recordings' spot kinds are called in the world
 LEVEL_KINDS = {
     "crystal": "crystal",
@@ -687,6 +688,17 @@ class World:
             return 1.0
         return self.cfg.unknown_cost
 
+    def _open_near(self, area: str, c: Cell, within: int) -> Cell | None:
+        best: Cell | None = None
+        best_d = math.inf
+        for dy in range(-within, within + 1):
+            for dx in range(-within, within + 1):
+                q = (c[0] + dx, c[1] + dy)
+                d = math.hypot(dx, dy)
+                if d < best_d and self.cost(area, q) != math.inf:
+                    best, best_d = q, d
+        return best
+
     def plan(
         self, area: str, start: Point, goal: Point, *, max_cells: int = 200_000
     ) -> list[Point] | None:
@@ -694,8 +706,15 @@ class World:
         None when the goal cannot be reached."""
         a = self.area(area)
         s, g = a.cell(start), a.cell(goal)
-        if not a.inside(s) or not a.inside(g) or self.cost(area, g) == math.inf:
+        if not a.inside(s) or not a.inside(g):
             return None
+        if self.cost(area, g) == math.inf:
+            # the goal is a wall or a rock (a thing to smash sits in a blocked cell): the
+            # nearest open cell beside it is the goal
+            near_goal = self._open_near(area, g, GOAL_SLACK_CELLS)
+            if near_goal is None:
+                return None
+            g = near_goal
         if self.cost(area, s) == math.inf:  # standing in a blocked cell: start out of it
             a.set_state(s, FREE)
         best: dict[Cell, float] = {s: 0.0}
