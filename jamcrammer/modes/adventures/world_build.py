@@ -176,7 +176,7 @@ class _Cache:
         whole map), and which of them had enough light to be trusted."""
         g = self.gain[np.minimum(radius, len(self.gain) - 1).astype(np.int32)]
         usable = g >= self.cfg.build_min_gain
-        scaled = src.astype(np.float32) / np.maximum(g, self.cfg.build_min_gain)[..., None]
+        scaled = src.astype(np.float32) / np.maximum(g, self.cfg.build_gain_floor)[..., None]
         return np.asarray(np.clip(scaled, 0, 255), np.uint8), np.asarray(usable, np.bool_)
 
     def features(self, f: Frame) -> tuple[Gray, Mask] | None:
@@ -211,16 +211,21 @@ def _overlap(a: Frame, b: Frame, light_px: int) -> float:
     return max(0.0, 1.0 - d / (2.0 * max(1, light_px)))
 
 
-def candidates(frames: list[Frame], cfg: WorldConfig) -> list[tuple[int, int]]:
+def candidates(
+    frames: list[Frame], cfg: WorldConfig, only: set[int] | None = None
+) -> list[tuple[int, int]]:
     """Pairs to register: for each frame its recent overlapping predecessors and a few
-    older ones (loop closures), by the poses as kept."""
+    older ones (loop closures), by the poses as they stand. ``only``: just these frames
+    (a second pass for the ones the first left unlinked), against every other frame."""
     out: list[tuple[int, int]] = []
     for j in range(1, len(frames)):
+        if only is not None and j not in only:
+            continue
         fj = frames[j]
         cut = max(0, j - LOOP_GAP)
         for lo, hi in ((cut, j), (0, cut)):
             scored = [(i, _overlap(frames[i], fj, cfg.light_px)) for i in range(lo, hi)]
-            scored = [p for p in scored if p[1] >= cfg.build_min_overlap]
+            scored = [p for p in scored if p[1] >= cfg.build_min_overlap and p[0] != j]
             scored.sort(key=lambda p: -p[1])
             out.extend((i, j) for i, _ov in scored[: cfg.build_pairs])
     return out
@@ -311,12 +316,30 @@ def _refine(
     if img_i is None or img_j is None or feats is None:
         return None
     s = cfg.build_scale
-    p = cfg.build_patch_px
-    centre = _patch_centre(feats[0], overlap, max(8, int(p * s)))
-    if centre is None:
-        return None
     gi = cv2.cvtColor(img_i, cv2.COLOR_BGR2GRAY)
     gj = cv2.cvtColor(img_j, cv2.COLOR_BGR2GRAY)
+    for p in cfg.build_patch_px:
+        centre = _patch_centre(feats[0], overlap, max(8, int(p * s)))
+        if centre is None:
+            continue
+        got = _match_patch(gi, gj, centre=centre, p=p, coarse=coarse, cfg=cfg)
+        if got is not None:
+            return got
+    return None
+
+
+def _match_patch(
+    gi: npt.NDArray[Any],
+    gj: npt.NDArray[Any],
+    *,
+    centre: tuple[int, int],
+    p: int,
+    coarse: tuple[float, float],
+    cfg: WorldConfig,
+) -> tuple[tuple[float, float], float] | None:
+    """The ``p`` px patch of frame i at ``centre`` (build-scale px) matched in frame j
+    around the coarse shift."""
+    s = cfg.build_scale
     tx0, ty0 = int(centre[0] / s) - p // 2, int(centre[1] / s) - p // 2
     r = cfg.build_search_px
     jx0, jy0 = round(tx0 + coarse[0]) - r, round(ty0 + coarse[1]) - r
@@ -636,20 +659,49 @@ def _components(n: int, pairs: list[Pair]) -> list[set[int]]:
     return sorted(groups.values(), key=len, reverse=True)
 
 
-def _register_all(frames: list[Frame], cache: _Cache, cfg: WorldConfig, log: Log) -> dict[str, Any]:
-    """Pairs, the solve, the outlier pass; the frames' origins are updated in place."""
-    cands = candidates(frames, cfg)
-    log(f"  {len(cands)} candidate pairs")
+def _passes(
+    frames: list[Frame], cache: _Cache, cfg: WorldConfig, log: Log
+) -> tuple[list[Pair], int]:
+    """The registration passes: all candidate pairs, then the unlinked frames again against
+    the solved neighbours. Returns the pairs and how many candidates were tried; the frames'
+    origins are the kept poses on return (the priors)."""
     t0 = time.monotonic()
     pairs: list[Pair] = []
-    for tried, (i, j) in enumerate(cands, 1):
-        p = register(frames[i], frames[j], cache, cfg)
-        if p is not None:
-            pairs.append(p)
-        if tried % PROGRESS_EVERY == 0:
-            log(
-                f"  registered {tried}/{len(cands)}: {len(pairs)} ok, {time.monotonic() - t0:.0f} s"
-            )
+    n_cands = 0
+    only: set[int] | None = None
+    kept_origins = [f.origin for f in frames]
+    for n_pass in range(cfg.build_passes):
+        cands = candidates(frames, cfg, only)
+        n_cands += len(cands)
+        log(f"  pass {n_pass + 1}: {len(cands)} candidate pairs")
+        for tried, (i, j) in enumerate(cands, 1):
+            p = register(frames[i], frames[j], cache, cfg)
+            if p is not None:
+                pairs.append(p)
+            if tried % PROGRESS_EVERY == 0:
+                took = time.monotonic() - t0
+                log(f"  registered {tried}/{len(cands)}: {len(pairs)} ok, {took:.0f} s")
+        if n_pass + 1 == cfg.build_passes:
+            break
+        # the linked frames move to their solved origins; the unlinked keep their kept pose
+        # and get another look at neighbours that are now where they really are
+        origins = solve(frames, pairs, cfg.build_prior_weight)
+        linked_now = {p.i for p in pairs} | {p.j for p in pairs}
+        for k, f in enumerate(frames):
+            f.origin = origins[k] if k in linked_now else kept_origins[k]
+        only = {k for k in range(len(frames)) if k not in linked_now}
+        if not only:
+            break
+        log(f"  {len(only)} frames unlinked after pass {n_pass + 1}: trying again")
+    for k, f in enumerate(frames):
+        f.origin = kept_origins[k]
+    return pairs, n_cands
+
+
+def _register_all(frames: list[Frame], cache: _Cache, cfg: WorldConfig, log: Log) -> dict[str, Any]:
+    """Pairs, the solve, the outlier pass; the frames' origins are updated in place."""
+    t0 = time.monotonic()
+    pairs, n_cands = _passes(frames, cache, cfg, log)
     # robust rounds: a pair's weight falls off past build_huber_px of residual, so a few
     # wrong pairs lose their say without a hard cut that could sever two walks' bridge
     origins = solve(frames, pairs, cfg.build_prior_weight)
@@ -673,7 +725,7 @@ def _register_all(frames: list[Frame], cache: _Cache, cfg: WorldConfig, log: Log
     stats: dict[str, Any] = {
         "components": len(comps),
         "largest_component": max((len(c) for c in comps), default=0),
-        "pairs_candidates": len(cands),
+        "pairs_candidates": n_cands,
         "pairs_accepted": len(pairs),
         "pairs_dropped": len(pairs) - len(kept),
         "frames_linked": len(linked),
@@ -685,6 +737,7 @@ def _register_all(frames: list[Frame], cache: _Cache, cfg: WorldConfig, log: Log
     }
     log(f"  solved: {stats}")
     stats["_pairs"] = [[p.i, p.j, p.shift[0], p.shift[1], round(p.ncc, 2)] for p in kept]
+    stats["_largest"] = comps[0] if comps else set()
     return stats
 
 
@@ -697,6 +750,7 @@ def rebuild(
     hud_rois: list[Any],
     dialog: Dialog | None = None,
     register_pairs: bool = True,
+    reuse_origins: bool = False,
     detect: Detect | None = None,
     fungus_px: tuple[float, float] = (0.0, 0.0),
     log: Log = lambda _m: None,
@@ -714,12 +768,34 @@ def rebuild(
         return {"frames": 0}
     cache = _Cache(cfg, hud_rois, dialog)
     stats: dict[str, Any] = {"frames": len(frames), "area": area}
-    if register_pairs:
+    previous = world_folder / "build.json"
+    if reuse_origins and previous.exists():
+        # the last build's solved origins and its largest group: composite only
+        doc = json.loads(previous.read_text(encoding="utf-8"))
+        solved = {o["file"]: tuple(o["origin"]) for o in doc.get("origins", [])}
+        used = [
+            f
+            for f in frames
+            if str(f.path) in solved and doc.get("used", {}).get(str(f.path), True)
+        ]
+        for f in used:
+            f.origin = solved[str(f.path)]
+        stats["frames_composited"] = len(used)
+        stats["reused"] = str(previous)
+        log(f"  reusing {len(used)} solved origins from {previous.name}")
+    elif register_pairs:
         stats.update(_register_all(frames, cache, cfg, log))
+        largest: set[int] = stats.pop("_largest")
+        # a frame outside the largest group sits at its kept pose, up to a few hundred px
+        # off: it would win a share of the pixels and shred the picture
+        used = [f for f in frames if f.idx in largest]
+        stats["frames_composited"] = len(used)
+        log(f"  compositing the largest group: {len(used)} of {len(frames)} frames")
     else:
         for f in frames:
             f.origin = (round(f.origin[0]), round(f.origin[1]))
-    stats.update(composite(frames, cache, world, area=area, log=log))
+        used = frames
+    stats.update(composite(used, cache, world, area=area, log=log))
     if detect is not None:
         world.attach_tiles(world_folder / "tiles")
         placed = place_things(
@@ -739,6 +815,7 @@ def rebuild(
             {"file": str(f.path), "origin": list(f.origin), "anchor": list(f.obs.anchor)}
             for f in frames
         ],
+        "used": {str(f.path): True for f in used},
     }
     (world_folder / "build.json").write_text(json.dumps(doc, indent=1), encoding="utf-8")
     log(f"  done: {stats}")

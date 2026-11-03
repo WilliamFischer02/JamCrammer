@@ -394,9 +394,15 @@ class WorldConfig(StrictModel):
     build_sigma: float = Field(8.0, gt=0)  # high-pass at build scale (kills the light's rim)
     build_pairs: int = Field(6, ge=1)  # earlier overlapping frames registered per frame
     build_min_overlap: float = Field(0.3, ge=0, le=1)  # of the lit disc, by the poses
-    build_max_err_px: float = Field(150.0, ge=0)  # a shift this far from the poses is wrong
+    # a shift this far from the kept poses is wrong (the dot lags a walk by up to ~200 px,
+    # so the poses themselves are off by that much; the full-resolution patch check guards
+    # against a texture repeat)
+    build_max_err_px: float = Field(320.0, ge=0)
+    build_passes: int = Field(2, ge=1)  # unlinked frames are tried again against solved ones
     build_min_response: float = Field(0.08, ge=0)  # phase correlation peak
-    build_patch_px: int = Field(320, ge=32)  # full-resolution refinement patch
+    # full-resolution refinement patches, tried biggest first: a fresh instance's light is
+    # a ~200 px disc (nothing lit yet) and a 320 px patch is never lit enough there
+    build_patch_px: list[int] = [320, 200, 128]
     build_search_px: int = Field(6, ge=1)  # ... searched this far around the coarse shift
     build_min_ncc: float = Field(0.45, ge=-1, le=1)  # ... must correlate this well
     # the kept pose's weight vs a pair's (1.0): only the gauge (where the map sits on the
@@ -413,6 +419,9 @@ class WorldConfig(StrictModel):
     # divided by it so the picture has one exposure; below build_min_gain they are not used
     light_gain: list[list[float]] = [[110, 1.0], [200, 0.77], [300, 0.52], [360, 0.35]]
     build_min_gain: float = Field(0.3, ge=0, le=1)
+    # a sample is divided by at most 1/build_gain_floor: past that the rim is left dim
+    # rather than blown out (a lit crystal lights its surroundings in every frame too)
+    build_gain_floor: float = Field(0.6, gt=0, le=1)
 
 
 class AdventureConfig(StrictModel):

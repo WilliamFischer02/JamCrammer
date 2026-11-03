@@ -166,9 +166,10 @@ adventures:
     build_sigma: 8.0                        # high-pass at build scale
     build_pairs: 6                          # earlier overlapping frames registered per frame
     build_min_overlap: 0.3                  # of the lit disc, by the poses
-    build_max_err_px: 150                   # a shift this far from the poses is wrong
+    build_max_err_px: 320                   # a shift this far from the kept poses is wrong
+    build_passes: 2                         # unlinked frames are tried again against solved ones
     build_min_response: 0.08                # phase correlation peak
-    build_patch_px: 320                     # full-resolution refinement patch
+    build_patch_px: [320, 200, 128]         # full-resolution refinement patches, biggest first
     build_search_px: 6                      # searched this far around the coarse shift
     build_min_ncc: 0.45                     # the patch must correlate this well
     build_prior_weight: 0.002               # the kept pose's weight vs a pair's (1.0): the gauge only
@@ -180,6 +181,7 @@ adventures:
     build_min_v: 28                         # darker samples are not samples
     light_gain: [[110, 1.0], [200, 0.77], [300, 0.52], [360, 0.35]]  # the light's gain by radius (measured)
     build_min_gain: 0.3                     # samples with less light are not used
+    build_gain_floor: 0.6                   # a sample is brightened by at most 1/this
 
 # --- Opportunist (KICKOFF 10) ---
 opportunist:

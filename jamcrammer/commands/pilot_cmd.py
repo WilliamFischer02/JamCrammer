@@ -318,6 +318,7 @@ def _rebuild(args: argparse.Namespace) -> int:
         hud_rois=[*prof.items("hud_rois")],
         dialog=dialog,
         register_pairs=not args.no_register,
+        reuse_origins=args.reuse,
         detect=None
         if args.no_things
         else lambda img: (

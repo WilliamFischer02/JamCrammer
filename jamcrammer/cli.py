@@ -210,6 +210,9 @@ def _pilot_map_parser(ps: Any) -> None:
     rb.add_argument("--sessions", nargs="*", default=None, help="session folders (default: all)")
     rb.add_argument("--no-register", action="store_true", help="composite with the poses as kept")
     rb.add_argument("--no-things", action="store_true", help="do not place things from the picture")
+    rb.add_argument(
+        "--reuse", action="store_true", help="composite only, with the last build's origins"
+    )
 
 
 def _not_yet(milestone: str) -> Command:
