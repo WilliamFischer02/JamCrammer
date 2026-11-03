@@ -2,6 +2,25 @@
 
 _Last updated: 2026-11-02 evening (interface overhaul, the Mapping tab, the first live pilot steps)_
 
+## First live mapping session (2026-11-02 16:38-17:10, PC): what happened
+- Session `captures/sessions/20261102_163835_mystery_below_pilot` (log + recording; the
+  recorder's own folder `..._163838_...` holds the frames of the first minutes, before the
+  `--session-dir` fix). Budget 240 min, goal "map the moth chamber".
+- Through the pilot: surveyed the start room (walls south and west, open up / up-right /
+  right), scanned it (Cosmo's blue coat read as an unlit crystal and the glowing start
+  fungus as a lit crystal: forgotten, both NPCs marked), picked 3 blossoms by the paw pin,
+  lit the first crystal with a drag from the slot (counter 3 -> 2, Cosmo's and Graham's
+  dialogs closed by their X), the banner moved to "make a path for the glow moth".
+- A batch (`goto` spot, `survey`, `scan` at each plan stop) mapped two stops of the first
+  corridor (walls on six and three sides, 32 and 26 s per stop) before the guardrail
+  refused the third: William was at the keyboard. World now: 19 collisions, 512 walked
+  cells, 2 NPCs, mosaic 1.6% of the area; `profiles/levels/mystery_below/world/`.
+- **Next session:** continue the batch from stop 3 (`1582.7,841.3`) through the plan's 80
+  chamber stops (list them from `level.json` in plan order); review the map crop after
+  each batch and `forget` / `mark` the false things; the first path's crystals 2, 3, 9 are
+  what leads the first moth to the door. The keepalive keeps the account alive between
+  sessions; `pilot status` shows the session and the server.
+
 ## Interface overhaul, the Mapping tab, first live pilot steps (2026-11-02 evening, PC)
 William's answers: purple crystals and cracked rocks break by **repeated clicks** (several
 each); sessions travel in the sync bundle; the desktop is the main machine for a while;
