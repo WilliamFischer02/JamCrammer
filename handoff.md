@@ -2,6 +2,37 @@
 
 _Last updated: 2026-11-02 evening (interface overhaul, the Mapping tab, the first live pilot steps)_
 
+## Den Planner from the den (2026-11-02 19:00-19:30, PC): the Hunter's "trouble starting"
+William: the Best Guess Hunter would not get going; he wants, from his den: read when Best
+Guess is due, play Jamaa Derby until then, join Best Guess on time. That is the **Den
+Planner** mode (not the Hunter). Found and fixed, each verified live from the den:
+- **The Hunter paused itself 2 s after Start** ("Paused - user active", then a 120 s wait,
+  the log at 19:00:17): the click on Start is OS input and the presence detector took it as
+  a takeover. `PresenceDetector.mark()` now runs in `start_mode`: input up to the start is
+  not William coming back. (Every mode had this.)
+- **My Parties stayed open after the tray read** (so the games-menu clicks hit the panel):
+  the panel slides when the tray toggles, and `ensure_closed` saw no title mid-slide and
+  called it closed. It now looks twice with a settle and confirms the close; the planner
+  waits `tray_settle_s` after closing the tray.
+- **The games list did not scroll**: the thumb sits lower than the recorded drag point. The
+  list is now scrolled by its arrows (`games_scroll_up_point` to the top, then
+  `games_scroll_down_point` one click per look) until the Jamaa Derby tile matches (0.95
+  after one click). Three clicks jump to the bottom past the Derby.
+- **PRO was clicked 80 px right of the button** (the old offset came from a 1904x1013
+  window shot): `pro_offset` re-measured to [206, 133] and the finder now takes the centre
+  of the nearest narrow green run on that row (the wide one is PLAY!). The track showed
+  0.6 s after the click.
+- **Leaving the Derby**: the X opens a "Leave game?" dialog; LEAVE at `leave_confirm_point`
+  [740, 704] confirms it; the leaderboard's X sits at `results_close_x_point` [1676, 80].
+  `Engine._leave_derby` tries both. Verified: racing -> den.
+- The tray read works: "1 hr 52 mins" -> 6720 s at 19:12 (Best Guess due ~21:04).
+- Menu clicks do not count as activity: the account was logged out once during this work
+  (the idle logout), William logged back in. A planner run that sits in menus for minutes
+  needs the keepalive; the Derby itself counts as activity.
+- **Running at 19:30**: `run_planner.py` (scratch) started mode `planner` headless from the
+  den; its output is in this session's task log. Not yet seen live: the farm-until-due
+  hand-off, the leave at a leaderboard, the hunt and the join.
+
 ## Mapping session 1, continued (2026-11-02 17:10-18:20): the chamber's reachable part
 - Three batches (`goto` a plan stop, `survey` eight directions, `scan`) over the moth
   chamber's 80 plan stops: **55 reached** (28-50 s each), the rest (the top-left, x <
