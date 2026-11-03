@@ -2,6 +2,31 @@
 
 _Last updated: 2026-11-02 evening (interface overhaul, the Mapping tab, the first live pilot steps)_
 
+## Mapping session 1, continued (2026-11-02 17:10-18:20): the chamber's reachable part
+- Three batches (`goto` a plan stop, `survey` eight directions, `scan`) over the moth
+  chamber's 80 plan stops: **55 reached** (28-50 s each), the rest (the top-left, x <
+  1570 / y < 805 in minimap px) blocked by walls on every side: the wiki's left route
+  (mushroom bridges) and top route (rocks, a trapped moth). World now: **407 wall hits,
+  36% of the known floor seen, 9% walked, 175 things**, map at
+  `profiles/levels/mystery_below/world/` (committed), the Mapping tab shows it.
+- **Added on the way:** observations align to the mosaic by phase correlation (the dot's
+  quantisation no longer leaves seams); the red decoy crystals (H 170-174) have their own
+  colour range (`crystal_decoy_red_hsv`) and are found; a scan drops unlit / lit reads
+  within 50 px of a fungus (its navy stem / its glow). Still false: the teal water or glow
+  patches read as unlit crystals (navy range); Cosmo / Graham's coats; nothing marks
+  grey rocks yet (they are the plan's smash spots, marked by hand so far: 208).
+- **Mechanics seen live:** a blossom dragged onto a glowing mushroom cluster (mm
+  1582,796) was consumed, a glow ball sat on it, and the ledge past it was walkable
+  afterwards (whether the drop opened it is not certain). Dialog pages come in twos
+  (Cosmo, then Graham), each closed by its X. The counter read 1 then 0 after two uses
+  since the pick: one blossom went somewhere unseen.
+- **Ledges:** the minimap floor mask has none; the pilot's `goto` plans on it and gives
+  up at a ledge (`blocked`, 9 learned walls), while the world grid holds the collisions.
+  A4 should walk on the world grid (`World.plan`), not the minimap floor.
+- **Session still open** (`pilot status`), the server and the keepalive still running, the
+  animal at mm (1599.7, 805.3) on a ledge with 0 blossoms. `pilot stop` ends it;
+  `data/pilot/keepalive.stop` ends the keepalive; `pilot quit` the server.
+
 ## First live mapping session (2026-11-02 16:38-17:10, PC): what happened
 - Session `captures/sessions/20261102_163835_mystery_below_pilot` (log + recording; the
   recorder's own folder `..._163838_...` holds the frames of the first minutes, before the
