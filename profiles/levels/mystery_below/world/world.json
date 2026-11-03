@@ -3139,6 +3139,21 @@
    "ts": 1793664497.7859874,
    "shot": "C:\\dev\\JamCrammer\\captures\\pilot\\20261102_170817_scan.png",
    "gone": false
+  },
+  {
+   "id": 208,
+   "kind": "rock",
+   "area": "moths",
+   "x": 6207.160524018679,
+   "y": 8082.1466885559075,
+   "status": "cracked",
+   "source": "claude",
+   "confidence": 0.9,
+   "note": "cracked rock pile at plan stop 4, breaks with repeated clicks (William)",
+   "seen": 1,
+   "ts": 1793664579.5714552,
+   "shot": "C:\\dev\\JamCrammer\\captures\\pilot\\20261102_170909_look.png",
+   "gone": false
   }
  ],
  "collisions": [
@@ -3348,5 +3363,5 @@
   "20261029_134501_mystery_below",
   "20261030_100745_mystery_below"
  ],
- "saved": "2026-11-02 17:08:44"
+ "saved": "2026-11-02 17:09:39"
 }
