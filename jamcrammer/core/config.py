@@ -417,7 +417,10 @@ class WorldConfig(StrictModel):
     build_min_std: float = Field(10.0, ge=0)  # ... and the patch must have this much texture
     # (a flat dark patch correlates 1.0 with anything: the start's dark frames were placed
     # 30 px off by such pairs, 2026-11-03)
-    build_min_both: float = Field(0.15, ge=0, le=1)  # of the overlap crop, lit in both frames
+    # lit and unmasked in both frames: at least this many px of the overlap at build scale
+    # (a share of the crop refused every pair in the dark cave, where the light is a 200 px
+    # disc in a 1700 px overlap)
+    build_min_both_px: int = Field(6000, ge=0)
     # the kept pose's weight vs a pair's (1.0): only the gauge (where the map sits on the
     # minimap). 0.03 let two walks sit 18 px apart with their bridging pairs dropped
     build_prior_weight: float = Field(0.002, ge=0)

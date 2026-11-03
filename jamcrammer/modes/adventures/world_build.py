@@ -59,7 +59,7 @@ LOOP_GAP = 40  # a loop-closure pair is at least this many frames apart
 DARK_BLUR = 5  # the dark mask is taken on a blurred V so single dark pixels do not pit it
 PATCH_MIN_VALID = 0.85  # share of a refinement patch that must be lit and unmasked
 MIN_OVERLAP_PX = 64  # a thinner overlap is not registered
-MIN_BOTH_SHARE = 0.05  # of the overlap, lit and unmasked in both frames
+MIN_BOTH_PX = 6000  # of the overlap at build scale, lit and unmasked in both frames
 PROGRESS_EVERY = 100
 THING_MARGIN = 96  # a tile is looked at with this much of its neighbours, for cut blobs
 THING_SOURCE = "picture"  # things found on the rebuilt picture
@@ -246,7 +246,7 @@ def _crop_overlap(
     feats_j: tuple[Gray, Mask],
     pred: tuple[float, float],
     s: float,
-    min_both: float = MIN_BOTH_SHARE,
+    min_both: int = MIN_BOTH_PX,
 ) -> _Overlap | None:
     """A world point at frame-i px ``p`` is at ``p + pred`` in frame j."""
     feat_i, val_i = feats_i
@@ -258,7 +258,7 @@ def _crop_overlap(
     if x1 - x0 < MIN_OVERLAP_PX or y1 - y0 < MIN_OVERLAP_PX:
         return None
     both = val_i[y0:y1, x0:x1] & val_j[y0 + sy : y1 + sy, x0 + sx : x1 + sx]
-    if np.count_nonzero(both) < min_both * both.size:
+    if np.count_nonzero(both) < min_both:
         return None
     a = np.where(both, feat_i[y0:y1, x0:x1], 0.0).astype(np.float32)
     b = np.where(both, feat_j[y0 + sy : y1 + sy, x0 + sx : x1 + sx], 0.0).astype(np.float32)
@@ -273,7 +273,7 @@ def register(fi: Frame, fj: Frame, cache: _Cache, cfg: WorldConfig) -> Pair | No
         return None
     s = cfg.build_scale
     pred = (fi.origin[0] - fj.origin[0], fi.origin[1] - fj.origin[1])  # o_i - o_j
-    ov = _crop_overlap(got_i, got_j, pred, s, cfg.build_min_both)
+    ov = _crop_overlap(got_i, got_j, pred, s, cfg.build_min_both_px)
     if ov is None:
         return None
     win = cv2.createHanningWindow((ov.a.shape[1], ov.a.shape[0]), cv2.CV_32F)

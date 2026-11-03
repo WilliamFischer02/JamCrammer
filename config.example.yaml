@@ -176,7 +176,7 @@ adventures:
     build_search_px: 6                      # searched this far around the coarse shift
     build_min_ncc: 0.6                      # the patch must correlate this well
     build_min_std: 10                       # ... and have this much texture (grey levels)
-    build_min_both: 0.15                    # of the overlap crop, lit in both frames
+    build_min_both_px: 6000                 # lit in both frames: this many px of the overlap (build scale)
     build_prior_weight: 0.002               # the kept pose's weight vs a pair's (1.0): the gauge only
     build_huber_px: 2.0                     # a pair's weight falls off past this residual
     build_solve_rounds: 4                   # reweighting rounds
