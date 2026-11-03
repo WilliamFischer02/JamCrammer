@@ -6,6 +6,7 @@ races and gems, the Adventure its crystals and helps, the Opportunist its checks
 
 from __future__ import annotations
 
+import threading
 import time
 from collections.abc import Callable
 from typing import Any, cast
@@ -223,7 +224,9 @@ class BestGuessPage(ModePage):
     key = "hunt"
     mode = "hunt"
     title = "Best Guess"
-    subtitle = "Waits for the Best Guess party, joins it and answers from the bank."
+    subtitle = (
+        "Reads when Best Guess is due, races until then, joins on time, answers from the bank."
+    )
     icon = "bestguess"
 
     def build_stats(self) -> None:
@@ -232,15 +235,22 @@ class BestGuessPage(ModePage):
         self.t_rounds = StatTile("Rounds", c, spark=False, size="md")
         self.t_gems = StatTile("Gems", theme.PALETTE.arcade, spark=False, size="md")
         self.t_bank = StatTile("Facts known", theme.PALETTE.tool, spark=False, size="md")
-        self.panel.add_stats([self.t_correct, self.t_rounds, self.t_gems, self.t_bank])
+        self.t_eta = StatTile("Best Guess in", theme.PALETTE.planner, spark=False, size="md")
+        self.panel.add_stats([self.t_eta, self.t_correct, self.t_rounds, self.t_gems, self.t_bank])
+        self.m_eta = Meter("Until Best Guess", "planner")
         self.m_acc = Meter("Accuracy", "hunt")
         self.m_streak = Meter("Streak toward 4x", "hunt", unit="", maximum=4)
+        self.panel.add_chart(self.m_eta)
         self.panel.add_chart(self.m_acc)
         self.panel.add_chart(self.m_streak)
         self._bank_ts = 0.0
         self._bank_n = 0
+        self._eta_full = 0.0
+        self._reading = False
+        self._read_result: tuple[int | None, str] | None = None
 
     def update_stats(self) -> None:
+        self._update_eta()
         s = self.engine.state.stats.get("bestguess", {})
         correct, answered = int(s.get("correct", 0)), int(s.get("answered", 0))
         self.t_correct.set_value(correct)
@@ -259,8 +269,53 @@ class BestGuessPage(ModePage):
                 pass
         self.t_bank.set_value(self._bank_n)
 
+    def _update_eta(self) -> None:
+        """The countdown to Best Guess (read from the party tray, or typed on the Den
+        Planner page): the bot leaves the Derby ``leave_lead_s`` before it."""
+        from jamcrammer.modes.planner import format_eta
+
+        st = self.engine.state
+        eta = st.bg_eta_s()
+        if eta is None:
+            self.t_eta.set_value("unknown")
+            self.m_eta.set_value(0, "not read yet")
+            return
+        self._eta_full = max(self._eta_full, eta)
+        self.t_eta.set_value(format_eta(eta) if eta > 0 else "due now")
+        share = 100.0 * (1.0 - min(1.0, max(0.0, eta) / self._eta_full)) if self._eta_full else 0.0
+        lead = self.engine.cfg.planner.leave_lead_s
+        note = f" · {st.bg_eta_note}" if st.bg_eta_note else ""
+        self.m_eta.set_value(
+            share, f"{format_eta(max(0.0, eta))} · leaves the Derby {lead:.0f} s before{note}"
+        )
+
+    def read_time(self) -> None:
+        """Open My Parties and its tray, read when Best Guess is due, close them."""
+        if self._reading or self.engine.state.mode is not None:
+            return
+        self._reading = True
+        self._read_result = None
+        self.panel.set_status(
+            "Reading the party tray", "My Parties, then the Upcoming Parties tray"
+        )
+
+        def work() -> None:
+            try:
+                self._read_result = self.engine.read_eta_from_game()
+            finally:
+                self._reading = False
+
+        threading.Thread(target=work, name="bestguess-read-eta", daemon=True).start()
+
     def status_line(self) -> tuple[str, str]:
         st = self.engine.state
+        if self._reading:
+            return ("Reading the party tray", "My Parties, then the Upcoming Parties tray")
+        if self._read_result is not None and st.mode is None:
+            eta, note = self._read_result
+            return ("Best Guess time read" if eta is not None else "Could not read the time", note)
+        if st.mode == self.mode and st.mode_state == "PLANNER":
+            return (f"Planner: {st.mode_detail}", "tray, den, Derby until due, then Best Guess")
         if st.mode == self.mode:
             s = st.stats.get("bestguess", {})
             fact = str(s.get("last_fact", ""))[:70]
@@ -272,6 +327,18 @@ class BestGuessPage(ModePage):
     def build_settings(self) -> None:
         cfg = self.engine.cfg
         hunt = Card("Hunting")
+        hunt.add_layout(
+            row(
+                icon_button("timer", "Read time", kind="ghost", on_click=self.read_time),
+                icon_button(
+                    "home",
+                    "Den Planner",
+                    kind="ghost",
+                    on_click=lambda: self.window_ref.show_page_key("planner"),
+                ),
+                stretch_last=True,
+            )
+        )
         form = _form()
         form.addRow(
             "Scan every (s)",
@@ -312,6 +379,16 @@ class BestGuessPage(ModePage):
                 lambda v: setattr(cfg.hunt, "antiafk_each_cycle", v),
                 "Move before every scan",
                 "A cancelling movement pair keeps the session alive",
+            ),
+        )
+        form.addRow(
+            "",
+            _bind_bool(
+                self.engine,
+                lambda: cfg.hunt.derby_while_waiting,
+                lambda v: setattr(cfg.hunt, "derby_while_waiting", v),
+                "Race in the Derby until Best Guess is due",
+                "Start from a room: read the party tray, race in your den, come back and join",
             ),
         )
         hunt.add_layout(form)

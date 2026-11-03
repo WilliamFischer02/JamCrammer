@@ -96,6 +96,9 @@ class Hunter:
             if self.cfg.auto_join and not self.no_join:
                 self.join(result.target)
         self.state = "HUNTING"
+        if self.watchdog is not None and not result.errors:
+            # the panel is closed again: the room, not the panel, is the watchdog's baseline
+            self.watchdog.set_baseline(self._grab().image)
         return result
 
     def join(self, banner: Banner) -> JoinResult:

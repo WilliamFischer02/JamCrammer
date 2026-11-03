@@ -412,6 +412,11 @@ class Engine:
             self.lease.acquire("hunt")
             self._run_bestguess_farmer()
             return
+        if self.cfg.hunt.derby_while_waiting:
+            # William (2026-11-02): from a room, Start reads when Best Guess is due, plays the
+            # Derby until then, comes back and joins on time (the Den Planner flow)
+            self._run_planner()
+            return
         self._hunt_then_farm()
 
     def _make_watcher(self) -> Any:
@@ -544,8 +549,7 @@ class Engine:
             eta = self.state.bg_eta_s()
             return eta is not None and eta <= pc.leave_lead_s
 
-        self._run_farm(extra_stop=due, between_races_only=True)
-        if self._should_stop():
+        if not self._farm_until(due, nav, track_visible):
             return
 
         # 4. leave the Derby and hunt Best Guess in My Parties every hunt_interval_s
@@ -557,6 +561,36 @@ class Engine:
             self._hunt_then_farm(presence=False)
         finally:
             self.cfg.hunt_interval_s = saved
+
+    def _farm_until(
+        self, due: Callable[[], bool], nav: Any, track_visible: Callable[[Any], bool]
+    ) -> bool:
+        """Race until ``due``. The farmer stops on its own when the track is gone for
+        ``derby.unknown_pause_s`` (an advert between races, a kick to the den): then the
+        track is waited for, else the Derby is re-opened from the den. False when the run
+        should end (stopped, paused by William or the watchdog, could not get back)."""
+        pc = self.cfg.planner
+        for _n in range(pc.reentries_max + 1):
+            self._run_farm(extra_stop=due, between_races_only=True)
+            if self._should_stop() or self.pause.paused or self._watchdog_blocks():
+                return False
+            if due():
+                return True
+            reason = str(getattr(self._mode_obj, "paused_reason", "") or "")
+            self.emit("planner.farm_interrupted", Level.NOTICE, reason=reason)
+            self._status("PLANNER · waiting for the track")
+            if nav._wait(track_visible, pc.ad_wait_s) is not None:
+                continue  # the advert passed
+            self._status("PLANNER · back to the Derby")
+            res = nav.go_to_den()
+            if res.ok:
+                res = nav.open_derby(track_visible)
+            self.emit("planner.derby", Level.INFO if res.ok else Level.HIGH, message=res.note)
+            if not res.ok:
+                self.state.last_error = res.note
+                return False
+        self.emit("planner.reentries_exhausted", Level.HIGH, message="the Derby kept closing")
+        return False
 
     def _leave_derby(self, nav: Any, track_visible: Callable[[Any], bool]) -> bool:
         """The Derby's X opens "Leave game?" and LEAVE confirms it; the leaderboard has its
@@ -574,6 +608,8 @@ class Engine:
                 lx, ly = prof.point("leave_confirm_point")
                 self.input.click(lx, ly)
             if nav._wait(lambda im: not track_visible(im), pc.panel_settle_s * 3) is not None:
+                time.sleep(pc.panel_settle_s)
+                self.watchdog.set_baseline(self.grab().image)  # the room is the new normal
                 return True
         self.emit("planner.leave_failed", Level.HIGH, message="the Derby did not close")
         return False

@@ -161,6 +161,9 @@ class PlannerConfig(StrictModel):
     derby_timeout_s: float = Field(20.0, gt=0)
     hunt_interval_s: float = Field(20.0, gt=0)  # My Parties re-check cadence once Best Guess is due
     max_attempts: int = Field(2, ge=1)
+    ad_wait_s: float = Field(120.0, ge=0)  # an advert between races hides the track: wait
+    # this long for it to come back before re-opening the Derby from the den
+    reentries_max: int = Field(20, ge=0)  # the Derby is re-entered at most this often per run
 
 
 class RouteConfig(StrictModel):
@@ -553,6 +556,8 @@ class HuntConfig(StrictModel):
     arrival_timeout_s: float = Field(8.0, gt=0)
     sighting_merge_gap_s: float = Field(900.0, gt=0)
     antiafk_each_cycle: bool = True
+    derby_while_waiting: bool = True  # Start from a room: read when Best Guess is due, play
+    # the Derby until then, come back and join (the Den Planner flow); False = scan only
 
 
 class ActivityTestConfig(StrictModel):

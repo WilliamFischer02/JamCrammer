@@ -26,6 +26,9 @@ start_farming_after_join: true
 unknown_fact_policy: crowd                   # crowd (fuller side of the floor) | learned_prior | fixed_true | fixed_false | skip
 answer_mode: learn_only                      # learn_only | bank_policy | coin_flip
 fuzzy_threshold: 90
+hunt:
+  antiafk_each_cycle: true                   # a cancelling movement pair before every My Parties scan
+  derby_while_waiting: true                  # Best Guess Start from a room: read the tray, race in the den until due, join on time
 
 # --- Notifications ---
 notify:
@@ -111,6 +114,8 @@ planner:
   derby_timeout_s: 20
   hunt_interval_s: 20                        # My Parties re-check cadence once Best Guess is due
   max_attempts: 2
+  ad_wait_s: 120                             # an advert between races hides the track: wait this long for it to return
+  reentries_max: 20                          # the Derby is re-entered from the den at most this often per run
 
 # --- Adventures (The Forgotten Desert / The Mystery Below, docs/ADVENTURES.md) ---
 adventures:
