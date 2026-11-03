@@ -28,10 +28,27 @@ Design and numbers: **`docs/MAPPING.md` section 2b**; rationale in `decisions.md
   scrolled list as a room, clicked the globe over the open world map, landed on a sea stage
   and the game swapped the animal for a water one ("You must be a land animal"); William
   swapped it back. Fixed in the driver.
-- **Kept so far:** ~1,730 frames (first batch), trial rebuilds in the scratchpad: 7,065 of
-  7,969 pairs, residual median 0.01 px. The real world folder still holds the first pass's
-  tiles until `pilot rebuild` runs on the finished session (then commit
-  `profiles/levels/mystery_below/world/`).
+- **Kept so far:** ~4,000 frames; the start area's picture was rebuilt from 1,278 of them
+  (residual 0.0 px median, max 1.8 px) and committed under
+  `profiles/levels/mystery_below/world/`; the Mapping tab shows it.
+- **Logouts, the tally:** 11:17 and 11:40 (8.5 min after entering, key walks only), 14:11
+  (27 min: key walks, then click walks and the mouse keepalive), 14:30 (the animal idle
+  ~14 min while the goto was being fixed; no keepalive running). No "still playing?" popup
+  precedes any of them. Rule for next time: start `scripts/pilot_keepalive.ps1` the moment
+  the animal is in the level and never leave it idle.
+- **The walk, rebuilt twice today:** `goto` now plans on the world grid (A* around the 427
+  known wall hits), walks each leg by a click on the floor (the game paths around Cosmo,
+  Graham and rocks; keys only bump into them), tracks it by the fused position, records a
+  stuck as a collision (only when the minimap dot is still too: in the dark the odometry
+  sees nothing) two cells deep and two across, and plans again. Synthetic test in
+  `tests/test_world.py`. Not yet proven live beyond a few legs.
+- **A fresh instance is gated:** the next room opens only after the opening acts. Done by
+  hand through the pilot today up to the blossoms (3 in the slot, the paw pin at the start
+  fungus is one click); the first crystal (mm 1548.7,860.2) still needs the drag from
+  `item_slot_1`, then crystals 2, 3, 9 lead the first moth to the door (handoff of 11-02).
+  The scratch batch drivers (`map_batch.py` with `batch_plan_progress.json` = the recorded
+  route's 81 chamber stops in order; `batch_progress.json` = a 450 px lattice) only walk
+  and scan: they must run after the opening acts.
 - **Next:** William logs in (land animal, in the den); `pilot enter`; the batch driver
   (scratch `map_batch.py`, resumable from `batch_progress.json`) over the pending stops;
   watch whether the keepalive holds the session past 9 min; then the hand work: the mushroom
