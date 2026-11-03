@@ -31,6 +31,7 @@ from jamcrammer.vision.ocr import crop, ocr_image
 BgrImage = npt.NDArray[np.uint8]
 GrabFn = Callable[[], BgrImage]
 GREEN_HSV = ((35, 90, 70), (75, 255, 255))
+BLUE_HSV = ((95, 100, 120), (125, 255, 255))  # the games menu's scrollbar arrow
 _HRS = re.compile(r"(\d+)\s*(?:hrs?|hours?)", re.IGNORECASE)
 _MINS = re.compile(r"(\d+)\s*(?:mins?|minutes?)", re.IGNORECASE)
 
@@ -145,8 +146,9 @@ class Navigator:
         image = self._grab()
         eta, note = self.eta_from_tray(image)
         self._in.click(*self.profile.point("tray_close_point"))
-        self._sleep(0.5)
-        self.watcher.ensure_closed()
+        self._sleep(self.cfg.tray_settle_s)  # the panel slides back before its X is in place
+        if not self.watcher.ensure_closed():
+            note += "; My Parties would not close"
         return (eta, note)
 
     def eta_from_tray(self, image: BgrImage) -> tuple[int | None, str]:
@@ -171,21 +173,51 @@ class Navigator:
 
     # --- games menu -> Jamaa Derby (PRO) ----------------------------------------------------------
 
+    def games_menu_open(self, image: BgrImage | None = None) -> bool:
+        """The games menu shows its blue scrollbar arrow at ``games_scroll_down_point``."""
+        image = self._grab() if image is None else image
+        x, y = self.profile.point("games_scroll_down_point")
+        h, w = image.shape[:2]
+        if not (0 <= x < w and 0 <= y < h):
+            return False
+        hh, ss, _vv = (int(v) for v in cv2.cvtColor(image, cv2.COLOR_BGR2HSV)[y, x])
+        lo, hi = BLUE_HSV
+        return lo[0] <= hh <= hi[0] and ss >= lo[1]
+
+    def find_derby_tile_scrolling(self) -> tuple[int, int] | None:
+        """Scroll the games list by its down arrow a few clicks at a time until the Jamaa
+        Derby tile matches (a scrollbar drag depends on where the thumb is; the arrow does
+        not)."""
+        rounds = int(self.profile.number("games_scroll_rounds"))
+        clicks = int(self.profile.number("games_scroll_clicks"))
+        arrow = self.profile.point("games_scroll_down_point")
+        if self.profile.has("games_scroll_up_point"):  # the list keeps its position: top first
+            for _ in range(rounds):
+                self._in.click(*self.profile.point("games_scroll_up_point"))
+                self._sleep(0.1)
+            self._sleep(0.5)
+        for _round in range(rounds):
+            tile = self.find_derby_tile(self._grab())
+            if tile is not None:
+                return tile
+            for _ in range(clicks):
+                self._in.click(*arrow)
+                self._sleep(0.15)
+            self._sleep(0.5)
+        return self.find_derby_tile(self._grab())
+
     def open_derby(self, track_visible: Callable[[BgrImage], bool]) -> NavResult:
-        """Games icon -> scroll halfway -> Jamaa Derby tile -> PRO -> the track is on screen."""
+        """Games icon -> scroll until the Jamaa Derby tile shows -> tile -> PRO -> track."""
         for attempt in range(self.cfg.max_attempts):
-            self._in.click(*self.profile.point("games_icon_point"))
-            self._sleep(self.cfg.games_settle_s)
-            self._in.drag(
-                *self.profile.point("scroll_thumb_top_point"),
-                *self.profile.point("scroll_mid_point"),
-            )
-            self._sleep(0.6)
-            image = self._grab()
-            tile = self.find_derby_tile(image)
+            if not self.games_menu_open():
+                self._in.click(*self.profile.point("games_icon_point"))
+                self._sleep(self.cfg.games_settle_s)
+            tile = self.find_derby_tile_scrolling()
             if tile is None:
                 self._emit("planner.tile_missing", Level.NOTICE, attempt=attempt + 1)
-                tile = self.profile.point("derby_tile_fallback_point")
+                self._in.click(*self.profile.point("games_close_point"))
+                self._sleep(self.cfg.games_settle_s)
+                continue
             self._in.click(*tile)
             self._sleep(self.cfg.games_settle_s)
             pro = self.find_pro_button(self._grab())

@@ -122,14 +122,21 @@ class InputLease:
 
 @dataclass
 class PresenceDetector:
-    """Decides whether William is back at the keyboard."""
+    """Decides whether William is back at the keyboard. ``mark()`` says "what happened up to
+    now was him starting us": the click on Start (or F9) is his input too, and without the
+    mark every mode began its life paused for ``resume_after_idle_s``."""
 
     bot_last_input_ts: Callable[[], float]
     slack_s: float
     resume_after_idle_s: float
+    mark_ts: float = 0.0
+
+    def mark(self) -> None:
+        self.mark_ts = time.time()
 
     def user_active(self) -> bool:
-        return is_user_active(last_user_input_time(), self.bot_last_input_ts(), self.slack_s)
+        since = max(self.bot_last_input_ts(), self.mark_ts)
+        return is_user_active(last_user_input_time(), since, self.slack_s)
 
     def seconds_since_user_input(self) -> float:
         return max(0.0, time.time() - last_user_input_time())

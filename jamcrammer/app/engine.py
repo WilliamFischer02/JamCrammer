@@ -318,6 +318,7 @@ class Engine:
             self.pause.resume()
             self.state.paused = False
         self.state.last_error = ""
+        self.presence.mark()  # the click on Start is not a takeover
         self._mode_stop.clear()
         self.state.mode = name
         self.state.mode_state = "STARTING"

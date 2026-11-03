@@ -48,6 +48,31 @@ fields:
     value: [1452, 577]
     status: proposed
     note: where the thumb is dragged to (halfway) so the Jamaa Derby tile is visible
+  games_scroll_up_point:
+    type: point
+    value: [1452, 232]
+    status: calibrated
+    note: the games menu scrollbar's up arrow; the list keeps its scroll position, so it is sent to the top first
+  games_scroll_down_point:
+    type: point
+    value: [1452, 920]
+    status: calibrated
+    note: the games menu scrollbar's down arrow (blue); measured 2026-11-02 live. The list scrolls by clicking it; a thumb drag depends on where the thumb sits
+  games_scroll_rounds:
+    type: number
+    value: 12
+    status: calibrated
+    note: looks for the Jamaa Derby tile this many times while scrolling down
+  games_scroll_clicks:
+    type: number
+    value: 1
+    status: calibrated
+    note: arrow clicks between looks (one click scrolls most of a page; three jumped to the bottom past the Derby)
+  games_close_point:
+    type: point
+    value: [1488, 138]
+    status: calibrated
+    note: the games menu's blue X (top right of the panel), measured 2026-11-02 live
   derby_tile_template:
     type: template
     value: templates/navigation/jamaa_derby_tile.png

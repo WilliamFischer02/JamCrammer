@@ -28,6 +28,7 @@ from jamcrammer.vision.ocr import contains_any, normalize_text, ocr_image
 log = get_logger("parties")
 
 BgrImage = npt.NDArray[np.uint8]
+CLOSE_SETTLE_S = 0.4  # the panel slides when the tray toggles: look twice
 Box = tuple[int, int, int, int]
 GrabFn = Callable[[], BgrImage]
 
@@ -481,21 +482,31 @@ class PartyWatcher:
             self._sleep(self.cfg.panel_poll_s)
 
     def ensure_closed(self) -> bool:
-        image = self._grab()
-        title = self.analyzer.is_open(image)
-        if title is None:
-            return True
-        point = self.analyzer.close_x_point(image, title)
-        if point is None:
-            return False
-        for _ in range(2):
+        """Close My Parties if it is open. The panel slides (the tray pushes it aside and it
+        comes back), so a title that is not found is checked again after a settle before it
+        counts as closed, and a close is confirmed the same way."""
+        for _attempt in range(3):
+            image = self._grab()
+            title = self.analyzer.is_open(image)
+            if title is None:
+                self._sleep(CLOSE_SETTLE_S)
+                image = self._grab()
+                title = self.analyzer.is_open(image)
+                if title is None:
+                    return True
+            point = self.analyzer.close_x_point(image, title)
+            if point is None:
+                return False
             self._input.click(*point)
             if (
                 self._wait_for(
                     lambda im: self.analyzer.is_open(im) is None, self.cfg.close_timeout_s
                 )
-                is not None
+                is None
             ):
+                continue
+            self._sleep(CLOSE_SETTLE_S)
+            if self.analyzer.is_open(self._grab()) is None:
                 return True
         self._emit("parties.close_failed", Level.NOTICE)
         return False
