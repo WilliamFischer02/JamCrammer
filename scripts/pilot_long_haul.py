@@ -157,6 +157,17 @@ def drop_on(x: int, y: int) -> None:
     close_dialogs()
 
 
+def _pin_is_bridge(s: dict) -> bool:
+    """The droplet pin also floats over a crystal in reach: a bridge has a big cap under
+    the pin and no lit crystal beside it."""
+    if not s["drop"]:
+        return False
+    px, py = s["drop"]
+    cap_under = any(abs(c[0] - px) < 160 and -40 < c[1] - py < 260 for c in s["caps"])
+    lit_near = any(abs(c[0] - px) < 160 and -40 < c[1] - py < 260 for c in s["lit"])
+    return cap_under and not lit_near
+
+
 def acts_here(s: dict, w: World) -> list[str]:
     """What the screen offers at this stop, done: picks, lights, bridges, smashes."""
     done: list[str] = []
@@ -173,7 +184,7 @@ def acts_here(s: dict, w: World) -> list[str]:
         done.append(f"lit {x},{y} -> {s['count']}")
     # a bridge cap: the game shows a white pin with a blue droplet over it when the animal
     # is in reach; only then is a blossom dropped (a blossom fungus looks the same otherwise)
-    if s["drop"] and s["count"]:
+    if _pin_is_bridge(s) and s["count"]:
         x, y = s["drop"][0], s["drop"][1]
         drop_on(x, y + 120)  # the cap sits under its pin
         s2 = look()
@@ -196,7 +207,7 @@ def acts_here(s: dict, w: World) -> list[str]:
         pilot("key", "right" if x > px + 40 else "left" if x < px - 40 else "up", "0.3")
         pilot("key", "up" if y < py - 40 else "down" if y > py + 40 else "left", "0.3")
         s2 = look()
-        if s2["drop"] and s2["count"]:
+        if _pin_is_bridge(s2) and s2["count"]:
             x, y = s2["drop"][0], s2["drop"][1]
             drop_on(x, y + 120)
             s3 = look()
