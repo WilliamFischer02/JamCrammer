@@ -116,6 +116,7 @@ def look() -> dict:
         "refused": d.get("refused"),
         "dialog": d.get("dialog_x"),
         "pin": d.get("pin"),
+        "drop": d.get("drop_pin"),
         "count": counts[0],
         "banner": d.get("banner"),
         "mm": d.get("mm"),
@@ -170,28 +171,51 @@ def acts_here(s: dict, w: World) -> list[str]:
         drop_on(x, y)
         s = look()
         done.append(f"lit {x},{y} -> {s['count']}")
-    # a bridge cap in reach: a big "fungus" blob with no pin and no blossom fungus glow; the
-    # bloom grows it a lot, which is how we know it was a bridge
-    if s["caps"] and s["caps"][0][3] <= REACH_PX and s["count"] and not s["pin"]:
-        x, y, area = s["caps"][0][0], s["caps"][0][1], s["caps"][0][2]
-        drop_on(x, y)
+    # a bridge cap: the game shows a white pin with a blue droplet over it when the animal
+    # is in reach; only then is a blossom dropped (a blossom fungus looks the same otherwise)
+    if s["drop"] and s["count"]:
+        x, y = s["drop"][0], s["drop"][1]
+        drop_on(x, y + 120)  # the cap sits under its pin
         s2 = look()
-        grown = s2["caps"] and s2["caps"][0][2] > area * 1.6
-        if grown:
+        pilot(
+            "mark",
+            "bridge",
+            str(x),
+            str(y + 120),
+            "--status",
+            "open",
+            "--note",
+            "mushroom bridge bloomed by the long haul",
+        )
+        done.append(f"bridge at the drop pin {x},{y}: count {s['count']} -> {s2['count']}")
+        s = s2
+    elif s["caps"] and 160 < s["caps"][0][3] <= REACH_PX and s["count"] and not s["pin"]:
+        # a big cap in view with no pin yet: step up to it and look for the droplet
+        x, y = s["caps"][0][0], s["caps"][0][1]
+        px, py = s["player"]
+        pilot("key", "right" if x > px + 40 else "left" if x < px - 40 else "up", "0.3")
+        pilot("key", "up" if y < py - 40 else "down" if y > py + 40 else "left", "0.3")
+        s2 = look()
+        if s2["drop"] and s2["count"]:
+            x, y = s2["drop"][0], s2["drop"][1]
+            drop_on(x, y + 120)
+            s3 = look()
             pilot(
                 "mark",
                 "bridge",
                 str(x),
-                str(y),
+                str(y + 120),
                 "--status",
                 "open",
                 "--note",
                 "mushroom bridge bloomed by the long haul",
             )
-            done.append(f"bridge {x},{y} bloomed")
+            done.append(
+                f"bridge at the drop pin {x},{y} after a step: count {s2['count']} -> {s3['count']}"
+            )
+            s = s3
         else:
-            done.append(f"dropped on a cap at {x},{y}: no bloom (count {s2['count']})")
-        s = s2
+            s = s2
     if s["decoy"] and s["decoy"][0][3] <= REACH_PX:
         x, y = s["decoy"][0][0], s["decoy"][0][1]
         r = pilot("smash", str(x), str(y), "--max", "12")
