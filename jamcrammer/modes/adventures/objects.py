@@ -86,7 +86,11 @@ def nearest(blobs: list[Blob], pt: tuple[float, float], kind: str | None = None)
 MARKER_HUD = (420, 300)  # the item slots (white squares) are pins to a colour test: masked
 
 
-MARKER_INNER = {"paw": "marker_yellow_hsv", "flame": "marker_orange_hsv"}
+MARKER_INNER = {
+    "paw": "marker_yellow_hsv",
+    "flame": "marker_orange_hsv",
+    "drop": "marker_blue_hsv",  # the blue droplet over a mushroom bridge cap: drop a blossom
+}
 
 
 def find_marker(

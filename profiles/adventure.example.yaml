@@ -356,6 +356,13 @@ fields:
     value: 0.7
     status: calibrated
     note: best correlation that counts (real digits 0.99-1.0, no slot <= 0.2)
+  marker_blue_hsv:
+    type: color
+    label: Bridge pin droplet colour
+    help: The light-blue droplet inside the white pin that floats over a mushroom bridge cap when the animal is in reach; a blossom dropped on the cap blooms it into a bridge.
+    value: [[92, 70, 180], [104, 255, 255]]
+    status: calibrated
+    note: measured on the first bridge's pin, 2026-11-03 (hue 96-98, sat 88-192, val 217-255)
   marker_orange_hsv:
     type: color
     label: Torch pin colour

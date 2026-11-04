@@ -145,6 +145,7 @@ class Seen:
     crystals: list[dict[str, Any]]
     fungi: list[dict[str, Any]]
     pin: list[int] | None
+    drop_pin: list[int] | None = None  # the blue droplet pin over a bridge cap in reach
     ocr: list[dict[str, Any]] = field(default_factory=list)
 
     def as_dict(self) -> dict[str, Any]:
@@ -186,6 +187,7 @@ def summarize(
         pt = sight.find_dialog_x(frame, dialog_x, prof.number("dialog_x_min"))
         x = [pt[0], pt[1]] if pt is not None else None
     pin = objects.find_marker(frame, prof)
+    drop = objects.find_marker(frame, prof, inner="drop") if prof.has("marker_blue_hsv") else None
     lines = [{"text": ln.text, "box": list(ln.box)} for ln in ocr.lines[:MAX_OCR_LINES] if ln.text]
     return Seen(
         ts=time.time(),
@@ -201,6 +203,7 @@ def summarize(
         crystals=[asdict(b) for b in objects.crystals(frame, prof)[:12]],
         fungi=[asdict(b) for b in objects.fungi(frame, prof)[:8]],
         pin=[pin.x, pin.y] if pin else None,
+        drop_pin=[drop.x, drop.y] if drop else None,
         ocr=lines,
     )
 
