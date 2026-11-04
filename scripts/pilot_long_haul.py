@@ -32,6 +32,7 @@ SCALE = 70.0
 MM_PER_S = 5.5
 BRIDGE_MIN_AREA = 15000  # a bridge cap reads as a big "fungus" blob (the real fungi too)
 RELOAD_EVERY = 8
+SMASHED: list[tuple[float, float]] = []  # world px of every smash tried (lit decoys never pop)
 
 
 def pilot(*argv: str, timeout: float = 420.0) -> dict:
@@ -175,11 +176,15 @@ def acts_here(s: dict, w: World) -> list[str]:
         s = pick_at_pin(s)
         done.append(f"picked -> {s['count']}")
     # unlit crystals in reach, one blossom each (never a decoy: those read as decoy)
+    dropped: list[tuple[int, int]] = []
     for _ in range(2):
         if not s["unlit"] or s["unlit"][0][3] > REACH_PX or not s["count"]:
             break
         x, y = s["unlit"][0][0], s["unlit"][0][1]
+        if any(math.dist((x, y), q) < 80 for q in dropped):
+            break  # the lit reading lags a drop: never twice at one spot
         drop_on(x, y)
+        dropped.append((x, y))
         s = look()
         done.append(f"lit {x},{y} -> {s['count']}")
     # a bridge cap: the game shows a white pin with a blue droplet over it when the animal
@@ -227,10 +232,14 @@ def acts_here(s: dict, w: World) -> list[str]:
             s = s3
         else:
             s = s2
-    if s["decoy"] and s["decoy"][0][3] <= REACH_PX:
+    if s["decoy"] and s["decoy"][0][3] <= REACH_PX and s["mm"]:
         x, y = s["decoy"][0][0], s["decoy"][0][1]
-        r = pilot("smash", str(x), str(y), "--max", "12")
-        done.append(f"smash {x},{y} hits {r.get('hits')}")
+        wx = s["mm"][0] * SCALE + (x - s["player"][0])
+        wy = s["mm"][1] * SCALE + (y - s["player"][1])
+        if all(math.dist((wx, wy), q) > 220 for q in SMASHED):
+            r = pilot("smash", str(x), str(y), "--max", "12")
+            SMASHED.append((wx, wy))
+            done.append(f"smash {x},{y} hits {r.get('hits')}")
     return done
 
 
