@@ -442,7 +442,8 @@ class Executor:
             if p is not None:
                 self.area = p.area
         fix = self.loc.rejoin(frame, self._wall())
-        if fix.pos is not None:
+        if fix.pos is not None and fix.dot is not None:
+            # no dot: a menu, a dialog, the den (which once got pasted into the chamber)
             self.world.mark_track(self.area, fix.pos)
             self._observe(frame, fix.pos, tag="fix")
         self._publish(fix)
@@ -927,7 +928,7 @@ class Executor:
                 self._in.key_up(k)
         if reason == "collision" and self.close_dialog(frame):
             reason = "dialog"  # a dialog held the animal: not a wall
-        if fix.pos is not None:
+        if fix.pos is not None and fix.dot is not None:
             self._observe(frame, fix.pos, tag=reason)
         return Hold(reason, travelled, pos0, fix.pos, ticks, fix)
 
