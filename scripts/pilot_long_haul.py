@@ -219,7 +219,7 @@ def restock(w: World, cur, level: dict) -> tuple[str, tuple]:
     return "no pin at the three nearest fungi", cur
 
 
-def main() -> None:
+def main() -> None:  # noqa: PLR0912 - a scratch driver
     w = load_world()
     level = json.loads(LEVEL.read_text(encoding="utf-8"))
     prog = json.loads(PROGRESS.read_text()) if PROGRESS.exists() else {"stops": None, "done": {}}
