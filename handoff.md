@@ -49,7 +49,27 @@ Design and numbers: **`docs/MAPPING.md` section 2b**; rationale in `decisions.md
   The scratch batch drivers (`map_batch.py` with `batch_plan_progress.json` = the recorded
   route's 81 chamber stops in order; `batch_progress.json` = a 450 px lattice) only walk
   and scan: they must run after the opening acts.
-- **Next:** William logs in (land animal, in the den); `pilot enter`; the batch driver
+- **Evening (17:00-):** the picture of the chamber was rebuilt from 8,973 kept frames
+  (4,050 in the largest group, 200 tiles, residual 0.09 px median; 63 crystals, 55 fungi,
+  10 decoys placed from it, source `picture`) and installed + committed; the Mapping tab
+  shows it. Three mushroom bridges were bloomed by hand (a blossom on the cap: slot click,
+  then the cap) at mm 1592,796 / 1570,782 / 1533,768 and marked; the game shows a white
+  pin with a **blue droplet** over a cap (or a crystal) in reach: `marker_blue_hsv`, `look`
+  reports it as `drop_pin`. The walk was rebuilt again: `goto` plans on the world grid,
+  walks each leg by a click on the floor (the game paths around NPCs and rocks), confirms a
+  stuck with the minimap dot, bumps block two cells deep and two across, a blocked goal is
+  replaced by the nearest open cell, a sealed-in animal unblocks around itself. The
+  **long-haul driver** (`scripts/pilot_long_haul.py`, state under `data/pilot/`) walks all
+  693 lattice stops nearest-first with the level's acts on the way (paw pin -> pick; unlit
+  crystal in reach -> slot click + crystal click; droplet pin over a cap -> bloom; decoy ->
+  smash; slot empty -> the nearest fungus spot); it was running at 17:45 with ~105 stops
+  done, 16 crystals lit, 8 restocks. Logouts: 16:42 after 2 h 08 min of continuous input
+  (so not idleness); the pilot's session budget was raised to 720 min.
+- **Next:** let the long haul finish (or halt on a logout: William logs in, `pilot enter`,
+  restart the driver, it resumes); then `pilot rebuild` over every session (~1 h for 12k
+  frames: registration ~0.35 s per candidate pair), `pilot reload`, commit the world
+  folder; review the picture for grey cracked rocks (no colour of their own: locate them on
+  the picture, then smash by position), the far-west ledge, the door. The earlier plan:
   (scratch `map_batch.py`, resumable from `batch_progress.json`) over the pending stops;
   watch whether the keepalive holds the session past 9 min; then the hand work: the mushroom
   bridges (a blossom dragged onto the glowing cluster at mm 1582,796 opened the ledge
