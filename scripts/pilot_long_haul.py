@@ -334,6 +334,18 @@ def main() -> None:  # noqa: PLR0912 - a scratch driver
             "acts": done,
             "s": round(time.time() - t0),
         }
+        gained = dist_mm - float(r.get("dist_mm") or dist_mm)
+        if not r.get("ok") and gained < 2.0:
+            # no way there from here: the stops around it share the obstacle
+            near = [
+                q
+                for q in pending
+                if q != k and str(q) not in prog["done"] and math.dist(st[q]["mm"], mm) < 6.0
+            ]
+            for q in near:
+                prog["done"][str(q)] = {"ok": False, "reason": "deferred_unreachable"}
+            if near:
+                done.append(f"deferred {len(near)} stops around it")
         PROGRESS.write_text(json.dumps(prog))
         log(
             f"stop {k} mm {mm} ({dist_mm:.0f} away): {r.get('reason')} dist {r.get('dist_mm')}; {'; '.join(done) or 'nothing to do'}; {len(pending) - 1} left ({round(time.time() - t0)} s)"
